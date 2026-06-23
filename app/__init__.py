@@ -19,11 +19,14 @@ def create_app(config_name='development'):
     cors.init_app(app, resources={r"/api/*": {"origins": "*"}})
     login_manager.init_app(app)
 
-    # Ensure upload folder exists
-    upload_folder = os.path.join(app.root_path, '..', app.config['UPLOAD_FOLDER'])
-    os.makedirs(upload_folder, exist_ok=True)
-    os.makedirs(os.path.join(upload_folder, 'products'), exist_ok=True)
-    os.makedirs(os.path.join(upload_folder, 'drivers'), exist_ok=True)
+    # Ensure upload folder exists (catch errors on read-only serverless filesystems)
+    try:
+        upload_folder = os.path.join(app.root_path, '..', app.config['UPLOAD_FOLDER'])
+        os.makedirs(upload_folder, exist_ok=True)
+        os.makedirs(os.path.join(upload_folder, 'products'), exist_ok=True)
+        os.makedirs(os.path.join(upload_folder, 'drivers'), exist_ok=True)
+    except OSError:
+        pass
 
     # Register blueprints
     from app.blueprints.main import main_bp
