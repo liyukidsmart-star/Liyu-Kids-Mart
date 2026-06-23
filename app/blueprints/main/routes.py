@@ -32,7 +32,7 @@ def init_db():
             admin = User(
                 email="admin@liyukidsmart.com",
                 full_name="Admin",
-                role=UserRole.ADMIN,
+                role=UserRole.admin,
                 is_active=True,
                 is_verified=True
             )
