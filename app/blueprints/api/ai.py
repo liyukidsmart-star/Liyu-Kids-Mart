@@ -41,9 +41,10 @@ def _save_message(session_id, role, content, user_id=None, channel='web'):
 
 def _call_gemini(messages):
     try:
+        import os
         from google import genai
         from google.genai import types
-        client = genai.Client(api_key='AIzaSyAbOqNG7pf1bDHf2KA3TSkO2jwiG8o7sD0')
+        client = genai.Client(api_key=os.getenv('GEMINI_API_KEY', 'AIzaSyAbOqNG7pf1bDHf2KA3TSkO2jwiG8o7sD0'))
         
         system_instruction = ""
         gemini_history = []
