@@ -23,9 +23,24 @@ def index():
 @main_bp.route('/init-db')
 def init_db():
     from app.extensions import db
+    from app.models.user import User, UserRole
     try:
         db.create_all()
-        return "<h1>Success!</h1><p>Database tables created successfully! You can now <a href='/'>return to the homepage</a>.</p>", 200
+        # Create default admin if not exists
+        admin = User.query.filter_by(email="admin@liyukidsmart.com").first()
+        if not admin:
+            admin = User(
+                email="admin@liyukidsmart.com",
+                full_name="Admin",
+                role=UserRole.ADMIN,
+                is_active=True,
+                is_verified=True
+            )
+            admin.set_password("admin123")
+            db.session.add(admin)
+            db.session.commit()
+            
+        return "<h1>Success!</h1><p>Database tables and admin user (admin@liyukidsmart.com / admin123) created successfully! You can now <a href='/'>return to the homepage</a>.</p>", 200
     except Exception as e:
         return f"<h1>Error Creating Tables</h1><p>{str(e)}</p>", 500
 
