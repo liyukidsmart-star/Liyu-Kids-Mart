@@ -125,18 +125,22 @@ def create_product():
         # Handle image uploads
         images = request.files.getlist('images')
         upload_folder = current_app.config.get('UPLOAD_FOLDER', 'static/uploads')
-        os.makedirs(upload_folder, exist_ok=True)
-        for i, img_file in enumerate(images):
-            if img_file and img_file.filename and allowed_file(img_file.filename):
-                ext = img_file.filename.rsplit('.', 1)[1].lower()
-                fname = f'product_{product.id}_{i}.{ext}'
-                img_file.save(os.path.join(upload_folder, fname))
-                img = ProductImage(product_id=product.id,
-                                   image_url=f'/static/uploads/{fname}',
-                                   is_primary=(i == 0), sort_order=i)
-                db.session.add(img)
-
-        db.session.commit()
+        try:
+            os.makedirs(upload_folder, exist_ok=True)
+            for i, img_file in enumerate(images):
+                if img_file and img_file.filename and allowed_file(img_file.filename):
+                    ext = img_file.filename.rsplit('.', 1)[1].lower()
+                    fname = f'product_{product.id}_{i}.{ext}'
+                    img_file.save(os.path.join(upload_folder, fname))
+                    img = ProductImage(product_id=product.id,
+                                       image_url=f'/static/uploads/{fname}',
+                                       is_primary=(i == 0), sort_order=i)
+                    db.session.add(img)
+            db.session.commit()
+        except OSError:
+            # Serverless read-only filesystem crash prevention
+            db.session.rollback()
+            flash("Image upload skipped: Vercel requires AWS S3 for file uploads.", "warning")
 
         # Broadcast to Telegram if product is active (published)
         if product.is_active:
