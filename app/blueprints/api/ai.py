@@ -60,7 +60,7 @@ def _call_gemini(messages):
         
         # Start a chat session
         chat = client.chats.create(
-            model='gemini-3.0-flash-lite',
+            model='gemini-3.1-flash-lite',
             config=types.GenerateContentConfig(
                 system_instruction=system_instruction,
             ),
