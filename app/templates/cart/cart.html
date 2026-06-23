@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+{% block title %}My Cart — Liyu Kids Mart{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <h1 class="page-title mb-4"><i class="fas fa-shopping-bag me-2"></i>My Cart</h1>
+  {% if items %}
+  <div class="row g-4">
+    <!-- Cart Items -->
+    <div class="col-lg-8">
+      <div class="cart-table-wrap">
+        {% for item in items %}
+        <div class="cart-item" id="cartItem{{ item.id }}">
+          <img src="{{ item.product.primary_image() if item.product else '/static/images/placeholder.png' }}"
+               alt="{{ item.product.name if item.product else '' }}" class="cart-item-img"
+               onerror="this.src='/static/images/placeholder.png'"/>
+          <div class="cart-item-info">
+            <a href="{{ url_for('shop.detail', slug=item.product.slug) if item.product else '#' }}" class="cart-item-name">
+              {{ item.product.name if item.product else 'Product' }}
+            </a>
+            <div class="cart-item-price">ETB {{ "%.0f"|format(item.product.price if item.product else 0) }}</div>
+          </div>
+          <div class="cart-item-qty">
+            <div class="qty-stepper-sm">
+              <button onclick="updateQty({{ item.id }}, {{ item.quantity - 1 }})">−</button>
+              <span>{{ item.quantity }}</span>
+              <button onclick="updateQty({{ item.id }}, {{ item.quantity + 1 }})">+</button>
+            </div>
+          </div>
+          <div class="cart-item-total">ETB {{ "%.0f"|format((item.product.price if item.product else 0) * item.quantity) }}</div>
+          <button class="cart-item-remove" onclick="removeCartItem({{ item.id }}, this)" title="Remove">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        {% endfor %}
+      </div>
+
+      <!-- Coupon -->
+      <div class="coupon-section mt-3">
+        <div class="input-group">
+          <input type="text" id="couponInput" class="form-control" placeholder="Coupon code (e.g. WELCOME10)"/>
+          <button class="btn lkm-btn-outline-green" onclick="applyCoupon()">Apply</button>
+        </div>
+        {% if coupon_code %}<div class="text-success small mt-1"><i class="fas fa-check-circle me-1"></i>Coupon "{{ coupon_code }}" applied</div>{% endif %}
+      </div>
+    </div>
+
+    <!-- Order Summary -->
+    <div class="col-lg-4">
+      <div class="order-summary-card">
+        <h5 class="summary-title">Order Summary</h5>
+        <div class="summary-row"><span>Subtotal</span><span>ETB {{ "%.0f"|format(subtotal) }}</span></div>
+        <div class="summary-row"><span>Delivery</span><span>{{ 'FREE ✅' if delivery_fee == 0 else 'ETB ' ~ "%.0f"|format(delivery_fee) }}</span></div>
+        {% if discount > 0 %}
+        <div class="summary-row text-success"><span>Discount</span><span>−ETB {{ "%.0f"|format(discount) }}</span></div>
+        {% endif %}
+        <hr/>
+        <div class="summary-row summary-total"><span>Total</span><span>ETB {{ "%.0f"|format(total) }}</span></div>
+        {% if subtotal < 1000 %}
+        <div class="free-delivery-hint">Add ETB {{ "%.0f"|format(1000 - subtotal) }} more for free delivery! 🚚</div>
+        {% endif %}
+        <a href="{{ url_for('cart.checkout') }}" class="btn lkm-btn-green w-100 mt-3 btn-lg">
+          <i class="fas fa-lock me-2"></i>Proceed to Checkout
+        </a>
+        <a href="{{ url_for('shop.listing') }}" class="btn lkm-btn-outline-green w-100 mt-2">
+          <i class="fas fa-arrow-left me-1"></i>Continue Shopping
+        </a>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div class="empty-state py-5">
+    <div class="empty-icon">🛒</div>
+    <h3>Your cart is empty</h3>
+    <p>Discover our amazing educational toys and add them to your cart!</p>
+    <a href="{{ url_for('shop.listing') }}" class="btn lkm-btn-green btn-lg mt-2">
+      <i class="fas fa-shopping-bag me-2"></i>Start Shopping
+    </a>
+  </div>
+  {% endif %}
+</div>
+<script>
+function updateQty(itemId, qty) {
+  if (qty < 1) { removeCartItem(itemId); return; }
+  fetch('/cart/update', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({item_id: itemId, quantity: qty})})
+  .then(() => location.reload());
+}
+function removeCartItem(itemId) {
+  fetch('/cart/remove', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({item_id: itemId})})
+  .then(() => { document.getElementById('cartItem' + itemId)?.remove(); updateCartBadge(); });
+}
+function applyCoupon() {
+  const code = document.getElementById('couponInput').value.trim();
+  if (!code) return;
+  fetch('/cart/apply-coupon', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({code: code})})
+  .then(r => r.json()).then(d => {
+    showToast(d.message, d.success ? 'success' : 'danger');
+    if (d.success) setTimeout(() => location.reload(), 1000);
+  });
+}
+</script>
+{% endblock %}

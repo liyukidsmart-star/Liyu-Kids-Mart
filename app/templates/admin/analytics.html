@@ -1,0 +1,59 @@
+{% extends 'admin/base_admin.html' %}
+{% block title %}Analytics — Admin{% endblock %}
+{% block page_title %}Analytics{% endblock %}
+{% block content %}
+<div class="row g-4">
+  <div class="col-md-4"><div class="stat-card stat-green"><div class="stat-icon"><i class="fab fa-telegram"></i></div><div class="stat-label">Telegram Users</div><div class="stat-value">{{ telegram_users }}</div></div></div>
+  <div class="col-md-4"><div class="stat-card stat-blue"><div class="stat-icon"><i class="fas fa-robot"></i></div><div class="stat-label">AI Conversations</div><div class="stat-value">{{ ai_count }}</div></div></div>
+  <div class="col-md-4"><div class="stat-card stat-purple"><div class="stat-icon"><i class="fas fa-box-open"></i></div><div class="stat-label">Products Tracked</div><div class="stat-value">{{ top_products|length }}</div></div></div>
+</div>
+
+<div class="row g-4 mt-2">
+  <div class="col-lg-8">
+    <div class="admin-card">
+      <div class="admin-card-header"><h5>🔥 Top Products by Sales</h5></div>
+      <table class="table admin-table">
+        <thead><tr><th>#</th><th>Product</th><th>Sales</th><th>Views</th><th>Stock</th></tr></thead>
+        <tbody>
+          {% for product in top_products %}
+          <tr>
+            <td class="fw-600 text-muted">{{ loop.index }}</td>
+            <td>
+              <div class="fw-600">{{ product.name }}</div>
+              <div class="x-small text-muted">ETB {{ "{:,.0f}".format(product.price) }}</div>
+            </td>
+            <td><span class="badge bg-success">{{ product.sales_count }}</span></td>
+            <td class="text-muted">{{ product.view_count }}</td>
+            <td><span class="badge {% if product.stock_qty == 0 %}bg-danger{% elif product.stock_qty < 5 %}bg-warning{% else %}bg-success{% endif %}">{{ product.stock_qty }}</span></td>
+          </tr>
+          {% endfor %}
+          {% if not top_products %}<tr><td colspan="5" class="text-center text-muted py-3">No data yet</td></tr>{% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="admin-card">
+      <div class="admin-card-header"><h5>📊 Quick Stats</h5></div>
+      <div class="p-3">
+        <div class="d-flex justify-content-between mb-3">
+          <span class="text-muted">Telegram users</span>
+          <strong>{{ telegram_users }}</strong>
+        </div>
+        <div class="d-flex justify-content-between mb-3">
+          <span class="text-muted">AI chat sessions</span>
+          <strong>{{ ai_count }}</strong>
+        </div>
+        <div class="d-flex justify-content-between mb-3">
+          <span class="text-muted">Products tracked</span>
+          <strong>{{ top_products|length }}</strong>
+        </div>
+        <hr/>
+        <a href="{{ url_for('admin.ai_conversations') }}" class="btn admin-btn-outline w-100 mt-2">
+          <i class="fas fa-robot me-1"></i>View AI Conversations
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

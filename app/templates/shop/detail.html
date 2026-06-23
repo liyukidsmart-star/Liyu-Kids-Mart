@@ -1,0 +1,195 @@
+{% extends 'base.html' %}
+{% block title %}{{ product.name }} — Liyu Kids Mart{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb lkm-breadcrumb">
+      <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}">Home</a></li>
+      <li class="breadcrumb-item"><a href="{{ url_for('shop.listing') }}">Shop</a></li>
+      {% if product.category %}<li class="breadcrumb-item"><a href="{{ url_for('shop.category', slug=product.category.slug) }}">{{ product.category.name }}</a></li>{% endif %}
+      <li class="breadcrumb-item active">{{ product.name }}</li>
+    </ol>
+  </nav>
+
+  <div class="row g-5">
+    <!-- IMAGE GALLERY -->
+    <div class="col-lg-6">
+      <div class="product-gallery">
+        <div class="main-image-wrap">
+          <img src="{{ product.primary_image() }}" alt="{{ product.name }}" class="main-product-img" id="mainProductImg"
+               onerror="this.src='/static/images/placeholder.png'"/>
+          {% if product.is_new_arrival %}<span class="gallery-badge badge-new">New</span>{% endif %}
+          {% if product.compare_price and product.compare_price > product.price %}
+          <span class="gallery-badge badge-sale">{{ ((1 - product.price / product.compare_price) * 100)|int }}% OFF</span>
+          {% endif %}
+        </div>
+        {% if product.all_images()|length > 1 %}
+        <div class="thumb-row mt-2">
+          {% for img_url in product.all_images() %}
+          <img src="{{ img_url }}" alt="View {{ loop.index }}" class="thumb-img {% if loop.first %}active{% endif %}"
+               onclick="swapMainImage(this, '{{ img_url }}')"
+               onerror="this.src='/static/images/placeholder.png'"/>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- PRODUCT INFO -->
+    <div class="col-lg-6">
+      <div class="product-detail-info">
+        {% if product.category %}
+        <a href="{{ url_for('shop.category', slug=product.category.slug) }}" class="detail-category-tag">
+          {{ product.category.icon }} {{ product.category.name }}
+        </a>
+        {% endif %}
+
+        <h1 class="detail-product-name">{{ product.name }}</h1>
+
+        <!-- Rating -->
+        {% if product.avg_rating() > 0 %}
+        <div class="detail-rating mb-3">
+          {% for i in range(5) %}
+          <i class="fas fa-star{% if i >= product.avg_rating()|int %} text-muted{% endif %}"></i>
+          {% endfor %}
+          <span class="ms-2 text-muted small">{{ product.avg_rating() }} ({{ product.review_count() }} reviews)</span>
+        </div>
+        {% endif %}
+
+        <!-- Price -->
+        <div class="detail-price-block mb-3">
+          <span class="detail-price">ETB {{ "%.0f"|format(product.price) }}</span>
+          {% if product.compare_price and product.compare_price > product.price %}
+          <span class="detail-compare">ETB {{ "%.0f"|format(product.compare_price) }}</span>
+          <span class="detail-save-badge">Save ETB {{ "%.0f"|format(product.compare_price - product.price) }}</span>
+          {% endif %}
+        </div>
+
+        <!-- Age & Stock -->
+        <div class="detail-badges mb-3">
+          <span class="detail-badge-age"><i class="fas fa-child me-1"></i>Age: {{ product.age_label() }}</span>
+          {% if product.stock_qty > 0 %}
+          <span class="detail-badge-stock"><i class="fas fa-check-circle me-1"></i>In Stock ({{ product.stock_qty }})</span>
+          {% else %}
+          <span class="detail-badge-outstock"><i class="fas fa-times-circle me-1"></i>Out of Stock</span>
+          {% endif %}
+        </div>
+
+        <!-- Short Description -->
+        {% if product.short_description %}
+        <p class="detail-short-desc">{{ product.short_description }}</p>
+        {% endif %}
+
+        <!-- Tags -->
+        {% if product.tags.count() > 0 %}
+        <div class="detail-tags mb-3">
+          {% for tag in product.tags %}
+          <span class="detail-tag">{{ tag.tag }}</span>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Quantity + Add to Cart -->
+        <div class="detail-actions mb-4">
+          <div class="qty-stepper me-3">
+            <button class="qty-btn" onclick="changeQty(-1)">−</button>
+            <input type="number" id="detailQty" value="1" min="1" max="{{ product.stock_qty }}" class="qty-input"/>
+            <button class="qty-btn" onclick="changeQty(1)">+</button>
+          </div>
+          <button class="btn lkm-btn-green btn-lg flex-grow-1" id="addToCartBtn"
+                  onclick="addToCartWithQty({{ product.id }})"
+                  {% if product.stock_qty == 0 %}disabled{% endif %}>
+            <i class="fas fa-shopping-bag me-2"></i>
+            {{ 'Out of Stock' if product.stock_qty == 0 else 'Add to Cart' }}
+          </button>
+          {% if current_user.is_authenticated %}
+          <button class="btn btn-outline-secondary ms-2 wishlist-btn {% if in_wishlist %}active{% endif %}"
+                  id="wishlistBtn" onclick="toggleWishlist({{ product.id }}, this)" title="Add to Wishlist">
+            <i class="fas fa-heart"></i>
+          </button>
+          {% endif %}
+        </div>
+
+        <!-- Delivery Info -->
+        <div class="delivery-info-box">
+          <div class="di-item"><i class="fas fa-truck"></i><span>Free delivery on orders over ETB 1,000</span></div>
+          <div class="di-item"><i class="fas fa-money-bill-wave"></i><span>Cash on Delivery available</span></div>
+          <div class="di-item"><i class="fas fa-map-marker-alt"></i><span>Delivery across Addis Ababa</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TABS: Description / Reviews -->
+  <div class="mt-5">
+    <ul class="nav lkm-tabs mb-4" id="productTabs">
+      <li class="nav-item"><button class="lkm-tab active" data-bs-toggle="tab" data-bs-target="#descTab">Description</button></li>
+      <li class="nav-item"><button class="lkm-tab" data-bs-toggle="tab" data-bs-target="#reviewsTab">Reviews ({{ product.review_count() }})</button></li>
+    </ul>
+    <div class="tab-content">
+      <div class="tab-pane fade show active" id="descTab">
+        <div class="detail-description">{{ product.description or product.short_description or 'No description available.' }}</div>
+      </div>
+      <div class="tab-pane fade" id="reviewsTab">
+        {% set reviews = product.reviews.filter_by(approved=True).all()|sort(attribute='created_at', reverse=True) %}
+        {% set reviews = reviews[:10] %}
+        {% if reviews %}
+        {% for review in reviews %}
+        <div class="review-item mb-3 pb-3 border-bottom">
+          <div class="d-flex justify-content-between">
+            <strong>{{ review.user.full_name if review.user else 'Anonymous' }}</strong>
+            <small class="text-muted">{{ review.created_at.strftime('%b %d, %Y') if review.created_at else '' }}</small>
+          </div>
+          <div class="review-stars small">
+            {% for i in range(5) %}<i class="fas fa-star{% if i >= review.rating %} text-muted{% endif %}"></i>{% endfor %}
+          </div>
+          <p class="mt-1 mb-0">{{ review.body }}</p>
+        </div>
+        {% endfor %}
+        {% else %}
+        <p class="text-muted">No reviews yet. Be the first to review this product!</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- SIMILAR PRODUCTS -->
+  {% if similar %}
+  <section class="mt-5">
+    <h2 class="section-title mb-4">You Might Also Like</h2>
+    <div class="products-grid">
+      {% for product in similar %}
+      {% include 'shop/_product_card.html' %}
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+</div>
+<script>
+function changeQty(delta) {
+  const input = document.getElementById('detailQty');
+  const max = parseInt(input.max) || 99;
+  const newVal = Math.min(max, Math.max(1, parseInt(input.value || 1) + delta));
+  input.value = newVal;
+}
+function addToCartWithQty(productId) {
+  const qty = parseInt(document.getElementById('detailQty').value) || 1;
+  addToCart(productId, qty);
+}
+function swapMainImage(thumb, url) {
+  document.getElementById('mainProductImg').src = url;
+  document.querySelectorAll('.thumb-img').forEach(t => t.classList.remove('active'));
+  thumb.classList.add('active');
+}
+function toggleWishlist(productId, btn) {
+  fetch('/shop/wishlist/toggle', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({product_id: productId})})
+  .then(r => r.json()).then(d => {
+    if (d.success) {
+      btn.classList.toggle('active', d.action === 'added');
+      showToast(d.action === 'added' ? '❤️ Added to wishlist' : '💔 Removed from wishlist', 'success');
+    }
+  });
+}
+</script>
+{% endblock %}

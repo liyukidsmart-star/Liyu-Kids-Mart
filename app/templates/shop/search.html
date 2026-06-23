@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block title %}Search: {{ query }} — Liyu Kids Mart{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <h2 class="mb-1">Search Results{% if query %} for "<span class="text-green">{{ query }}</span>"{% endif %}</h2>
+  <p class="text-muted mb-4">{{ total }} products found</p>
+  {% if products %}
+  <div class="products-grid">
+    {% for product in products %}{% include 'shop/_product_card.html' %}{% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon">🔍</div>
+    <h3>No results found</h3>
+    <p>Try a different search term or <a href="{{ url_for('shop.listing') }}">browse all products</a>.</p>
+    <div class="mt-3">
+      <strong>Popular searches:</strong><br/>
+      <a href="{{ url_for('shop.search') }}?q=montessori" class="hero-chip me-1">Montessori</a>
+      <a href="{{ url_for('shop.search') }}?q=puzzle" class="hero-chip me-1">Puzzle</a>
+      <a href="{{ url_for('shop.search') }}?q=wooden" class="hero-chip me-1">Wooden toys</a>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

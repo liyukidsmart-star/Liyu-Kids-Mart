@@ -1,0 +1,42 @@
+{% extends 'admin/base_admin.html' %}
+{% block title %}Categories — Admin{% endblock %}
+{% block page_title %}Categories{% endblock %}
+{% block content %}
+<div class="row g-4">
+  <div class="col-lg-4">
+    <div class="admin-card">
+      <div class="admin-card-header"><h5>Add Category</h5></div>
+      <form method="POST" class="p-3">
+        <div class="mb-3"><label class="form-label fw-600">Name *</label>
+          <input type="text" name="name" class="form-control" required/></div>
+        <div class="mb-3"><label class="form-label fw-600">Icon (emoji)</label>
+          <input type="text" name="icon" class="form-control" placeholder="📦" maxlength="4"/></div>
+        <div class="mb-3"><label class="form-label fw-600">Description</label>
+          <input type="text" name="description" class="form-control"/></div>
+        <button type="submit" class="btn admin-btn-green w-100">Add Category</button>
+      </form>
+    </div>
+  </div>
+  <div class="col-lg-8">
+    <div class="admin-card">
+      <div class="admin-card-header"><h5>All Categories ({{ categories|length }})</h5></div>
+      <div class="table-responsive">
+        <table class="table admin-table">
+          <thead><tr><th>Icon</th><th>Name</th><th>Slug</th><th>Products</th><th>Status</th></tr></thead>
+          <tbody>
+            {% for cat in categories %}
+            <tr>
+              <td class="fs-4">{{ cat.icon }}</td>
+              <td class="fw-600">{{ cat.name }}</td>
+              <td><code class="small">{{ cat.slug }}</code></td>
+              <td>{{ cat.products.filter_by(is_active=True).count() }}</td>
+              <td><span class="badge {% if cat.is_active %}bg-success{% else %}bg-secondary{% endif %}">{{ 'Active' if cat.is_active else 'Hidden' }}</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

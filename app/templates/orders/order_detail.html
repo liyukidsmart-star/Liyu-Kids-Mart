@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+{% block title %}Order #{{ order.order_number }} — Liyu Kids Mart{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <div class="row g-4">
+    <div class="col-lg-8">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="page-title mb-0">Order #{{ order.order_number }}</h1>
+        <span class="status-badge status-{{ order.status.value }} fs-6">{{ order.status_label() }}</span>
+      </div>
+
+      <!-- STATUS TIMELINE -->
+      <div class="order-timeline mb-4">
+        {% set steps = [('pending','Order Placed','fas fa-shopping-bag'),
+                        ('confirmed','Confirmed','fas fa-check'),
+                        ('packed','Packed','fas fa-box'),
+                        ('out_for_delivery','Out for Delivery','fas fa-truck'),
+                        ('delivered','Delivered','fas fa-home')] %}
+        {% set current_idx = {'pending':0,'confirmed':1,'packed':2,'out_for_delivery':3,'delivered':4}.get(order.status.value, 0) %}
+        {% for status_val, label, icon in steps %}
+        {% set step_idx = loop.index0 %}
+        <div class="timeline-step {% if step_idx <= current_idx %}completed{% endif %} {% if step_idx == current_idx %}current{% endif %}">
+          <div class="timeline-icon"><i class="{{ icon }}"></i></div>
+          <div class="timeline-label">{{ label }}</div>
+        </div>
+        {% if not loop.last %}<div class="timeline-line {% if step_idx < current_idx %}completed{% endif %}"></div>{% endif %}
+        {% endfor %}
+      </div>
+
+      <!-- ITEMS -->
+      <div class="checkout-card mb-3">
+        <h5 class="checkout-section-title">Items Ordered</h5>
+        {% for item in order.items %}
+        <div class="checkout-item-row">
+          <img src="{{ item.product_image() }}" class="checkout-item-img" onerror="this.src='/static/images/placeholder.png'"/>
+          <div class="flex-grow-1">
+            <div class="fw-600">{{ item.product_name() }}</div>
+            <div class="small text-muted">× {{ item.quantity }}</div>
+          </div>
+          <div class="fw-600">ETB {{ "%.0f"|format(item.total_price) }}</div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <!-- DELIVERY ADDRESS -->
+      {% if order.address %}
+      <div class="checkout-card mb-3">
+        <h5 class="checkout-section-title"><i class="fas fa-map-marker-alt me-2"></i>Delivery Address</h5>
+        <p class="mb-1 fw-600">{{ order.address.recipient_name }}</p>
+        <p class="mb-1">{{ order.address.phone }}</p>
+        <p class="mb-0 text-muted">{{ order.address.specific_location }}, {{ order.address.sub_city }}, {{ order.address.city }}</p>
+      </div>
+      {% endif %}
+
+      <!-- DRIVER INFO -->
+      {% if order.delivery and order.delivery.driver %}
+      <div class="checkout-card mb-3">
+        <h5 class="checkout-section-title"><i class="fas fa-motorcycle me-2"></i>Your Driver</h5>
+        <div class="d-flex align-items-center gap-3">
+          <div class="driver-avatar"><i class="fas fa-user-circle fa-2x text-green"></i></div>
+          <div>
+            <div class="fw-600">{{ order.delivery.driver.user.full_name }}</div>
+            <div class="text-muted small">{{ order.delivery.driver.vehicle_type }} • {{ order.delivery.driver.license_plate }}</div>
+            <a href="tel:{{ order.delivery.driver.user.phone }}" class="btn lkm-btn-green btn-sm mt-1">
+              <i class="fas fa-phone me-1"></i>Call Driver
+            </a>
+          </div>
+        </div>
+        <!-- Live Map -->
+        {% if order.delivery.driver.current_lat %}
+        <div id="trackingMap" style="height:200px;border-radius:12px;margin-top:12px;"></div>
+        <script>
+        window.addEventListener('load', function() {
+          if (typeof L !== 'undefined') {
+            var map = L.map('trackingMap').setView([{{ order.delivery.driver.current_lat }}, {{ order.delivery.driver.current_lng }}], 14);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+            L.marker([{{ order.delivery.driver.current_lat }}, {{ order.delivery.driver.current_lng }}]).addTo(map).bindPopup('Driver Location');
+          }
+        });
+        </script>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- PAYMENT SUMMARY -->
+    <div class="col-lg-4">
+      <div class="order-summary-card">
+        <h5 class="summary-title">Payment Summary</h5>
+        <div class="summary-row"><span>Subtotal</span><span>ETB {{ "%.0f"|format(order.subtotal) }}</span></div>
+        <div class="summary-row"><span>Delivery</span><span>{{ 'FREE' if order.delivery_fee == 0 else 'ETB ' ~ "%.0f"|format(order.delivery_fee) }}</span></div>
+        {% if order.discount_amount > 0 %}
+        <div class="summary-row text-success"><span>Discount</span><span>−ETB {{ "%.0f"|format(order.discount_amount) }}</span></div>
+        {% endif %}
+        <hr/>
+        <div class="summary-row summary-total"><span>Total</span><span>ETB {{ "%.0f"|format(order.total) }}</span></div>
+        <div class="mt-3">
+          <div class="small text-muted"><i class="fas fa-credit-card me-1"></i>Payment: {{ order.payment_method.value|upper }}</div>
+          <div class="small text-muted"><i class="fas fa-calendar me-1"></i>Placed: {{ order.created_at.strftime('%b %d, %Y %H:%M') if order.created_at else '' }}</div>
+        </div>
+        <a href="{{ url_for('orders.my_orders') }}" class="btn lkm-btn-outline-green w-100 mt-3">
+          ← Back to Orders
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+{% endblock %}

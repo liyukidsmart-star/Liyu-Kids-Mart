@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% block title %}My Orders — Liyu Kids Mart{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <h1 class="page-title mb-4">My Orders</h1>
+  <!-- Status Tabs -->
+  <div class="status-tabs mb-4">
+    <a href="{{ url_for('orders.my_orders') }}" class="status-tab {% if not status_filter %}active{% endif %}">All</a>
+    {% for s, label in [('pending','Pending'), ('confirmed','Confirmed'), ('out_for_delivery','Out for Delivery'), ('delivered','Delivered'), ('cancelled','Cancelled')] %}
+    <a href="{{ url_for('orders.my_orders') }}?status={{ s }}"
+       class="status-tab {% if status_filter == s %}active{% endif %}">{{ label }}</a>
+    {% endfor %}
+  </div>
+  {% if orders %}
+  <div class="orders-list">
+    {% for order in orders %}
+    <div class="order-card">
+      <div class="order-card-header">
+        <div>
+          <span class="order-number">#{{ order.order_number }}</span>
+          <span class="order-date text-muted ms-2 small">{{ order.created_at.strftime('%b %d, %Y') if order.created_at else '' }}</span>
+        </div>
+        <span class="status-badge status-{{ order.status.value }}">{{ order.status_label() }}</span>
+      </div>
+      <div class="order-items-preview">
+        {% for item in order.items[:3] %}
+        <img src="{{ item.product_image() }}" alt="{{ item.product_name() }}"
+             class="order-preview-img" onerror="this.src='/static/images/placeholder.png'"/>
+        {% endfor %}
+        {% if order.items|length > 3 %}
+        <div class="order-more-items">+{{ order.items|length - 3 }}</div>
+        {% endif %}
+        <div class="ms-3">
+          <div class="small text-muted">{{ order.items|length }} item{{ 's' if order.items|length != 1 }}</div>
+          <div class="fw-600">ETB {{ "%.0f"|format(order.total) }}</div>
+        </div>
+      </div>
+      <div class="order-card-footer">
+        <a href="{{ url_for('orders.detail', order_number=order.order_number) }}" class="btn lkm-btn-outline-green btn-sm">
+          <i class="fas fa-eye me-1"></i>View Details
+        </a>
+        {% if order.status.value in ('pending','confirmed') %}
+        <form method="POST" action="{{ url_for('orders.cancel', order_number=order.order_number) }}" class="d-inline"
+              onsubmit="return confirm('Cancel this order?')">
+          <button type="submit" class="btn btn-outline-danger btn-sm ms-2">Cancel</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state py-5">
+    <div class="empty-icon">📦</div>
+    <h3>No orders yet</h3>
+    <p>Start shopping to place your first order!</p>
+    <a href="{{ url_for('shop.listing') }}" class="btn lkm-btn-green btn-lg mt-2">Browse Products</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

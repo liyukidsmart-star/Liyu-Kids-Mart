@@ -1,0 +1,64 @@
+{% extends 'admin/base_admin.html' %}
+{% block title %}Orders — Admin{% endblock %}
+{% block page_title %}Orders{% endblock %}
+{% block content %}
+<!-- Status Filters -->
+<div class="status-tabs mb-3">
+  <a href="{{ url_for('admin.orders') }}" class="status-tab {% if not status_filter %}active{% endif %}">All</a>
+  {% for s, label in [('pending','Pending'),('confirmed','Confirmed'),('packed','Packed'),('out_for_delivery','Out for Delivery'),('delivered','Delivered'),('cancelled','Cancelled')] %}
+  <a href="?status={{ s }}" class="status-tab {% if status_filter == s %}active{% endif %}">{{ label }}</a>
+  {% endfor %}
+</div>
+<div class="admin-card">
+  <div class="table-responsive">
+    <table class="table admin-table">
+      <thead><tr><th>Order #</th><th>Customer</th><th>Items</th><th>Total</th><th>Status</th><th>Date</th><th>Action</th></tr></thead>
+      <tbody>
+        {% for order in orders %}
+        <tr>
+          <td><a href="{{ url_for('orders.detail', order_number=order.order_number) }}" class="fw-600 text-green">#{{ order.order_number }}</a></td>
+          <td>
+            <div class="small fw-600">{{ order.user.full_name if order.user else 'N/A' }}</div>
+            <div class="x-small text-muted">{{ order.user.phone if order.user else '' }}</div>
+          </td>
+          <td>{{ order.items|length }}</td>
+          <td>ETB {{ "{:,.0f}".format(order.total) }}</td>
+          <td>
+            <select class="form-select form-select-sm" style="width:auto"
+                    onchange="quickStatus({{ order.id }}, this.value)">
+              {% for s in ['pending','confirmed','packed','out_for_delivery','delivered','cancelled','returned'] %}
+              <option value="{{ s }}" {% if order.status.value == s %}selected{% endif %}>{{ s|replace('_',' ')|title }}</option>
+              {% endfor %}
+            </select>
+          </td>
+          <td class="small text-muted">{{ order.created_at.strftime('%b %d %H:%M') if order.created_at else '' }}</td>
+          <td><a href="{{ url_for('orders.detail', order_number=order.order_number) }}" class="btn btn-sm admin-btn-outline"><i class="fas fa-eye"></i></a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if pagination.pages > 1 %}
+  <nav><ul class="pagination mt-3 justify-content-center">
+    {% if pagination.has_prev %}<li class="page-item"><a class="page-link" href="?page={{ pagination.prev_num }}&status={{ status_filter }}">‹</a></li>{% endif %}
+    {% for p in pagination.iter_pages() %}
+    {% if p %}<li class="page-item {% if p == pagination.page %}active{% endif %}"><a class="page-link" href="?page={{ p }}&status={{ status_filter }}">{{ p }}</a></li>{% endif %}
+    {% endfor %}
+    {% if pagination.has_next %}<li class="page-item"><a class="page-link" href="?page={{ pagination.next_num }}&status={{ status_filter }}">›</a></li>{% endif %}
+  </ul></nav>
+  {% endif %}
+</div>
+<script>
+function quickStatus(orderId, status) {
+  fetch(`/admin/orders/${orderId}/status`, {
+    method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:`status=${status}`
+  }).then(r=>r.json()).then(d=>{
+    const t=document.createElement('div');
+    t.className=`alert alert-${d.success?'success':'danger'} position-fixed bottom-0 end-0 m-3`;
+    t.style.zIndex=9999; t.textContent=d.message; document.body.appendChild(t);
+    setTimeout(()=>t.remove(),2500);
+  });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,38 @@
+{% extends 'admin/base_admin.html' %}
+{% block title %}Customers — Admin{% endblock %}
+{% block page_title %}Customers{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between mb-3">
+  <form method="GET" class="d-flex gap-2">
+    <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="Search name, email, phone…" style="width:260px"/>
+    <button class="btn admin-btn-outline">Search</button>
+  </form>
+</div>
+<div class="admin-card">
+  <div class="table-responsive">
+    <table class="table admin-table">
+      <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Telegram</th><th>Orders</th><th>Joined</th><th>Role</th></tr></thead>
+      <tbody>
+        {% for customer in customers %}
+        <tr>
+          <td><div class="fw-600">{{ customer.full_name }}</div></td>
+          <td class="small">{{ customer.email or '—' }}</td>
+          <td class="small">{{ customer.phone or '—' }}</td>
+          <td class="small">{% if customer.telegram_id %}<span class="badge bg-info">@{{ customer.telegram_username or customer.telegram_id }}</span>{% else %}—{% endif %}</td>
+          <td>{{ customer.orders.count() }}</td>
+          <td class="small text-muted">{{ customer.created_at.strftime('%b %d, %Y') if customer.created_at else '' }}</td>
+          <td><span class="badge bg-{{ 'danger' if customer.role.value == 'admin' else 'success' if customer.role.value == 'driver' else 'secondary' }}">{{ customer.role.value }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if pagination.pages > 1 %}
+  <nav><ul class="pagination mt-3 justify-content-center">
+    {% if pagination.has_prev %}<li class="page-item"><a class="page-link" href="?page={{ pagination.prev_num }}&q={{ q }}">‹</a></li>{% endif %}
+    {% for p in pagination.iter_pages() %}{% if p %}<li class="page-item {% if p == pagination.page %}active{% endif %}"><a class="page-link" href="?page={{ p }}&q={{ q }}">{{ p }}</a></li>{% endif %}{% endfor %}
+    {% if pagination.has_next %}<li class="page-item"><a class="page-link" href="?page={{ pagination.next_num }}&q={{ q }}">›</a></li>{% endif %}
+  </ul></nav>
+  {% endif %}
+</div>
+{% endblock %}

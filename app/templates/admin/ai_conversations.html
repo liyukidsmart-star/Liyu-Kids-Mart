@@ -1,0 +1,42 @@
+{% extends 'admin/base_admin.html' %}
+{% block title %}AI Conversations — Admin{% endblock %}
+{% block page_title %}AI Chat Logs{% endblock %}
+{% block content %}
+<div class="admin-card">
+  <div class="admin-card-header">
+    <h5>Recent AI Conversations ({{ pagination.total }})</h5>
+  </div>
+  <div class="p-3">
+    {% for msg in conversations %}
+    <div class="d-flex gap-3 mb-3 pb-3 border-bottom">
+      <div class="flex-shrink-0">
+        {% if msg.role == 'user' %}
+        <span class="badge bg-primary">User</span>
+        {% else %}
+        <span class="badge bg-success">AI</span>
+        {% endif %}
+      </div>
+      <div class="flex-grow-1">
+        <div class="d-flex justify-content-between mb-1">
+          <small class="text-muted">
+            Session: <code>{{ msg.session_id[:16] }}…</code>
+            {% if msg.user %} • {{ msg.user.full_name }}{% endif %}
+            • {{ msg.channel }}
+          </small>
+          <small class="text-muted">{{ msg.created_at.strftime('%b %d %H:%M') if msg.created_at else '' }}</small>
+        </div>
+        <div class="small" style="white-space:pre-wrap;max-height:120px;overflow:hidden;">{{ msg.content[:300] }}{% if msg.content|length > 300 %}…{% endif %}</div>
+      </div>
+    </div>
+    {% endfor %}
+    {% if not conversations %}<p class="text-muted text-center py-4">No AI conversations yet.</p>{% endif %}
+  </div>
+  {% if pagination.pages > 1 %}
+  <nav class="p-3 border-top"><ul class="pagination justify-content-center mb-0">
+    {% if pagination.has_prev %}<li class="page-item"><a class="page-link" href="?page={{ pagination.prev_num }}">‹</a></li>{% endif %}
+    {% for p in pagination.iter_pages() %}{% if p %}<li class="page-item {% if p == pagination.page %}active{% endif %}"><a class="page-link" href="?page={{ p }}">{{ p }}</a></li>{% endif %}{% endfor %}
+    {% if pagination.has_next %}<li class="page-item"><a class="page-link" href="?page={{ pagination.next_num }}">›</a></li>{% endif %}
+  </ul></nav>
+  {% endif %}
+</div>
+{% endblock %}

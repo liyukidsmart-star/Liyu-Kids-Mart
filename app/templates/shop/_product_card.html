@@ -1,0 +1,48 @@
+<div class="product-card" data-product-id="{{ product.id }}">
+  <a href="{{ url_for('shop.detail', slug=product.slug) }}" class="product-img-link">
+    <div class="product-img-wrap">
+      <img src="{{ product.primary_image() }}" alt="{{ product.name }}" class="product-img" loading="lazy"
+           onerror="this.src='/static/images/placeholder.png'"/>
+      {% if product.is_new_arrival %}<span class="product-badge badge-new">New</span>{% endif %}
+      {% if product.compare_price and product.compare_price > product.price %}
+      <span class="product-badge badge-sale">Sale</span>{% endif %}
+      {% if product.sales_count > 20 %}<span class="product-badge badge-hot">🔥 Hot</span>{% endif %}
+      <div class="product-overlay">
+        <button class="btn-overlay" onclick="event.preventDefault(); addToCart({{ product.id }})">
+          <i class="fas fa-shopping-bag"></i> Add to Cart
+        </button>
+      </div>
+    </div>
+  </a>
+  <div class="product-info">
+    <div class="product-age">{{ product.age_label() }}</div>
+    <h3 class="product-name">
+      <a href="{{ url_for('shop.detail', slug=product.slug) }}">{{ product.name }}</a>
+    </h3>
+    {% if product.avg_rating() > 0 %}
+    <div class="product-rating">
+      {% for i in range(5) %}
+      <i class="fas fa-star{% if i >= product.avg_rating()|int %} text-muted{% endif %} star-sm"></i>
+      {% endfor %}
+      <span class="rating-count">({{ product.review_count() }})</span>
+    </div>
+    {% endif %}
+    <div class="product-price-row">
+      <span class="product-price">ETB {{ "%.0f"|format(product.price) }}</span>
+      {% if product.compare_price and product.compare_price > product.price %}
+      <span class="product-compare">ETB {{ "%.0f"|format(product.compare_price) }}</span>
+      {% endif %}
+    </div>
+    {% if product.stock_qty == 0 %}
+    <span class="badge bg-danger-subtle text-danger small">Out of Stock</span>
+    {% elif product.stock_qty < 5 %}
+    <span class="badge bg-warning-subtle text-warning small">Only {{ product.stock_qty }} left</span>
+    {% endif %}
+    <button class="btn lkm-btn-green w-100 mt-2 btn-sm add-cart-btn"
+            onclick="addToCart({{ product.id }})"
+            {% if product.stock_qty == 0 %}disabled{% endif %}>
+      <i class="fas fa-bag-shopping me-1"></i>
+      {{ 'Out of Stock' if product.stock_qty == 0 else 'Add to Cart' }}
+    </button>
+  </div>
+</div>

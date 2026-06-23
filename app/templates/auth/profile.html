@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% block title %}My Profile — Liyu Kids Mart{% endblock %}
+{% block content %}
+<div class="container py-4" style="max-width:640px">
+  <h1 class="page-title mb-4">My Profile</h1>
+  <div class="profile-card">
+    <div class="text-center mb-4">
+      <div style="width:80px;height:80px;background:var(--green-light);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto;font-size:2.2rem;">
+        {{ current_user.full_name[0].upper() if current_user.full_name else '👤' }}
+      </div>
+      <h3 class="mt-3 mb-0">{{ current_user.full_name }}</h3>
+      {% if current_user.telegram_username %}<div class="text-muted small">@{{ current_user.telegram_username }}</div>{% endif %}
+    </div>
+    <form method="POST" action="{{ url_for('auth.profile') }}">
+      <div class="mb-3">
+        <label class="form-label">Full Name</label>
+        <input type="text" name="full_name" class="form-control lkm-input" value="{{ current_user.full_name }}" required/>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Phone Number</label>
+        <input type="tel" name="phone" class="form-control lkm-input" value="{{ current_user.phone or '' }}" placeholder="09XXXXXXXX"/>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Email Address</label>
+        <input type="email" class="form-control lkm-input" value="{{ current_user.email or '' }}" disabled/>
+        <div class="form-text">Email cannot be changed. Contact support if needed.</div>
+      </div>
+      <div class="mb-4">
+        <label class="form-label">Children's Ages <span class="text-muted small">(for personalised recommendations)</span></label>
+        <div class="age-checkboxes">
+          {% set current_ages = current_user.get_child_ages() %}
+          {% for age_label, age_val in [('0–1 yr','0'),('1–2 yrs','1'),('2–3 yrs','2'),('3–4 yrs','3'),('4–6 yrs','4'),('6–8 yrs','6'),('8–10 yrs','8'),('10–12 yrs','10')] %}
+          <label class="age-checkbox-btn">
+            <input type="checkbox" name="child_ages" value="{{ age_val }}" {% if age_val|int in current_ages %}checked{% endif %}/>
+            <span>{{ age_label }}</span>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+      <button type="submit" class="btn lkm-btn-green w-100">Save Changes</button>
+    </form>
+    <hr class="my-4"/>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('orders.my_orders') }}" class="btn lkm-btn-outline-green flex-grow-1"><i class="fas fa-box me-1"></i>My Orders</a>
+      <a href="{{ url_for('shop.wishlist') }}" class="btn lkm-btn-outline-green flex-grow-1"><i class="fas fa-heart me-1"></i>Wishlist</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,136 @@
+{% extends 'admin/base_admin.html' %}
+{% block title %}{{ 'Edit' if product else 'Add' }} Product — Admin{% endblock %}
+{% block page_title %}{{ 'Edit' if product else 'Add New' }} Product{% endblock %}
+{% block content %}
+<div class="row g-4">
+  <div class="col-lg-8">
+    <div class="admin-card">
+      <form method="POST" enctype="multipart/form-data"
+            action="{{ url_for('admin.edit_product', product_id=product.id) if product else url_for('admin.create_product') }}">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label fw-600">Product Name (EN) *</label>
+            <input type="text" name="name" class="form-control" value="{{ product.name if product else '' }}" required/>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-600">Product Name (Amharic)</label>
+            <input type="text" name="name_am" class="form-control" value="{{ product.name_am if product and product.name_am else '' }}" placeholder="የእቃው ስም..."/>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-600">Price (ETB) *</label>
+            <input type="number" name="price" class="form-control" step="0.01" min="0"
+                   value="{{ product.price if product else '' }}" required/>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-600">Compare Price (ETB)</label>
+            <input type="number" name="compare_price" class="form-control" step="0.01" min="0"
+                   value="{{ product.compare_price if product and product.compare_price else '' }}"/>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-600">Stock Quantity *</label>
+            <input type="number" name="stock_qty" class="form-control" min="0"
+                   value="{{ product.stock_qty if product else '0' }}" required/>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-600">Category</label>
+            <select name="category_id" class="form-select">
+              <option value="">-- No Category --</option>
+              {% for cat in categories %}
+              <option value="{{ cat.id }}" {% if product and product.category_id == cat.id %}selected{% endif %}>{{ cat.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-600">Min Age (months)</label>
+            <input type="number" name="age_min_months" class="form-control" min="0"
+                   value="{{ product.age_min_months if product else '0' }}"/>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-600">Max Age (months)</label>
+            <input type="number" name="age_max_months" class="form-control" min="0"
+                   value="{{ product.age_max_months if product else '144' }}"/>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-600">Short Description (EN)</label>
+            <input type="text" name="short_description" class="form-control" maxlength="500"
+                   value="{{ product.short_description if product else '' }}"
+                   placeholder="One-line description for listing pages"/>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-600">Short Description (Amharic)</label>
+            <input type="text" name="short_description_am" class="form-control" maxlength="500"
+                   value="{{ product.short_description_am if product and product.short_description_am else '' }}"
+                   placeholder="አጭር መግለጫ..."/>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-600">Full Description (EN)</label>
+            <textarea name="description" class="form-control" rows="6"
+                      placeholder="Full product description, features, materials…">{{ product.description if product else '' }}</textarea>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-600">Full Description (Amharic)</label>
+            <textarea name="description_am" class="form-control" rows="6"
+                      placeholder="ሙሉ መግለጫ, ጠቀሜታ...">{{ product.description_am if product and product.description_am else '' }}</textarea>
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-600">Product Images</label>
+            <input type="file" name="images" class="form-control" multiple accept="image/*"/>
+            <div class="form-text">First image will be the primary/cover image. Accepts: JPG, PNG, WEBP, GIF</div>
+            {% if product and product.all_images() %}
+            <div class="d-flex flex-wrap gap-2 mt-2">
+              {% for img_url in product.all_images() %}
+              <img src="{{ img_url }}" class="admin-product-thumb" onerror="this.src='/static/images/placeholder.png'"/>
+              {% endfor %}
+            </div>
+            {% endif %}
+          </div>
+          <div class="col-12">
+            <div class="d-flex gap-4">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="is_active" id="isActive"
+                       {% if not product or product.is_active %}checked{% endif %}/>
+                <label class="form-check-label" for="isActive">Active (visible in store)</label>
+              </div>
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="is_featured" id="isFeatured"
+                       {% if product and product.is_featured %}checked{% endif %}/>
+                <label class="form-check-label" for="isFeatured">Featured</label>
+              </div>
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="is_new_arrival" id="isNew"
+                       {% if product and product.is_new_arrival %}checked{% endif %}/>
+                <label class="form-check-label" for="isNew">New Arrival</label>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="d-flex gap-2 mt-4 flex-wrap">
+          <button type="submit" class="btn admin-btn-green btn-lg">
+            <i class="fas fa-save me-1"></i>{{ 'Update' if product else 'Create' }} Product
+          </button>
+          {% if product %}
+          <button type="submit" name="broadcast_telegram" value="1" class="btn btn-lg"
+                  style="background: linear-gradient(135deg,#229ED9,#1a7abf);color:white;border:none;"
+                  onclick="return confirm('📢 This will send a product announcement to ALL Telegram bot users. Continue?')">
+            <i class="fab fa-telegram me-1"></i> Save & Announce on Telegram
+          </button>
+          {% endif %}
+          <a href="{{ url_for('admin.products') }}" class="btn admin-btn-outline btn-lg">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="admin-card">
+      <h6 class="fw-600 mb-3">Tips</h6>
+      <ul class="small text-muted">
+        <li>Use clear, bright images on white background</li>
+        <li>Age range helps AI recommendations</li>
+        <li>Compare price shows a strikethrough original price</li>
+        <li>Featured products appear on the homepage</li>
+        <li>First uploaded image becomes the cover</li>
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock %}

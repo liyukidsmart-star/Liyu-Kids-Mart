@@ -1,0 +1,12 @@
+.env
+__pycache__/
+*.pyc
+venv/
+.venv/
+env/
+.gemini/
+liyu_kids.db
+*.sqlite3
+.pytest_cache/
+app/static/uploads/
+.agents/

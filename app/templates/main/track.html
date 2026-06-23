@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% block title %}Track Order {{ order_number }} — Liyu Kids Mart{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <h1 class="page-title mb-4"><i class="fas fa-map-marker-alt me-2"></i>Track Order</h1>
+  <div class="row justify-content-center">
+    <div class="col-lg-7">
+      <div class="checkout-card text-center">
+        {% if order %}
+        <div class="mb-4">
+          <h3>#{{ order.order_number }}</h3>
+          <span class="status-badge status-{{ order.status.value }} fs-6 mt-2 d-inline-block">{{ order.status_label() }}</span>
+        </div>
+        <div class="order-timeline mb-4">
+          {% set steps = [('pending','Placed','fas fa-shopping-bag'),('confirmed','Confirmed','fas fa-check'),('packed','Packed','fas fa-box'),('out_for_delivery','Out for Delivery','fas fa-truck'),('delivered','Delivered','fas fa-home')] %}
+          {% set current_idx = {'pending':0,'confirmed':1,'packed':2,'out_for_delivery':3,'delivered':4}.get(order.status.value, 0) %}
+          {% for sv, lbl, icon in steps %}
+          <div class="timeline-step {% if loop.index0 <= current_idx %}completed{% endif %} {% if loop.index0 == current_idx %}current{% endif %}">
+            <div class="timeline-icon"><i class="{{ icon }}"></i></div>
+            <div class="timeline-label">{{ lbl }}</div>
+          </div>
+          {% if not loop.last %}<div class="timeline-line {% if loop.index0 < current_idx %}completed{% endif %}"></div>{% endif %}
+          {% endfor %}
+        </div>
+        {% if order.delivery and order.delivery.driver %}
+        <div class="delivery-info-box text-start mb-3">
+          <div class="di-item"><i class="fas fa-user"></i><strong>{{ order.delivery.driver.user.full_name }}</strong></div>
+          <div class="di-item"><i class="fas fa-phone"></i><a href="tel:{{ order.delivery.driver.user.phone }}">{{ order.delivery.driver.user.phone }}</a></div>
+          <div class="di-item"><i class="fas fa-motorcycle"></i>{{ order.delivery.driver.vehicle_type }}</div>
+        </div>
+        {% endif %}
+        <a href="{{ url_for('orders.my_orders') }}" class="btn lkm-btn-outline-green mt-2">← Back to Orders</a>
+        {% else %}
+        <form method="GET" action="{{ url_for('main.track_order', order_number='_') }}" onsubmit="event.preventDefault(); window.location.href='/track/' + document.getElementById('tn').value.trim()">
+          <div class="empty-icon mb-3">🔍</div>
+          <h3>Track Your Order</h3>
+          <p class="text-muted mb-4">Enter your order number below</p>
+          <div class="input-group">
+            <input type="text" id="tn" class="form-control lkm-input" placeholder="e.g. LKM-2024-00001"/>
+            <button type="submit" class="btn lkm-btn-green">Track</button>
+          </div>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

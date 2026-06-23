@@ -1,0 +1,53 @@
+{% extends 'admin/base_admin.html' %}
+{% block title %}Coupons — Admin{% endblock %}
+{% block page_title %}Coupons{% endblock %}
+{% block content %}
+<div class="row g-4">
+  <div class="col-lg-5">
+    <div class="admin-card">
+      <div class="admin-card-header"><h5>Create New Coupon</h5></div>
+      <form method="POST" class="p-3">
+        <div class="mb-3"><label class="form-label fw-600">Coupon Code *</label>
+          <input type="text" name="code" class="form-control" placeholder="WELCOME10" required style="text-transform:uppercase"/></div>
+        <div class="mb-3"><label class="form-label fw-600">Description</label>
+          <input type="text" name="description" class="form-control" placeholder="10% off first order"/></div>
+        <div class="mb-3"><label class="form-label fw-600">Discount Type</label>
+          <select name="discount_type" class="form-select">
+            <option value="percentage">Percentage (%)</option>
+            <option value="fixed">Fixed Amount (ETB)</option>
+          </select></div>
+        <div class="mb-3"><label class="form-label fw-600">Discount Value</label>
+          <input type="number" name="discount_value" class="form-control" step="0.01" placeholder="10" required/></div>
+        <div class="mb-3"><label class="form-label fw-600">Min Order Amount (ETB)</label>
+          <input type="number" name="min_order_amount" class="form-control" value="0"/></div>
+        <div class="mb-3"><label class="form-label fw-600">Max Uses (leave blank = unlimited)</label>
+          <input type="number" name="max_uses" class="form-control" placeholder="100"/></div>
+        <button type="submit" class="btn admin-btn-green w-100">Create Coupon</button>
+      </form>
+    </div>
+  </div>
+  <div class="col-lg-7">
+    <div class="admin-card">
+      <div class="admin-card-header"><h5>All Coupons ({{ coupons|length }})</h5></div>
+      <div class="table-responsive">
+        <table class="table admin-table">
+          <thead><tr><th>Code</th><th>Discount</th><th>Min Order</th><th>Uses</th><th>Status</th></tr></thead>
+          <tbody>
+            {% for coupon in coupons %}
+            <tr>
+              <td><span class="fw-700 font-monospace">{{ coupon.code }}</span>
+                {% if coupon.description %}<div class="x-small text-muted">{{ coupon.description }}</div>{% endif %}</td>
+              <td>{% if coupon.discount_type.value == 'percentage' %}{{ "%.0f"|format(coupon.discount_value) }}%{% else %}ETB {{ "%.0f"|format(coupon.discount_value) }}{% endif %}</td>
+              <td>ETB {{ "%.0f"|format(coupon.min_order_amount) }}</td>
+              <td>{{ coupon.used_count }}{% if coupon.max_uses %}/{{ coupon.max_uses }}{% endif %}</td>
+              <td><span class="badge {% if coupon.is_active %}bg-success{% else %}bg-secondary{% endif %}">{{ 'Active' if coupon.is_active else 'Inactive' }}</span></td>
+            </tr>
+            {% endfor %}
+            {% if not coupons %}<tr><td colspan="5" class="text-center text-muted py-3">No coupons yet</td></tr>{% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

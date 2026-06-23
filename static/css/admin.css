@@ -1,0 +1,142 @@
+/* =============================================
+   LIYU KIDS MART — ADMIN CSS
+   ============================================= */
+:root {
+  --green: #4A7C59; --green-dark: #3a6347; --green-light: #e8f5ee;
+  --beige: #D9C7A3; --border: #e0e6f0; --sidebar-w: 240px;
+  --bg: #f4f6fb; --white: #fff; --text: #1a1a2e; --muted: #6c757d;
+  --font: 'Outfit', sans-serif;
+  --shadow: 0 2px 12px rgba(0,0,0,.07);
+  --radius: 12px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body.admin-body { font-family:var(--font); background:var(--bg); color:var(--text); }
+
+/* SIDEBAR */
+.admin-sidebar {
+  position: fixed; left:0; top:0; bottom:0;
+  width: var(--sidebar-w);
+  background: linear-gradient(180deg,#1a3a26,#2d5a3d);
+  display: flex; flex-direction: column;
+  z-index: 1000;
+  transition: transform .3s ease, width .3s ease;
+  overflow: hidden;
+}
+.admin-sidebar.collapsed { width: 60px; }
+.sidebar-brand {
+  display: flex; align-items: center; gap: 10px;
+  padding: 20px 16px;
+  font-size: 1.1rem; font-weight: 800; color: white;
+  border-bottom: 1px solid rgba(255,255,255,.12);
+  white-space: nowrap;
+}
+.sidebar-brand span:first-child { font-size: 1.4rem; flex-shrink: 0; }
+.sidebar-nav { padding: 12px 8px; flex:1; overflow-y:auto; overflow-x:hidden; }
+.sidebar-link {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px;
+  color: rgba(255,255,255,.75);
+  border-radius: 10px;
+  font-weight: 500; font-size: .88rem;
+  margin-bottom: 2px;
+  transition: all .2s;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.sidebar-link:hover { background: rgba(255,255,255,.12); color: white; }
+.sidebar-link.active { background: rgba(255,255,255,.18); color: white; font-weight: 700; }
+.sidebar-link i { width: 20px; flex-shrink: 0; font-size: .95rem; }
+.sidebar-section {
+  font-size: .65rem; font-weight: 700; color: rgba(255,255,255,.35);
+  text-transform: uppercase; letter-spacing: .1em;
+  padding: 10px 12px 4px;
+  white-space: nowrap;
+}
+.collapsed .sidebar-brand .brand-label,
+.collapsed .sidebar-link span,
+.collapsed .sidebar-section { display: none; }
+
+/* MAIN */
+.admin-main {
+  margin-left: var(--sidebar-w);
+  min-height: 100vh;
+  display: flex; flex-direction: column;
+  transition: margin-left .3s ease;
+}
+.admin-main.expanded { margin-left: 60px; }
+
+/* TOPBAR */
+.admin-topbar {
+  height: 60px;
+  background: var(--white);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center;
+  padding: 0 24px; gap: 16px;
+  position: sticky; top: 0; z-index: 100;
+  box-shadow: var(--shadow);
+}
+.sidebar-toggle-btn { background:none; border:none; font-size:1.2rem; cursor:pointer; color:var(--muted); padding:6px; border-radius:8px; transition:.2s; }
+.sidebar-toggle-btn:hover { background:var(--green-light); color:var(--green); }
+.topbar-title { font-size:1.1rem; font-weight:700; flex:1; }
+.topbar-right { display:flex; align-items:center; gap:12px; }
+.admin-role-badge { background:var(--green); color:white; border-radius:100px; padding:3px 12px; font-size:.7rem; font-weight:700; }
+
+/* CONTENT */
+.admin-content { padding: 24px; flex: 1; }
+
+/* CARDS */
+.admin-card { background:var(--white); border-radius:var(--radius); border:1px solid var(--border); box-shadow:var(--shadow); margin-bottom:20px; overflow:hidden; }
+.admin-card-header { display:flex; justify-content:space-between; align-items:center; padding:16px 20px; border-bottom:1px solid var(--border); }
+.admin-card-header h5 { margin:0; font-size:1rem; font-weight:700; }
+
+/* STAT CARDS */
+.stat-card { border-radius:var(--radius); padding:20px; color:white; position:relative; overflow:hidden; }
+.stat-card::after { content:''; position:absolute; right:-20px; top:-20px; width:80px; height:80px; background:rgba(255,255,255,.12); border-radius:50%; }
+.stat-green { background:linear-gradient(135deg,var(--green),#2d5a3d); }
+.stat-blue { background:linear-gradient(135deg,#3498db,#2980b9); }
+.stat-orange { background:linear-gradient(135deg,#f39c12,#e67e22); }
+.stat-purple { background:linear-gradient(135deg,#9b59b6,#8e44ad); }
+.stat-icon { font-size:1.8rem; margin-bottom:8px; opacity:.9; }
+.stat-label { font-size:.78rem; font-weight:600; opacity:.85; text-transform:uppercase; letter-spacing:.04em; }
+.stat-value { font-size:1.8rem; font-weight:800; margin-top:4px; }
+.stat-sub { font-size:.75rem; opacity:.75; margin-top:2px; }
+
+/* TABLES */
+.admin-table { margin:0; font-size:.87rem; }
+.admin-table thead { background:var(--bg); }
+.admin-table th { font-weight:700; font-size:.75rem; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); border-bottom:2px solid var(--border); padding:12px 16px; }
+.admin-table td { padding:12px 16px; vertical-align:middle; border-bottom:1px solid var(--border); }
+.admin-table tr:last-child td { border-bottom:none; }
+.admin-table tbody tr:hover { background:var(--green-light); }
+.admin-product-thumb { width:44px; height:44px; object-fit:cover; border-radius:8px; border:1px solid var(--border); }
+
+/* BUTTONS */
+.admin-btn-green { background:var(--green); color:white; border:none; border-radius:8px; padding:8px 18px; font-weight:600; font-size:.87rem; transition:.2s; cursor:pointer; }
+.admin-btn-green:hover { background:var(--green-dark); color:white; }
+.admin-btn-outline { border:1.5px solid var(--border); background:white; color:var(--text); border-radius:8px; padding:7px 16px; font-weight:600; font-size:.87rem; transition:.2s; cursor:pointer; }
+.admin-btn-outline:hover { border-color:var(--green); color:var(--green); }
+
+/* STATUS TABS */
+.status-tabs { display:flex; gap:6px; flex-wrap:wrap; }
+.status-tab { padding:5px 14px; border-radius:100px; font-size:.8rem; font-weight:600; color:var(--muted); background:white; border:1.5px solid var(--border); text-decoration:none; transition:.2s; }
+.status-tab:hover { border-color:var(--green); color:var(--green); }
+.status-tab.active { background:var(--green); color:white; border-color:var(--green); }
+
+/* STATUS BADGES */
+.status-badge { border-radius:100px; padding:3px 12px; font-size:.73rem; font-weight:700; }
+.status-pending { background:#fff3cd; color:#856404; }
+.status-confirmed { background:#cff4fc; color:#0c5460; }
+.status-packed { background:#d1ecf1; color:#0c5460; }
+.status-out_for_delivery { background:#ffe4cc; color:#8b4513; }
+.status-delivered { background:#d4edda; color:#155724; }
+.status-cancelled { background:#f8d7da; color:#721c24; }
+
+/* PAGINATION */
+.pagination .page-link { border-radius:8px !important; margin:0 2px; border-color:var(--border); color:var(--green); font-size:.85rem; }
+.pagination .page-item.active .page-link { background:var(--green); border-color:var(--green); }
+
+@media(max-width:768px) {
+  .admin-sidebar { transform:translateX(-100%); }
+  .admin-sidebar.mobile-open { transform:translateX(0); }
+  .admin-main { margin-left:0; }
+}

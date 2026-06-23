@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% block title %}Create Account — Liyu Kids Mart{% endblock %}
+{% block content %}
+<div class="auth-page">
+  <div class="auth-card" style="max-width:520px">
+    <div class="auth-logo">
+      <span class="brand-icon fs-2">🌿</span>
+      <h2>Create Your Account</h2>
+      <p class="text-muted">Join 4,170+ Ethiopian parents on Liyu Kids Mart</p>
+    </div>
+    <form method="POST" action="{{ url_for('auth.register') }}">
+      <div class="mb-3">
+        <label class="form-label">Full Name *</label>
+        <input type="text" name="full_name" class="form-control lkm-input" placeholder="Your full name" required/>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Email Address</label>
+        <input type="email" name="email" class="form-control lkm-input" placeholder="Optional but recommended"/>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Phone Number</label>
+        <input type="tel" name="phone" class="form-control lkm-input" placeholder="09XXXXXXXX"/>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Password *</label>
+        <div class="input-group">
+          <input type="password" name="password" id="pwdInput" class="form-control lkm-input" placeholder="Min 8 characters" required minlength="8"/>
+          <button class="btn btn-outline-secondary" type="button" onclick="togglePwd('pwdInput','eyeIcon1')"><i class="fas fa-eye" id="eyeIcon1"></i></button>
+        </div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Confirm Password *</label>
+        <div class="input-group">
+          <input type="password" name="confirm_password" id="pwdInput2" class="form-control lkm-input" placeholder="Repeat password" required/>
+          <button class="btn btn-outline-secondary" type="button" onclick="togglePwd('pwdInput2','eyeIcon2')"><i class="fas fa-eye" id="eyeIcon2"></i></button>
+        </div>
+      </div>
+      <div class="mb-4">
+        <label class="form-label">Children's Ages <span class="text-muted small">(helps us recommend better products)</span></label>
+        <div class="age-checkboxes">
+          {% for age_label, age_val in [('0–1 year','0'),('1–2 years','1'),('2–3 years','2'),('3–4 years','3'),('4–6 years','4'),('6–8 years','6'),('8–10 years','8'),('10–12 years','10')] %}
+          <label class="age-checkbox-btn">
+            <input type="checkbox" name="child_ages" value="{{ age_val }}"/>
+            <span>{{ age_label }}</span>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+      <button type="submit" class="btn lkm-btn-green w-100 btn-lg">
+        <i class="fas fa-user-plus me-2"></i>Create Account
+      </button>
+    </form>
+    <hr class="my-4"/>
+    <p class="text-center text-muted small">Already have an account? <a href="{{ url_for('auth.login') }}" class="text-green fw-600">Sign in</a></p>
+  </div>
+</div>
+<script>
+function togglePwd(inputId, iconId) {
+  const inp = document.getElementById(inputId);
+  const icon = document.getElementById(iconId);
+  if (inp.type === 'password') { inp.type = 'text'; icon.className = 'fas fa-eye-slash'; }
+  else { inp.type = 'password'; icon.className = 'fas fa-eye'; }
+}
+</script>
+{% endblock %}

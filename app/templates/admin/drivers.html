@@ -1,0 +1,37 @@
+{% extends 'admin/base_admin.html' %}
+{% block title %}Drivers — Admin{% endblock %}
+{% block page_title %}Delivery Drivers{% endblock %}
+{% block content %}
+<div class="row g-3 mb-4">
+  <div class="col-md-3"><div class="stat-card stat-green"><div class="stat-label">Total Drivers</div><div class="stat-value">{{ drivers|length }}</div></div></div>
+  <div class="col-md-3"><div class="stat-card stat-blue"><div class="stat-label">Available Now</div><div class="stat-value">{{ available_count }}</div></div></div>
+</div>
+<div class="admin-card">
+  <div class="admin-card-header"><h5>All Drivers</h5></div>
+  <div class="table-responsive">
+    <table class="table admin-table">
+      <thead><tr><th>Name</th><th>Phone</th><th>Vehicle</th><th>Plate</th><th>Status</th><th>Deliveries</th><th>Rating</th></tr></thead>
+      <tbody>
+        {% for driver in drivers %}
+        <tr>
+          <td><div class="fw-600">{{ driver.user.full_name if driver.user else 'N/A' }}</div></td>
+          <td class="small">{{ driver.user.phone if driver.user else '—' }}</td>
+          <td>{{ driver.vehicle_type }}</td>
+          <td>{{ driver.license_plate or '—' }}</td>
+          <td>
+            <span class="badge {% if driver.is_available %}bg-success{% else %}bg-secondary{% endif %}">
+              {{ '🟢 Available' if driver.is_available else '🔴 Busy' }}
+            </span>
+          </td>
+          <td>{{ driver.total_deliveries }}</td>
+          <td>⭐ {{ "%.1f"|format(driver.rating) }}</td>
+        </tr>
+        {% endfor %}
+        {% if not drivers %}
+        <tr><td colspan="7" class="text-center text-muted py-4">No drivers registered yet.</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

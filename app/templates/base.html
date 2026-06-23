@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="description" content="Liyu Kids Mart — Ethiopia's premier educational toy store. Montessori materials, wooden toys, puzzles, and learning tools for children 0–12 years."/>
+  <meta property="og:title" content="Liyu Kids Mart 🌿"/>
+  <meta property="og:description" content="Ethiopia's Premier Educational Toy Store"/>
+  <meta property="og:type" content="website"/>
+  <title>{% block title %}Liyu Kids Mart — Educational Toys Ethiopia{% endblock %}</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <!-- Bootstrap 5.3 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <!-- Font Awesome 6 -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet"/>
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}"/>
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar navbar-expand-lg lkm-navbar sticky-top" id="mainNav">
+  <div class="container">
+    <!-- Logo -->
+    <a class="navbar-brand lkm-brand" href="{{ url_for('main.index') }}">
+      <img src="{{ url_for('static', filename='images/liyu_kids_mart_logo.png') }}" alt="Liyu Kids Mart" style="height: 40px; border-radius: 6px;">
+    </a>
+
+    <!-- Search Bar (center, desktop) -->
+    <div class="navbar-search d-none d-lg-flex flex-grow-1 mx-4" id="navSearch">
+      <div class="search-wrapper w-100">
+        <i class="fas fa-search search-icon"></i>
+        <input type="text" class="form-control lkm-search-input" id="globalSearch"
+               placeholder="Search toys, puzzles, Montessori…" autocomplete="off"/>
+        <div class="search-dropdown" id="searchDropdown"></div>
+      </div>
+    </div>
+
+    <!-- Right Actions -->
+    <div class="d-flex align-items-center gap-2">
+      <!-- Wishlist -->
+      {% if current_user.is_authenticated %}
+      <a href="{{ url_for('shop.wishlist') }}" class="nav-icon-btn d-none d-sm-flex" title="Wishlist">
+        <i class="fas fa-heart"></i>
+      </a>
+      {% endif %}
+      <!-- Cart -->
+      <a href="{{ url_for('cart.view') }}" class="nav-icon-btn cart-btn">
+        <i class="fas fa-shopping-bag"></i>
+        <span class="cart-badge" id="cartBadge">0</span>
+      </a>
+      <!-- User -->
+      {% if current_user.is_authenticated %}
+      <div class="dropdown">
+        <button class="nav-icon-btn dropdown-toggle" data-bs-toggle="dropdown" title="{{ current_user.full_name }}">
+          <i class="fas fa-user-circle"></i>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end lkm-dropdown">
+          <li><span class="dropdown-item-text fw-600">{{ current_user.full_name }}</span></li>
+          <li><hr class="dropdown-divider"/></li>
+          {% if current_user.role.value in ('admin','manager') %}
+          <li><a class="dropdown-item" href="{{ url_for('admin.dashboard') }}"><i class="fas fa-tachometer-alt me-2"></i>Admin</a></li>
+          {% endif %}
+          {% if current_user.role.value == 'driver' %}
+          <li><a class="dropdown-item" href="{{ url_for('driver.dashboard') }}"><i class="fas fa-truck me-2"></i>Driver Dashboard</a></li>
+          {% endif %}
+          <li><a class="dropdown-item" href="{{ url_for('orders.my_orders') }}"><i class="fas fa-box me-2"></i>My Orders</a></li>
+          <li><a class="dropdown-item" href="{{ url_for('auth.profile') }}"><i class="fas fa-user me-2"></i>Profile</a></li>
+          <li><hr class="dropdown-divider"/></li>
+          <li><a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
+        </ul>
+      </div>
+      {% else %}
+      <a href="{{ url_for('auth.login') }}" class="btn lkm-btn-outline-green btn-sm d-none d-sm-inline-flex">Login</a>
+      {% endif %}
+      <!-- Mobile Menu Toggle -->
+      <button class="navbar-toggler lkm-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse">
+        <i class="fas fa-bars"></i>
+      </button>
+    </div>
+
+    <!-- Collapsed Menu -->
+    <div class="collapse navbar-collapse" id="navbarCollapse">
+      <!-- Mobile Search -->
+      <div class="d-lg-none mt-3 mb-2">
+        <div class="search-wrapper">
+          <i class="fas fa-search search-icon"></i>
+          <input type="text" class="form-control lkm-search-input" id="mobileSearch"
+                 placeholder="Search products…" autocomplete="off"/>
+          <div class="search-dropdown" id="mobileSearchDropdown"></div>
+        </div>
+      </div>
+      <ul class="navbar-nav ms-auto gap-1">
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('shop.listing') }}">🛍️ Shop</a></li>
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">📦 Categories</a>
+          <ul class="dropdown-menu lkm-dropdown">
+            <li><a class="dropdown-item" href="{{ url_for('shop.category', slug='montessori-materials') }}">🎯 Montessori</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('shop.category', slug='wooden-toys') }}">🪵 Wooden Toys</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('shop.category', slug='puzzles-games') }}">🧩 Puzzles</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('shop.category', slug='art-creativity') }}">🎨 Art & Creativity</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('shop.category', slug='books-learning') }}">📚 Books</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('shop.category', slug='building-construction') }}">🏗️ Building</a></li>
+            <li><hr class="dropdown-divider"/></li>
+            <li><a class="dropdown-item fw-600 text-green" href="{{ url_for('shop.listing') }}">View All →</a></li>
+          </ul>
+        </li>
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('orders.my_orders') if current_user.is_authenticated else url_for('auth.login') }}">📋 Orders</a></li>
+        {% if not current_user.is_authenticated %}
+        <li class="nav-item d-sm-none"><a class="nav-link" href="{{ url_for('auth.login') }}">Login</a></li>
+        <li class="nav-item d-sm-none"><a class="nav-link" href="{{ url_for('auth.register') }}">Register</a></li>
+        {% endif %}
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<!-- FLASH MESSAGES -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+<div class="flash-container">
+  {% for category, message in messages %}
+  <div class="alert alert-{{ 'success' if category == 'success' else 'danger' if category == 'danger' else 'info' if category == 'info' else 'warning' }} alert-dismissible lkm-alert fade show" role="alert">
+    <i class="fas fa-{{ 'check-circle' if category == 'success' else 'exclamation-circle' if category == 'danger' else 'info-circle' }} me-2"></i>
+    {{ message }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endwith %}
+
+<!-- MAIN CONTENT -->
+<main>
+  {% block content %}{% endblock %}
+</main>
+
+<!-- FOOTER -->
+<footer class="lkm-footer mt-5">
+  <div class="container">
+    <div class="row g-4">
+      <div class="col-lg-4 col-md-6">
+        <div class="footer-brand mb-3">
+          <span class="brand-icon">🌿</span>
+          <span class="brand-text text-white">Liyu <span class="text-beige">Kids</span> Mart</span>
+        </div>
+        <p class="text-white-60 small">Ethiopia's premier educational toy store. Nurturing young minds through play and discovery.</p>
+        <div class="social-links mt-3">
+          <a href="https://t.me/LiyuKidsMart" target="_blank" class="social-btn"><i class="fab fa-telegram"></i></a>
+          <a href="#" class="social-btn"><i class="fab fa-facebook"></i></a>
+          <a href="#" class="social-btn"><i class="fab fa-tiktok"></i></a>
+        </div>
+      </div>
+      <div class="col-lg-2 col-md-6 col-6">
+        <h6 class="footer-heading">Shop</h6>
+        <ul class="footer-links">
+          <li><a href="{{ url_for('shop.listing') }}">All Products</a></li>
+          <li><a href="{{ url_for('shop.listing') }}?featured=true">Featured</a></li>
+          <li><a href="{{ url_for('shop.listing') }}?new_arrival=true">New Arrivals</a></li>
+          <li><a href="{{ url_for('shop.listing') }}?sort=bestselling">Best Sellers</a></li>
+        </ul>
+      </div>
+      <div class="col-lg-2 col-md-6 col-6">
+        <h6 class="footer-heading">Categories</h6>
+        <ul class="footer-links">
+          <li><a href="{{ url_for('shop.category', slug='montessori-materials') }}">Montessori</a></li>
+          <li><a href="{{ url_for('shop.category', slug='wooden-toys') }}">Wooden Toys</a></li>
+          <li><a href="{{ url_for('shop.category', slug='puzzles-games') }}">Puzzles</a></li>
+          <li><a href="{{ url_for('shop.category', slug='art-creativity') }}">Art & Craft</a></li>
+        </ul>
+      </div>
+      <div class="col-lg-4 col-md-6">
+        <h6 class="footer-heading">Contact Us</h6>
+        <ul class="footer-links">
+          <li><i class="fas fa-map-marker-alt me-2 text-beige"></i>Addis Ababa, Ethiopia</li>
+          <li><i class="fab fa-telegram me-2 text-beige"></i><a href="https://t.me/LiyuKidsMart">@LiyuKidsMart</a></li>
+          <li><i class="fas fa-truck me-2 text-beige"></i>Cash on Delivery</li>
+          <li><i class="fas fa-gift me-2 text-beige"></i>Free delivery over ETB 1,000</li>
+        </ul>
+        <a href="https://t.me/LiyuKidsMart" target="_blank" class="btn lkm-btn-beige btn-sm mt-2">
+          <i class="fab fa-telegram me-1"></i>Join 4,170+ Parents
+        </a>
+      </div>
+    </div>
+    <hr class="footer-divider"/>
+    <div class="d-flex flex-wrap justify-content-between align-items-center">
+      <p class="text-white-60 small mb-0">© 2024 Liyu Kids Mart. Made with ❤️ in Addis Ababa.</p>
+      <div class="d-flex gap-3">
+        <a href="#" class="text-white-60 small">Privacy</a>
+        <a href="#" class="text-white-60 small">Terms</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<!-- BACK TO TOP -->
+<button class="back-to-top" id="backToTop" title="Back to top"><i class="fas fa-chevron-up"></i></button>
+
+<!-- AI CHAT WIDGET -->
+<div class="ai-chat-widget" id="aiChatWidget">
+  <button class="ai-chat-toggle" id="aiChatToggle" title="Chat with Liyu">
+    <i class="fas fa-robot" id="aiToggleIcon"></i>
+    <span class="ai-pulse"></span>
+  </button>
+  <div class="ai-chat-panel" id="aiChatPanel">
+    <div class="ai-chat-header">
+      <div class="d-flex align-items-center gap-2">
+        <div class="ai-avatar">
+          <i class="fas fa-user-tie"></i>
+        </div>
+        <div>
+          <div class="fw-600 small" style="color:white">Liyu &mdash; Shopping Guide</div>
+          <div style="font-size:.7rem;color:rgba(255,255,255,.7);display:flex;align-items:center;gap:4px">
+            <span style="width:7px;height:7px;background:#4caf50;border-radius:50%;display:inline-block"></span>
+            Online now
+          </div>
+        </div>
+      </div>
+      <div>
+        <button class="ai-clear-btn" id="aiClearBtn" onclick="aiClearChat()" title="Start over"><i class="fas fa-trash-alt"></i></button>
+        <button class="ai-close-btn" id="aiCloseBtn"><i class="fas fa-times"></i></button>
+      </div>
+    </div>
+    <div class="ai-chat-messages" id="aiMessages">
+      <div class="ai-message assistant">
+        <div class="ai-bubble">
+          Hi there! 👋 I'm Liyu, your personal shopping guide here at Liyu Kids Mart.<br/><br/>
+          Tell me about your child and I'll help you find the perfect toy!
+        </div>
+      </div>
+      <div class="ai-suggestions">
+        <button class="ai-chip" onclick="aiSendSuggestion('Toy for a 2 year old')">Toy for a 2 year old</button>
+        <button class="ai-chip" onclick="aiSendSuggestion('Montessori materials')">Montessori materials</button>
+        <button class="ai-chip" onclick="aiSendSuggestion('Under 500 birr')">Under 500 birr</button>
+        <button class="ai-chip" onclick="aiSendSuggestion('Gift ideas for 5 year old')">Gift ideas</button>
+        <button class="ai-chip" onclick="aiSendSuggestion(\"What\'s in my cart\")">View my cart</button>
+      </div>
+    </div>
+    <div class="ai-chat-input">
+      <input type="text" id="aiInput" placeholder="Ask about any toy…" autocomplete="off"/>
+      <button id="aiSendBtn" onclick="aiSend()"><i class="fas fa-paper-plane"></i></button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+<script src="{{ url_for('static', filename='js/cart.js') }}"></script>
+<script src="{{ url_for('static', filename='js/search.js') }}"></script>
+<script src="{{ url_for('static', filename='js/ai_chat.js') }}"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

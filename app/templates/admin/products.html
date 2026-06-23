@@ -1,0 +1,65 @@
+{% extends 'admin/base_admin.html' %}
+{% block title %}Products — Admin{% endblock %}
+{% block page_title %}Products{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between mb-3">
+  <form method="GET" class="d-flex gap-2">
+    <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="Search products…" style="width:220px"/>
+    <button class="btn admin-btn-outline">Search</button>
+  </form>
+  <a href="{{ url_for('admin.create_product') }}" class="btn admin-btn-green"><i class="fas fa-plus me-1"></i>Add Product</a>
+</div>
+
+<div class="admin-card">
+  <div class="table-responsive">
+    <table class="table admin-table">
+      <thead><tr><th>Image</th><th>Name</th><th>Price</th><th>Stock</th><th>Category</th><th>Status</th><th>Actions</th></tr></thead>
+      <tbody>
+        {% for product in products %}
+        <tr>
+          <td><img src="{{ product.primary_image() }}" class="admin-product-thumb" onerror="this.src='/static/images/placeholder.png'"/></td>
+          <td>
+            <div class="fw-600">{{ product.name }}</div>
+            <div class="x-small text-muted">{{ product.slug }}</div>
+          </td>
+          <td>ETB {{ "{:,.0f}".format(product.price) }}</td>
+          <td>
+            <span class="badge {% if product.stock_qty == 0 %}bg-danger{% elif product.stock_qty < 5 %}bg-warning{% else %}bg-success{% endif %}">
+              {{ product.stock_qty }}
+            </span>
+          </td>
+          <td>{{ product.category.name if product.category else '—' }}</td>
+          <td>
+            <span class="badge {% if product.is_active %}bg-success{% else %}bg-secondary{% endif %}">
+              {{ 'Active' if product.is_active else 'Hidden' }}
+            </span>
+            {% if product.is_featured %}<span class="badge bg-warning ms-1">Featured</span>{% endif %}
+          </td>
+          <td>
+            <a href="{{ url_for('admin.edit_product', product_id=product.id) }}" class="btn btn-sm admin-btn-outline me-1"><i class="fas fa-edit"></i></a>
+            <form method="POST" action="{{ url_for('admin.delete_product', product_id=product.id) }}" class="d-inline"
+                  onsubmit="return confirm('Deactivate this product?')">
+              <button class="btn btn-sm btn-outline-warning" title="Deactivate"><i class="fas fa-eye-slash"></i></button>
+            </form>
+            <form method="POST" action="{{ url_for('admin.hard_delete_product', product_id=product.id) }}" class="d-inline"
+                  onsubmit="return confirm('Are you sure you want to permanently delete this product? This action cannot be undone.')">
+              <button class="btn btn-sm btn-outline-danger" title="Delete Permanently"><i class="fas fa-trash"></i></button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <!-- Pagination -->
+  {% if pagination.pages > 1 %}
+  <nav><ul class="pagination mt-3 justify-content-center">
+    {% if pagination.has_prev %}<li class="page-item"><a class="page-link" href="?page={{ pagination.prev_num }}&q={{ q }}">‹</a></li>{% endif %}
+    {% for p in pagination.iter_pages() %}
+    {% if p %}<li class="page-item {% if p == pagination.page %}active{% endif %}"><a class="page-link" href="?page={{ p }}&q={{ q }}">{{ p }}</a></li>{% endif %}
+    {% endfor %}
+    {% if pagination.has_next %}<li class="page-item"><a class="page-link" href="?page={{ pagination.next_num }}&q={{ q }}">›</a></li>{% endif %}
+  </ul></nav>
+  {% endif %}
+</div>
+{% endblock %}

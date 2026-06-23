@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{% block title %}Admin — Liyu Kids Mart{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}"/>
+  {% block extra_css %}{% endblock %}
+</head>
+<body class="admin-body">
+
+<!-- SIDEBAR -->
+<div class="admin-sidebar" id="adminSidebar">
+  <div class="sidebar-brand">
+    <span>🌿</span>
+    <span class="brand-label"><img src="/static/images/liyu_kids_mart_logo.png" alt="Liyu Kids Mart" style="height: 30px; border-radius: 4px;"> Admin</span>
+  </div>
+  <nav class="sidebar-nav">
+    <a href="{{ url_for('admin.dashboard') }}" class="sidebar-link {% if request.endpoint == 'admin.dashboard' %}active{% endif %}">
+      <i class="fas fa-tachometer-alt"></i><span>Dashboard</span>
+    </a>
+    <div class="sidebar-section">CATALOG</div>
+    <a href="{{ url_for('admin.products') }}" class="sidebar-link {% if 'product' in request.endpoint %}active{% endif %}">
+      <i class="fas fa-box-open"></i><span>Products</span>
+    </a>
+    <a href="{{ url_for('admin.categories') }}" class="sidebar-link {% if request.endpoint == 'admin.categories' %}active{% endif %}">
+      <i class="fas fa-tags"></i><span>Categories</span>
+    </a>
+    <div class="sidebar-section">ORDERS</div>
+    <a href="{{ url_for('admin.orders') }}" class="sidebar-link {% if request.endpoint == 'admin.orders' %}active{% endif %}">
+      <i class="fas fa-shopping-cart"></i><span>Orders</span>
+    </a>
+    <a href="{{ url_for('admin.drivers') }}" class="sidebar-link {% if request.endpoint == 'admin.drivers' %}active{% endif %}">
+      <i class="fas fa-truck"></i><span>Drivers</span>
+    </a>
+    <div class="sidebar-section">PEOPLE</div>
+    <a href="{{ url_for('admin.customers') }}" class="sidebar-link {% if request.endpoint == 'admin.customers' %}active{% endif %}">
+      <i class="fas fa-users"></i><span>Customers</span>
+    </a>
+    <div class="sidebar-section">MARKETING</div>
+    <a href="{{ url_for('admin.coupons') }}" class="sidebar-link {% if request.endpoint == 'admin.coupons' %}active{% endif %}">
+      <i class="fas fa-ticket-alt"></i><span>Coupons</span>
+    </a>
+    <a href="{{ url_for('admin.ai_conversations') }}" class="sidebar-link {% if request.endpoint == 'admin.ai_conversations' %}active{% endif %}">
+      <i class="fas fa-robot"></i><span>AI Chats</span>
+    </a>
+    <div class="sidebar-section">INSIGHTS</div>
+    <a href="{{ url_for('admin.analytics') }}" class="sidebar-link {% if request.endpoint == 'admin.analytics' %}active{% endif %}">
+      <i class="fas fa-chart-line"></i><span>Analytics</span>
+    </a>
+    <div class="sidebar-section mt-auto">ACCOUNT</div>
+    <a href="{{ url_for('main.index') }}" class="sidebar-link">
+      <i class="fas fa-store"></i><span>View Store</span>
+    </a>
+    <a href="{{ url_for('auth.logout') }}" class="sidebar-link text-danger">
+      <i class="fas fa-sign-out-alt"></i><span>Logout</span>
+    </a>
+  </nav>
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="admin-main" id="adminMain">
+  <!-- Top Bar -->
+  <div class="admin-topbar">
+    <button class="sidebar-toggle-btn" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+    <div class="topbar-title">{% block page_title %}Dashboard{% endblock %}</div>
+    <div class="topbar-right">
+      <span class="text-muted small me-3">{{ current_user.full_name }}</span>
+      <span class="admin-role-badge">{{ current_user.role.value|upper }}</span>
+    </div>
+  </div>
+
+  <!-- Flash Messages -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  <div class="px-4 pt-3">
+    {% for category, message in messages %}
+    <div class="alert alert-{{ 'success' if category == 'success' else 'danger' if category == 'danger' else 'info' }} alert-dismissible fade show">
+      {{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% endwith %}
+
+  <div class="admin-content">
+    {% block content %}{% endblock %}
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+function toggleSidebar() {
+  document.getElementById('adminSidebar').classList.toggle('collapsed');
+  document.getElementById('adminMain').classList.toggle('expanded');
+}
+</script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

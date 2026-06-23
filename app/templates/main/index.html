@@ -1,0 +1,177 @@
+{% extends 'base.html' %}
+{% block title %}Liyu Kids Mart — Ethiopia's #1 Educational Toy Store{% endblock %}
+{% block content %}
+
+<!-- HERO SEARCH SECTION -->
+<section class="hero-search-section">
+  <div class="container text-center">
+    <div class="hero-badge mb-3">🌟 Ethiopia's #1 Educational Toy Store</div>
+    <h1 class="hero-title">Find the Perfect Toy<br/>for <span class="text-green">Your Child</span></h1>
+    <p class="hero-subtitle">Montessori materials, wooden toys, puzzles & more — delivered to your door in Addis Ababa</p>
+    <div class="hero-search-bar mx-auto">
+      <i class="fas fa-search"></i>
+      <input type="text" id="heroSearch" placeholder="Search toys, Montessori, puzzles, age groups…" autocomplete="off"/>
+      <button onclick="heroSearchGo()">Search</button>
+      <div class="search-dropdown" id="heroSearchDropdown"></div>
+    </div>
+    <div class="hero-chips mt-3">
+      <a href="{{ url_for('shop.category', slug='montessori-materials') }}" class="hero-chip">🎯 Montessori</a>
+      <a href="{{ url_for('shop.category', slug='wooden-toys') }}" class="hero-chip">🪵 Wooden Toys</a>
+      <a href="{{ url_for('shop.category', slug='puzzles-games') }}" class="hero-chip">🧩 Puzzles</a>
+      <a href="{{ url_for('shop.category', slug='art-creativity') }}" class="hero-chip">🎨 Art & Craft</a>
+      <a href="{{ url_for('shop.category', slug='books-learning') }}" class="hero-chip">📚 Books</a>
+      <a href="{{ url_for('shop.listing') }}?sort=price_asc" class="hero-chip">💚 Under 500 ETB</a>
+    </div>
+  </div>
+</section>
+
+<!-- VALUE PROPS -->
+<section class="value-props-bar">
+  <div class="container">
+    <div class="row g-0 justify-content-center">
+      <div class="col-6 col-md-3 value-prop">
+        <i class="fas fa-truck-fast"></i>
+        <span>Fast Delivery<br/><small>Across Addis Ababa</small></span>
+      </div>
+      <div class="col-6 col-md-3 value-prop">
+        <i class="fas fa-shield-check"></i>
+        <span>Quality Assured<br/><small>Expert Curated</small></span>
+      </div>
+      <div class="col-6 col-md-3 value-prop">
+        <i class="fas fa-hand-holding-heart"></i>
+        <span>Educational Focus<br/><small>Montessori Approved</small></span>
+      </div>
+      <div class="col-6 col-md-3 value-prop">
+        <i class="fab fa-telegram"></i>
+        <span>4,170+ Parents<br/><small>Telegram Community</small></span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CATEGORIES -->
+{% if categories %}
+<section class="section-padded">
+  <div class="container">
+    <div class="section-header">
+      <h2 class="section-title">Shop by Category</h2>
+      <a href="{{ url_for('shop.listing') }}" class="section-link">View all <i class="fas fa-arrow-right"></i></a>
+    </div>
+    <div class="categories-grid">
+      {% for cat in categories %}
+      <a href="{{ url_for('shop.category', slug=cat.slug) }}" class="category-card">
+        <div class="cat-icon">{{ cat.icon or '📦' }}</div>
+        <div class="cat-name">{{ cat.name }}</div>
+        <div class="cat-count">{{ cat.to_dict().product_count }} items</div>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<!-- FEATURED PRODUCTS -->
+{% if featured %}
+<section class="section-padded bg-light-green">
+  <div class="container">
+    <div class="section-header">
+      <h2 class="section-title">⭐ Featured Products</h2>
+      <a href="{{ url_for('shop.listing') }}?featured=true" class="section-link">View all <i class="fas fa-arrow-right"></i></a>
+    </div>
+    <div class="products-grid">
+      {% for product in featured %}
+      {% include 'shop/_product_card.html' %}
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<!-- NEW ARRIVALS -->
+{% if new_arrivals %}
+<section class="section-padded">
+  <div class="container">
+    <div class="section-header">
+      <h2 class="section-title">🆕 New Arrivals</h2>
+      <a href="{{ url_for('shop.listing') }}?new_arrival=true" class="section-link">View all <i class="fas fa-arrow-right"></i></a>
+    </div>
+    <div class="products-scroll-row">
+      {% for product in new_arrivals %}
+      <div class="product-scroll-item">{% include 'shop/_product_card.html' %}</div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<!-- BEST SELLERS -->
+{% if best_sellers %}
+<section class="section-padded bg-light-green">
+  <div class="container">
+    <div class="section-header">
+      <h2 class="section-title">🔥 Best Sellers</h2>
+      <a href="{{ url_for('shop.listing') }}?sort=bestselling" class="section-link">View all <i class="fas fa-arrow-right"></i></a>
+    </div>
+    <div class="products-grid">
+      {% for product in best_sellers[:4] %}
+      {% include 'shop/_product_card.html' %}
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<!-- REVIEWS -->
+{% if reviews %}
+<section class="section-padded">
+  <div class="container">
+    <div class="section-header text-center mb-4">
+      <h2 class="section-title">💬 What Parents Say</h2>
+    </div>
+    <div class="row g-3">
+      {% for review in reviews %}
+      <div class="col-md-4">
+        <div class="review-card">
+          <div class="review-stars">
+            {% for i in range(5) %}
+            <i class="fas fa-star{% if i >= review.rating %} text-muted{% endif %}"></i>
+            {% endfor %}
+          </div>
+          <p class="review-text">"{{ review.body or 'Great product! My child loves it.' }}"</p>
+          <div class="review-author">— {{ review.user.full_name if review.user else 'Happy Parent' }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<!-- TELEGRAM CTA -->
+<section class="telegram-cta-section">
+  <div class="container text-center">
+    <div class="telegram-cta-card">
+      <div class="tg-icon">✈️</div>
+      <h2>Join 4,170+ Parents on Telegram</h2>
+      <p>Get exclusive deals, new arrivals, parenting tips & flash sales — straight to your Telegram!</p>
+      <a href="https://t.me/LiyuKidsMart" target="_blank" class="btn lkm-btn-white btn-lg mt-2">
+        <i class="fab fa-telegram me-2"></i>Join Our Channel
+      </a>
+    </div>
+  </div>
+</section>
+
+<script>
+function heroSearchGo() {
+  const q = document.getElementById('heroSearch').value.trim();
+  if (q) window.location.href = '/shop/search?q=' + encodeURIComponent(q);
+}
+document.getElementById('heroSearch').addEventListener('keydown', e => {
+  if (e.key === 'Enter') heroSearchGo();
+});
+// Hero search also triggers dropdown
+document.getElementById('heroSearch').addEventListener('input', function() {
+  lkmSearchInput(this.value, 'heroSearchDropdown');
+});
+</script>
+{% endblock %}
