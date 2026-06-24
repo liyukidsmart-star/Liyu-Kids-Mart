@@ -1,54 +1,73 @@
 {% extends 'base.html' %}
 {% block title %}Checkout — Liyu Kids Mart{% endblock %}
 {% block extra_css %}
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
 <style>
-  #deliveryMap {
-    height: 420px; width: 100%;
-    border-radius: 18px; border: none;
-    box-shadow: 0 12px 40px rgba(0,0,0,.25);
-    z-index: 1; position: relative; overflow: hidden;
+  /* ── Map Wrapper ─────────────────────────── */
+  .map-wrap {
+    position: relative;
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 12px 40px rgba(0,0,0,.1);
+    margin-bottom: 16px;
+    border: 1px solid rgba(0,0,0,.08);
   }
-  .map-wrap { position: relative; border-radius: 18px; overflow: hidden; box-shadow: 0 12px 40px rgba(0,0,0,.22); margin-bottom: 12px; }
+  #deliveryMap { height: 480px; width: 100%; border: none; z-index: 1; }
+
+  /* ── Floating Locate Me Button ────────── */
   .map-locate-btn {
-    position: absolute; bottom: 14px; left: 14px; z-index: 500;
-    background: #fff; border: none; border-radius: 12px; padding: 9px 14px;
-    font-size: .82rem; font-weight: 700; color: #2D6A4F;
-    display: flex; align-items: center; gap: 7px; cursor: pointer;
-    box-shadow: 0 4px 16px rgba(0,0,0,.18); transition: all .2s;
+    position: absolute; top: 16px; right: 16px; z-index: 500;
+    background: #fff; border: 1px solid rgba(0,0,0,.1); border-radius: 12px;
+    padding: 10px 16px; font-size: .85rem; font-weight: 700; color: #2D6A4F;
+    display: flex; align-items: center; gap: 8px; cursor: pointer;
+    box-shadow: 0 4px 16px rgba(0,0,0,.08); transition: all .2s;
   }
-  .map-locate-btn:hover { background: #f0faf4; transform: translateY(-1px); }
+  .map-locate-btn:hover { background: #f0faf4; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0,0,0,.12); }
+
+  /* ── Floating Hint ─────────── */
   .map-hint {
-    position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 500;
-    background: rgba(20,20,30,.82); color: #fff; backdrop-filter: blur(8px);
-    border-radius: 100px; padding: 7px 18px; font-size: .75rem; font-weight: 600;
-    white-space: nowrap; pointer-events: none; transition: opacity .5s;
+    position: absolute; top: 16px; left: 50%; transform: translateX(-50%); z-index: 500;
+    background: rgba(255,255,255,.9); color: #222; backdrop-filter: blur(8px);
+    border: 1px solid rgba(0,0,0,.08); box-shadow: 0 4px 16px rgba(0,0,0,.06);
+    border-radius: 100px; padding: 8px 20px; font-size: .78rem; font-weight: 700;
+    white-space: nowrap; pointer-events: none; transition: opacity .4s, transform .4s;
   }
-  .map-hint.hidden { opacity: 0; }
-  .delivery-info-card {
-    background: linear-gradient(135deg, #1e3a2f 0%, #2D6A4F 100%);
-    border-radius: 16px; padding: 16px 18px; color: #fff;
-    display: flex; align-items: center; gap: 14px; margin-bottom: 12px;
-    transition: all .35s; box-shadow: 0 6px 24px rgba(45,106,79,.35);
+  .map-hint.hidden { opacity: 0; transform: translate(-50%, -10px); }
+
+  /* ── Floating Price Card (Inside Map Bottom) ──── */
+  .floating-price-card {
+    position: absolute; bottom: 16px; left: 16px; right: 16px; z-index: 500;
+    background: rgba(255,255,255,.95); backdrop-filter: blur(12px);
+    border: 1px solid rgba(0,0,0,.08); border-radius: 16px;
+    padding: 16px 20px; color: #222;
+    display: flex; align-items: center; gap: 16px;
+    box-shadow: 0 8px 30px rgba(0,0,0,.12); transition: all .35s;
   }
-  .delivery-info-card.idle { background: linear-gradient(135deg, #28283a 0%, #38384a 100%); box-shadow: 0 4px 16px rgba(0,0,0,.2); }
-  .delivery-info-card.error { background: linear-gradient(135deg, #5a1a1a 0%, #8B2020 100%); box-shadow: 0 4px 16px rgba(139,32,32,.3); }
-  .dic-icon { font-size: 2rem; flex-shrink: 0; }
-  .dic-main { flex: 1; }
-  .dic-label { font-size: .68rem; font-weight: 700; opacity: .75; text-transform: uppercase; letter-spacing: .8px; }
-  .dic-value { font-size: 1.35rem; font-weight: 900; line-height: 1.2; }
-  .dic-sub { font-size: .74rem; opacity: .8; margin-top: 3px; }
-  .dic-dist { text-align: right; flex-shrink: 0; }
-  .dic-dist-val { font-size: 1.1rem; font-weight: 900; }
-  .dic-dist-lbl { font-size: .66rem; opacity: .75; text-transform: uppercase; letter-spacing: .6px; }
-  .dic-spinner { width: 22px; height: 22px; border: 3px solid rgba(255,255,255,.3); border-top-color: #fff; border-radius: 50%; animation: dicsp .8s linear infinite; display: inline-block; }
+  .floating-price-card.idle { background: rgba(245,245,250,.95); }
+  .floating-price-card.error { background: #fff0f0; border-color: #ffcaca; color: #8B2020; }
+  
+  .fpc-icon { font-size: 2.2rem; flex-shrink: 0; }
+  .fpc-main { flex: 1; }
+  .fpc-label { font-size: .7rem; font-weight: 800; color: #888; text-transform: uppercase; letter-spacing: .8px; }
+  .fpc-value { font-size: 1.4rem; font-weight: 900; line-height: 1.2; color: #2D6A4F; }
+  .floating-price-card.error .fpc-value { color: #D62828; }
+  .fpc-sub { font-size: .8rem; font-weight: 600; color: #666; margin-top: 3px; }
+  .floating-price-card.error .fpc-sub { color: #8B2020; }
+  
+  .fpc-dist { text-align: right; flex-shrink: 0; background: #f0f7f4; padding: 8px 14px; border-radius: 12px; }
+  .fpc-dist-val { font-size: 1.2rem; font-weight: 900; color: #2D6A4F; }
+  .fpc-dist-lbl { font-size: .65rem; font-weight: 700; color: #40916C; text-transform: uppercase; letter-spacing: .6px; }
+
+  .fpc-spinner { width: 24px; height: 24px; border: 3px solid rgba(45,106,79,.2); border-top-color: #2D6A4F; border-radius: 50%; animation: dicsp .8s linear infinite; display: inline-block; }
   @keyframes dicsp { to { transform: rotate(360deg); } }
-  .store-dot { width: 18px; height: 18px; background: #40916C; border: 3px solid #fff; border-radius: 50%; animation: storepulse 2.2s ease-in-out infinite; }
-  @keyframes storepulse { 0% { box-shadow: 0 0 0 0 rgba(64,145,108,.65); } 70% { box-shadow: 0 0 0 18px rgba(64,145,108,0); } 100% { box-shadow: 0 0 0 0 rgba(64,145,108,0); } }
-  .customer-pin-wrap { width: 34px; height: 34px; position: relative; }
-  .customer-pin { width: 24px; height: 24px; background: #E63946; border: 3px solid #fff; border-radius: 50% 50% 50% 0; transform: rotate(-45deg) translateX(-3px); box-shadow: 0 4px 14px rgba(230,57,70,.5); }
-  .customer-pin::after { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%) rotate(45deg); width: 9px; height: 9px; background: #fff; border-radius: 50%; }
-  .leaflet-control-attribution { font-size: .55rem !important; }
+
+  /* ── Custom Pins ──────────────────── */
+  .store-dot { width: 20px; height: 20px; background: #2D6A4F; border: 4px solid #fff; border-radius: 50%; animation: storepulse 2.2s ease-in-out infinite; }
+  @keyframes storepulse { 0% { box-shadow: 0 0 0 0 rgba(45,106,79,.5); } 70% { box-shadow: 0 0 0 16px rgba(45,106,79,0); } 100% { box-shadow: 0 0 0 0 rgba(45,106,79,0); } }
+  
+  .customer-pin-wrap { width: 40px; height: 40px; position: relative; }
+  .customer-pin { width: 30px; height: 30px; background: #E63946; border: 4px solid #fff; border-radius: 50% 50% 50% 0; transform: rotate(-45deg) translateX(-4px); box-shadow: 0 6px 16px rgba(230,57,70,.4); }
+  .customer-pin::after { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%) rotate(45deg); width: 10px; height: 10px; background: #fff; border-radius: 50%; }
 </style>
 {% endblock %}
 {% block content %}
@@ -57,8 +76,9 @@
   <div class="row g-4">
     <div class="col-lg-7">
       <form method="POST" action="{{ url_for('cart.checkout') }}" id="checkoutForm">
+        
         <div class="checkout-card mb-3">
-          <h5 class="checkout-section-title"><i class="fas fa-map-marker-alt me-2"></i>Delivery Address</h5>
+          <h5 class="checkout-section-title"><i class="fas fa-user me-2"></i>1. Contact Information</h5>
           <div class="row g-3">
             <div class="col-md-6">
               <label class="form-label">Recipient Name *</label>
@@ -72,10 +92,6 @@
                      placeholder="09XXXXXXXX" required/>
             </div>
             <div class="col-md-6">
-              <label class="form-label">City</label>
-              <input type="text" name="city" class="form-control lkm-input" value="Addis Ababa" readonly/>
-            </div>
-            <div class="col-md-6">
               <label class="form-label">Sub City</label>
               <select name="sub_city" class="form-select lkm-input">
                 <option value="">Select Sub City</option>
@@ -85,42 +101,45 @@
               </select>
             </div>
             <div class="col-md-6">
-              <label class="form-label">Woreda</label>
-              <input type="text" name="woreda" class="form-control lkm-input" placeholder="e.g. Woreda 03"/>
-            </div>
-            <div class="col-12">
-              <label class="form-label fw-bold"><i class="fas fa-map-pin me-1" style="color:var(--lkm-green)"></i>Pin your exact delivery location *</label>
-              <div class="map-wrap">
-                <div id="deliveryMap"></div>
-                <div class="map-hint" id="mapHint">📍 Tap the map to drop your delivery pin</div>
-                <button type="button" class="map-locate-btn" id="locateBtn" onclick="locateMe()">
-                  <i class="fas fa-crosshairs"></i> Locate Me
-                </button>
-              </div>
-              <div class="delivery-info-card idle" id="deliveryCard">
-                <div class="dic-icon" id="dicIcon">📍</div>
-                <div class="dic-main">
-                  <div class="dic-label">Delivery Fee</div>
-                  <div class="dic-value" id="dicPrice">Select your location</div>
-                  <div class="dic-sub" id="dicSub">Tap the map to drop a pin</div>
-                </div>
-                <div class="dic-dist" id="dicDistWrap" style="display:none">
-                  <div class="dic-dist-val" id="dicDist">—</div>
-                  <div class="dic-dist-lbl">By road</div>
-                </div>
-              </div>
-              <input type="hidden" name="lat" id="latInput" required>
-              <input type="hidden" name="lng" id="lngInput" required>
-              <input type="hidden" name="calculated_delivery_fee" id="calculatedDeliveryFeeInput" value="0">
-              <label class="form-label mt-2">Specific Location / Landmark *</label>
-              <textarea name="specific_location" class="form-control lkm-input" rows="2"
-                        placeholder="e.g. Near Bole Medhanealem Church, Blue building 2nd floor" required></textarea>
+              <label class="form-label">Specific Location / Landmark *</label>
+              <input type="text" name="specific_location" class="form-control lkm-input"
+                     placeholder="e.g. Near Bole Medhanealem" required/>
             </div>
           </div>
         </div>
 
+        <div class="checkout-card mb-3 p-0" style="overflow:visible; background:transparent; border:none; box-shadow:none;">
+          <h5 class="checkout-section-title px-1"><i class="fas fa-map-pin me-2"></i>2. Pin Your Delivery Location</h5>
+          <div class="map-wrap">
+            <div id="deliveryMap"></div>
+            <div class="map-hint" id="mapHint">👆 Tap the map to set your exact location</div>
+            <button type="button" class="map-locate-btn" id="locateBtn" onclick="locateMe()">
+              <i class="fas fa-crosshairs"></i> Locate Me
+            </button>
+
+            <!-- Floating Price Card -->
+            <div class="floating-price-card idle" id="deliveryCard">
+              <div class="fpc-icon" id="dicIcon">📍</div>
+              <div class="fpc-main">
+                <div class="fpc-label">Delivery Fee</div>
+                <div class="fpc-value" id="dicPrice">Drop a pin</div>
+                <div class="fpc-sub" id="dicSub">Tap anywhere on the map</div>
+              </div>
+              <div class="fpc-dist" id="dicDistWrap" style="display:none">
+                <div class="fpc-dist-val" id="dicDist">—</div>
+                <div class="fpc-dist-lbl">By Road</div>
+              </div>
+            </div>
+          </div>
+          
+          <input type="hidden" name="city" value="Addis Ababa">
+          <input type="hidden" name="lat" id="latInput" required>
+          <input type="hidden" name="lng" id="lngInput" required>
+          <input type="hidden" name="calculated_delivery_fee" id="calculatedDeliveryFeeInput" value="0">
+        </div>
+
         <div class="checkout-card mb-3">
-          <h5 class="checkout-section-title"><i class="fas fa-credit-card me-2"></i>Payment Method</h5>
+          <h5 class="checkout-section-title"><i class="fas fa-credit-card me-2"></i>3. Payment Method</h5>
           <div class="payment-options">
             <label class="payment-option active">
               <input type="radio" name="payment_method" value="cod" checked/>
@@ -138,23 +157,10 @@
                 <span class="payment-badge bg-secondary">Soon</span>
               </div>
             </label>
-            <label class="payment-option disabled">
-              <input type="radio" name="payment_method" value="telebirr" disabled/>
-              <div class="payment-option-inner">
-                <i class="fas fa-mobile-screen"></i>
-                <div><div class="fw-600 text-muted">Telebirr</div><div class="small text-muted">Coming soon</div></div>
-                <span class="payment-badge bg-secondary">Soon</span>
-              </div>
-            </label>
           </div>
         </div>
 
-        <div class="checkout-card mb-3">
-          <h5 class="checkout-section-title"><i class="fas fa-sticky-note me-2"></i>Order Notes (Optional)</h5>
-          <textarea name="notes" class="form-control lkm-input" rows="2" placeholder="Any special instructions for delivery…"></textarea>
-        </div>
-
-        <button type="submit" class="btn lkm-btn-green w-100 btn-lg" id="submitBtn" disabled>
+        <button type="submit" class="btn lkm-btn-green w-100 btn-lg shadow-lg" id="submitBtn" disabled style="padding: 16px; font-weight: 800;">
           <i class="fas fa-map-marker-alt me-2"></i>Select delivery location to continue
         </button>
       </form>
@@ -181,40 +187,48 @@
         {% endif %}
         <hr/>
         <div class="summary-row summary-total"><span>Total</span><span id="summaryTotal">ETB {{ "%.0f"|format(total - delivery_fee) }}</span></div>
-        <div class="mt-3 small text-muted"><i class="fas fa-shield-alt me-1 text-green"></i>Your order is safe &amp; secure</div>
       </div>
     </div>
   </div>
 </div>
 {% endblock %}
 {% block extra_js %}
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   const STORE_LAT = 8.9220, STORE_LNG = 38.7401;
   let routeLayer = null, customerMarker = null, locating = false;
 
+  // Calculate straight-line distance to ensure location makes sense (Haversine)
+  function getDistanceFromStore(lat, lon) {
+    const R = 6371; const dLat = (lat-STORE_LAT)*Math.PI/180; const dLon = (lon-STORE_LNG)*Math.PI/180;
+    const a = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(STORE_LAT*Math.PI/180)*Math.cos(lat*Math.PI/180)*Math.sin(dLon/2)*Math.sin(dLon/2);
+    return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+  }
+
   /* ── Map ─────────────────────────────────────────────── */
-  const map = L.map('deliveryMap').setView([9.02, 38.76], 12);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution: '© <a href="https://openstreetmap.org">OSM</a> © <a href="https://carto.com">CARTO</a>',
-    subdomains: 'abcd', maxZoom: 20
+  const map = L.map('deliveryMap', { zoomControl: false }).setView([9.02, 38.76], 12);
+  L.control.zoom({ position: 'topleft' }).addTo(map);
+
+  // Premium Light Tile: CartoDB Positron
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    attribution: '© OpenStreetMap © CARTO', subdomains: 'abcd', maxZoom: 20
   }).addTo(map);
 
-  /* ── Store marker (pulsing dot) ──────────────────────── */
+  /* ── Store marker ──────────────────────── */
   const storeDotEl = document.createElement('div');
   storeDotEl.className = 'store-dot';
   L.marker([STORE_LAT, STORE_LNG], {
-    icon: L.divIcon({ className:'', html: storeDotEl.outerHTML, iconSize:[18,18], iconAnchor:[9,9] })
+    icon: L.divIcon({ className:'', html: storeDotEl.outerHTML, iconSize:[20,20], iconAnchor:[10,10] })
   }).addTo(map).bindPopup(
-    '<div style="text-align:center;padding:4px 6px"><b style="color:#2D6A4F;font-size:.9rem">🏪 Liyu Kids Mart</b><br><small>Bulbula 93 Mazoria, AA</small></div>'
+    '<div style="text-align:center;padding:4px"><b style="color:#2D6A4F;font-size:1rem">🏪 Liyu Kids Mart</b><br><small>Bulbula 93 Mazoria</small></div>'
   );
 
   /* ── Customer pin icon ───────────────────────────────── */
   const pinIcon = L.divIcon({
     className: '',
     html: '<div class="customer-pin-wrap"><div class="customer-pin"></div></div>',
-    iconSize: [34,34], iconAnchor:[14,32], popupAnchor:[0,-34]
+    iconSize: [40,40], iconAnchor:[20,38], popupAnchor:[0,-40]
   });
 
   /* ── Refs ────────────────────────────────────────────── */
@@ -239,8 +253,7 @@ document.addEventListener('DOMContentLoaded', function() {
   /* ── OSRM Routing ────────────────────────────────────── */
   async function fetchRoute(toLat, toLng) {
     try {
-      const url = `https://router.project-osrm.org/route/v1/driving/${STORE_LNG},${STORE_LAT};${toLng},${toLat}?overview=full&geometries=geojson`;
-      const r = await fetch(url);
+      const r = await fetch(`https://router.project-osrm.org/route/v1/driving/${STORE_LNG},${STORE_LAT};${toLng},${toLat}?overview=full&geometries=geojson`);
       const d = await r.json();
       if (d.routes && d.routes.length) {
         const route = d.routes[0];
@@ -257,10 +270,10 @@ document.addEventListener('DOMContentLoaded', function() {
   function drawRoute(coords) {
     if (routeLayer) map.removeLayer(routeLayer);
     routeLayer = L.polyline(coords, {
-      color:'#52B788', weight:5, opacity:.9,
+      color:'#2D6A4F', weight:5, opacity:.8,
       smoothFactor:1, lineCap:'round', lineJoin:'round'
     }).addTo(map);
-    map.fitBounds(routeLayer.getBounds(), { padding:[55,55] });
+    map.fitBounds(routeLayer.getBounds(), { padding:[60, 60] });
   }
 
   /* ── Update location + price ─────────────────────────── */
@@ -268,18 +281,17 @@ document.addEventListener('DOMContentLoaded', function() {
     latInput.value = lat;
     lngInput.value = lng;
 
-    dicCard.className = 'delivery-info-card';
-    dicIcon.innerHTML = '<div class="dic-spinner"></div>';
+    dicCard.className = 'floating-price-card';
+    dicIcon.innerHTML = '<div class="fpc-spinner"></div>';
     dicPrice.textContent = 'Calculating…';
-    dicSub.textContent   = 'Fetching route & price';
+    dicSub.textContent   = 'Finding best route';
     dicDistWrap.style.display = 'none';
     sumDel.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
     submitBtn.disabled = true;
 
     const [priceResp, routeData] = await Promise.all([
       fetch('/api/delivery/calculate', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
+        method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({lat, lng})
       }).then(r=>r.json()).catch(()=>({success:false})),
       fetchRoute(lat, lng)
@@ -289,6 +301,8 @@ document.addEventListener('DOMContentLoaded', function() {
       drawRoute(routeData.coords);
       dicDistWrap.style.display = 'block';
       dicDist.textContent = routeData.distKm + ' km';
+    } else if (routeLayer) {
+      map.removeLayer(routeLayer);
     }
 
     if (priceResp.success) {
@@ -296,28 +310,24 @@ document.addEventListener('DOMContentLoaded', function() {
       const dur   = routeData ? routeData.durationMin : null;
 
       feeInput.value = price;
-      dicCard.className = 'delivery-info-card';
+      dicCard.className = 'floating-price-card';
       dicIcon.textContent = '🛵';
       dicPrice.textContent = 'ETB ' + price.toFixed(0);
-      dicSub.textContent   = dur ? `~${dur} min estimated delivery` : `${priceResp.data.distance_km} km from store`;
+      dicSub.textContent   = dur ? `~${dur} min estimated delivery` : `${priceResp.data.distance_km} km direct`;
 
       sumDel.textContent = 'ETB ' + price.toFixed(0);
-      sumDel.style.color = '';
+      sumDel.style.color = '#2D6A4F';
       const finalTotal = baseSub + price - discountVal;
       sumTot.textContent = 'ETB ' + finalTotal.toFixed(0);
 
       submitBtn.disabled = false;
       submitBtn.innerHTML = `<i class="fas fa-check me-2"></i>Place Order — ETB ${finalTotal.toFixed(0)}`;
-
-      if (customerMarker) {
-        customerMarker.bindPopup(`<b>Your Location</b><br>Fee: ETB ${price.toFixed(0)}<br>${routeData ? routeData.distKm + ' km by road' : ''}`);
-      }
     } else {
-      dicCard.className = 'delivery-info-card error';
+      dicCard.className = 'floating-price-card error';
       dicIcon.textContent = '🚫';
       dicPrice.textContent = 'Out of Range';
-      dicSub.textContent   = 'Sorry, we cannot deliver here yet';
-      sumDel.innerHTML = '<span style="color:#E63946;font-weight:700">Out of range</span>';
+      dicSub.textContent   = 'Try moving the pin closer to the store';
+      sumDel.innerHTML = '<span style="color:#D62828;font-weight:700">Out of range</span>';
       submitBtn.disabled = true;
       submitBtn.innerHTML = '<i class="fas fa-times me-2"></i>Cannot deliver to this location';
     }
@@ -329,10 +339,7 @@ document.addEventListener('DOMContentLoaded', function() {
       customerMarker.setLatLng(latlng);
     } else {
       customerMarker = L.marker(latlng, { icon: pinIcon, draggable: true }).addTo(map);
-      customerMarker.on('dragend', e => {
-        const p = e.target.getLatLng();
-        updateLocationAndPrice(p.lat, p.lng);
-      });
+      customerMarker.on('dragend', e => updateLocationAndPrice(e.target.getLatLng().lat, e.target.getLatLng().lng));
     }
     mapHint.classList.add('hidden');
     updateLocationAndPrice(latlng.lat, latlng.lng);
@@ -346,22 +353,32 @@ document.addEventListener('DOMContentLoaded', function() {
     const btn = document.getElementById('locateBtn');
     if (!navigator.geolocation) { alert('Geolocation not supported.'); return; }
     locating = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Locating…';
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
     btn.style.opacity = '.7';
     navigator.geolocation.getCurrentPosition(
       pos => {
-        const latlng = L.latLng(pos.coords.latitude, pos.coords.longitude);
-        map.setView(latlng, 15, { animate: true });
-        setPin(latlng);
         locating = false;
         btn.innerHTML = '<i class="fas fa-crosshairs"></i> Locate Me';
         btn.style.opacity = '1';
+
+        const lat = pos.coords.latitude, lng = pos.coords.longitude;
+        const dist = getDistanceFromStore(lat, lng);
+        
+        // Smart fallback: if location is ridiculously far (e.g. desktop IP in USA)
+        if (dist > 45) {
+          alert("Your device reported a location far outside Addis Ababa. Please drag the pin manually.");
+          map.setView([9.02, 38.76], 12, { animate: true });
+        } else {
+          const latlng = L.latLng(lat, lng);
+          map.setView(latlng, 15, { animate: true });
+          setPin(latlng);
+        }
       },
       () => {
         locating = false;
         btn.innerHTML = '<i class="fas fa-crosshairs"></i> Locate Me';
         btn.style.opacity = '1';
-        alert('Could not get location. Please tap the map manually.');
+        alert('Could not get precise location. Please tap the map manually.');
       },
       { timeout: 10000, enableHighAccuracy: true }
     );
@@ -371,11 +388,13 @@ document.addEventListener('DOMContentLoaded', function() {
   if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(
       pos => {
-        map.setView([pos.coords.latitude, pos.coords.longitude], 14, { animate: true });
-        setPin(L.latLng(pos.coords.latitude, pos.coords.longitude));
+        const lat = pos.coords.latitude, lng = pos.coords.longitude;
+        if (getDistanceFromStore(lat, lng) <= 45) {
+          map.setView([lat, lng], 14, { animate: true });
+          setPin(L.latLng(lat, lng));
+        }
       },
-      () => {},
-      { timeout: 6000 }
+      () => {}, { timeout: 6000 }
     );
   }
 });

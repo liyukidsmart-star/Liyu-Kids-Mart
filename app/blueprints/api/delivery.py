@@ -59,7 +59,7 @@ def update_driver_location():
 
 STORE_LAT = 8.9220
 STORE_LNG = 38.7401
-MAX_DELIVERY_RADIUS_KM = 30  # Roughly covers Addis Ababa
+MAX_DELIVERY_RADIUS_KM = 50  # Covers Addis Ababa and outskirts
 
 def calculate_distance(lat1, lon1, lat2, lon2):
     R = 6371  # Radius of the earth in km
