@@ -44,8 +44,8 @@ def update_delivery_status(delivery_id):
     return success_response(delivery.to_dict(), 'Status updated')
 
 
-@api_bp.route('/delivery/location', methods=['POST'])
-def update_driver_location():
+@api_bp.route('/delivery/location/legacy', methods=['POST'])
+def update_driver_location_legacy():
     data = request.get_json() or {}
     driver_id = data.get('driver_id')
     driver = db.session.get(Driver, driver_id)
