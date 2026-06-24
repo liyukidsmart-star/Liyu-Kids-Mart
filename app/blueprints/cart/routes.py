@@ -5,7 +5,7 @@ from app.extensions import db
 from app.models.product import Product
 from app.models.order import (Cart as CartModel, Order, OrderItem, OrderStatus,
                               PaymentMethod, Address, Coupon)
-from app.blueprints.api.delivery import calculate_distance, STORE_LAT, STORE_LNG, MAX_DELIVERY_RADIUS_KM
+from app.blueprints.api.delivery import calculate_distance, STORE_LAT, STORE_LNG
 import math
 from app.utils import success_response, error_response, generate_order_number, get_or_create_session_id
 
@@ -157,9 +157,6 @@ def checkout():
 
         # Recalculate delivery fee securely
         distance = calculate_distance(STORE_LAT, STORE_LNG, lat, lng)
-        if distance > MAX_DELIVERY_RADIUS_KM:
-            flash('Sorry, your location is outside our delivery area.', 'danger')
-            return redirect(url_for('cart.checkout'))
             
         if distance <= 5:
             delivery_fee = 100
