@@ -59,7 +59,7 @@ def update_driver_location():
 
 STORE_LAT = 8.9220
 STORE_LNG = 38.7401
-MAX_DELIVERY_RADIUS_KM = 50  # Covers Addis Ababa and outskirts
+
 
 def calculate_distance(lat1, lon1, lat2, lon2):
     R = 6371  # Radius of the earth in km
@@ -89,9 +89,6 @@ def calculate_price():
         return error_response('Invalid coordinates')
 
     distance = calculate_distance(STORE_LAT, STORE_LNG, lat, lng)
-
-    if distance > MAX_DELIVERY_RADIUS_KM:
-        return error_response('Sorry, we do not deliver to this location yet.', 400)
 
     # Pricing logic: 100 Birr up to 5km, +16 Birr for each additional km
     if distance <= 5:

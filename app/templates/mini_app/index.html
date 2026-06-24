@@ -287,8 +287,8 @@ ul{list-style:none}
 .place-btn:disabled{background:var(--br);color:var(--ts);box-shadow:none}
 
 /* MAP IN CHECKOUT */
-.ck-map-wrap{flex:1;position:relative;border-radius:0;overflow:hidden;margin:-16px;margin-bottom:10px}
-#ckMap{height:100%;min-height:400px;width:100%;border-radius:0;z-index:1}
+.ck-map-wrap{flex:1;position:relative;border-radius:0;overflow:hidden;margin:-16px;height:calc(100vh - 60px)}
+#ckMap{height:100%;width:100%;border-radius:0;z-index:1}
 .ck-locate-btn{position:absolute;top:10px;right:10px;z-index:500;background:#fff;border:1px solid rgba(0,0,0,.1);border-radius:10px;padding:8px 12px;font-size:.75rem;font-weight:700;color:var(--g);display:flex;align-items:center;gap:6px;cursor:pointer;box-shadow:0 3px 12px rgba(0,0,0,.12)}
 .ck-hint{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:500;background:rgba(255,255,255,.95);color:#222;backdrop-filter:blur(6px);border-radius:100px;padding:6px 14px;font-size:.7rem;font-weight:700;white-space:nowrap;pointer-events:none;transition:opacity .4s}
 .ck-hint.hidden{opacity:0}
@@ -1021,14 +1021,14 @@ async function ckUpdateLocation(lat,lng){
   const fcIco=document.getElementById('ckFcIco');
   const fcDistWrap=document.getElementById('ckFcDistWrap');
   const fcDist=document.getElementById('ckFcDist');
-  const placeBtn=document.getElementById('placeBtn');
+  const proceedBtn=document.getElementById('proceedBtn');
   if(!feeCard)return;
   feeCard.className='ck-fee-card';
   fcIco.innerHTML='<div class="cfc-spin"></div>';
   fcVal.textContent='Calculating…';
   fcSub.textContent='Fetching route & price';
   fcDistWrap.style.display='none';
-  if(placeBtn){placeBtn.disabled=true;placeBtn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Calculating fee…';}
+  if(proceedBtn){proceedBtn.disabled=true;proceedBtn.innerHTML='<i class="fas fa-spinner fa-spin"></i>';}
 
   const[priceResp,routeData]=await Promise.all([
     fetch('/api/delivery/calculate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lat,lng})})
@@ -1053,15 +1053,14 @@ async function ckUpdateLocation(lat,lng){
     fcIco.textContent='🛵';
     fcVal.textContent='ETB '+price.toFixed(0);
     fcSub.textContent=routeData?`~${routeData.durMin} min estimated delivery`:`${priceResp.data.distance_km} km from store`;
-    const tot=sub()+price;
-    if(placeBtn){placeBtn.disabled=false;placeBtn.innerHTML=`<i class="fas fa-check-circle"></i> Place Order — ETB ${Math.round(tot).toLocaleString()}`;}
+    if(proceedBtn){proceedBtn.disabled=false;proceedBtn.innerHTML=`Proceed <i class="fas fa-arrow-right"></i>`;}
   } else {
     ckDeliveryFee=0;
     feeCard.className='ck-fee-card error';
     fcIco.textContent='🚫';
-    fcVal.textContent='Out of Range';
-    fcSub.textContent='Sorry, we cannot deliver here yet';
-    if(placeBtn){placeBtn.disabled=true;placeBtn.innerHTML='<i class="fas fa-times"></i> Cannot deliver here';}
+    fcVal.textContent='Error';
+    fcSub.textContent='Could not calculate fee';
+    if(proceedBtn){proceedBtn.disabled=true;proceedBtn.innerHTML='Error';}
   }
 }
 
@@ -1092,18 +1091,12 @@ function ckLocateMe(){
   navigator.geolocation.getCurrentPosition(
     pos=>{
       const lat=pos.coords.latitude, lng=pos.coords.longitude;
-      const dist=getDistFromStore(lat,lng);
       ckLocating=false;
       if(btn){btn.innerHTML='<i class="fas fa-crosshairs"></i> Locate Me';btn.style.opacity='1';}
       
-      if(dist>45){
-        toast('Device location is far outside Addis Ababa. Please drop pin manually.','err');
-        ckMap.setView([9.02,38.76],12,{animate:true});
-      } else {
-        const ll=L.latLng(lat,lng);
-        ckMap.setView(ll,15,{animate:true});
-        ckSetPin(ll);
-      }
+      const ll=L.latLng(lat,lng);
+      ckMap.setView(ll,15,{animate:true});
+      ckSetPin(ll);
     },
     ()=>{
       ckLocating=false;
@@ -1134,10 +1127,8 @@ function initCkMap(){
       navigator.geolocation.getCurrentPosition(
         pos=>{
           const lat=pos.coords.latitude, lng=pos.coords.longitude;
-          if(getDistFromStore(lat,lng)<=45){
-            ckMap.setView([lat,lng],14,{animate:true});
-            ckSetPin(L.latLng(lat,lng));
-          }
+          ckMap.setView([lat,lng],14,{animate:true});
+          ckSetPin(L.latLng(lat,lng));
         },
         ()=>{},
         {timeout:6000}
@@ -1167,6 +1158,11 @@ function goToMapStep(){
   ckStep='map';
   renderCK();
   initCkMap();
+}
+function goToPayStep(){
+  if(!ckLat||!ckLng){toast('Please select a delivery location first','err');return;}
+  ckStep='pay';
+  renderCK();
 }
 function closeCheckout(){
   document.getElementById('chkov').classList.remove('on');
@@ -1232,56 +1228,86 @@ function renderCK(){
   }
   
   if(ckStep==='map'){
-    // Step 2: Full Map + Payment
+    // Step 2: Full Map Only
     document.getElementById('chkBody').style.padding='0'; // Remove padding for full bleed
+    document.getElementById('chkBody').style.height='100%';
     document.getElementById('chkBody').innerHTML=`
-      <div style="padding:12px 16px;background:var(--bg);display:flex;align-items:center;gap:10px">
-        <button onclick="ckStep='form';document.getElementById('chkBody').style.padding='16px';renderCK();" 
-                style="background:transparent;border:none;font-size:1.2rem;color:var(--g);padding:4px"><i class="fas fa-arrow-left"></i></button>
-        <h3 style="margin:0;font-size:1rem;font-weight:800">Pin Delivery Location</h3>
+      <div style="position:absolute;top:10px;left:10px;z-index:600;background:#fff;border-radius:10px;box-shadow:0 3px 12px rgba(0,0,0,.15);display:flex;align-items:center;padding:4px 10px;gap:6px">
+        <button onclick="ckStep='form';document.getElementById('chkBody').style.padding='16px';document.getElementById('chkBody').style.height='auto';renderCK();" 
+                style="background:transparent;border:none;font-size:1.1rem;color:var(--g);padding:4px"><i class="fas fa-arrow-left"></i></button>
+        <span style="font-weight:800;font-size:.9rem">Pin Location</span>
       </div>
       
-      <div class="ck-map-wrap">
+      <div class="ck-map-wrap" style="height:100vh;margin:0;border-radius:0;">
         <div id="ckMap"></div>
-        <div class="ck-hint" id="ckHint">👆 Tap the map to set location</div>
-        <button type="button" class="ck-locate-btn" id="ckLocBtn" onclick="ckLocateMe()">
+        <div class="ck-hint" id="ckHint" style="top:60px">👆 Tap the map to set location</div>
+        <button type="button" class="ck-locate-btn" id="ckLocBtn" onclick="ckLocateMe()" style="top:60px">
           <i class="fas fa-crosshairs"></i> Locate Me
         </button>
-        <div class="ck-fee-card idle" id="ckFeeCard">
+        <div class="ck-fee-card idle" id="ckFeeCard" style="bottom:20px;">
           <div class="cfc-ico" id="ckFcIco">📍</div>
           <div class="cfc-main">
             <div class="cfc-lbl">Delivery Fee</div>
             <div class="cfc-val" id="ckFcVal">Select location</div>
             <div class="cfc-sub" id="ckFcSub">Tap anywhere on the map</div>
           </div>
-          <div class="cfc-dist" id="ckFcDistWrap" style="display:none">
+          <div class="cfc-dist" id="ckFcDistWrap" style="display:none;margin-right:10px">
             <div class="cfc-dv" id="ckFcDist">—</div>
             <div class="cfc-dl">By road</div>
+          </div>
+          <button id="proceedBtn" onclick="goToPayStep()" disabled style="background:var(--g);color:#fff;border:none;border-radius:8px;padding:10px 16px;font-weight:800;font-size:.9rem;box-shadow:0 4px 12px rgba(45,106,79,.3);cursor:pointer;white-space:nowrap;">
+            Select Pin
+          </button>
+        </div>
+      </div>`;
+    return;
+  }
+
+  if(ckStep==='pay'){
+    // Step 3: Payment Method
+    document.getElementById('chkBody').style.padding='16px';
+    document.getElementById('chkBody').style.height='auto';
+    const finalTot = tot + (ckDeliveryFee||0);
+    document.getElementById('chkBody').innerHTML=`
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+        <button onclick="ckStep='map';renderCK();initCkMap();" 
+                style="background:transparent;border:none;font-size:1.2rem;color:var(--g);padding:4px"><i class="fas fa-arrow-left"></i></button>
+        <h3 style="margin:0;font-size:1.1rem;font-weight:800">Final Review</h3>
+      </div>
+      
+      <div class="chk-sec">
+        <h3><i class="fas fa-receipt" style="color:var(--g)"></i> Summary</h3>
+        <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:.9rem">
+          <span>Subtotal (${cart.reduce((s,i)=>s+i.qty,0)} items)</span><span style="font-weight:700">ETB ${Math.round(st).toLocaleString()}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:.9rem;border-bottom:1px solid var(--br)">
+          <span>Delivery Fee</span><span style="font-weight:700;color:var(--g)">ETB ${Math.round(ckDeliveryFee||0).toLocaleString()}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:1.1rem;font-weight:900">
+          <span>Total</span><span style="color:var(--g)">ETB ${Math.round(finalTot).toLocaleString()}</span>
+        </div>
+      </div>
+      
+      <div class="chk-sec" style="margin-bottom:20px">
+        <h3><i class="fas fa-wallet" style="color:var(--g)"></i> Payment Method</h3>
+        <div class="pmopts">
+          <div class="pmopt on" id="pm_cod" onclick="selPayment('cod')">
+            <input type="radio" name="pm" id="r_cod" checked/>
+            <span class="pm-ico">💵</span>
+            <label for="r_cod"><strong>${tr("p_cod")}</strong><br><span style="font-size:.75rem;color:var(--ts)">Pay when order arrives</span></label>
+          </div>
+          <div class="pmopt" id="pm_telebirr" onclick="selPayment('telebirr')">
+            <input type="radio" name="pm" id="r_telebirr"/>
+            <span class="pm-ico">📱</span>
+            <label for="r_telebirr"><strong>${tr("p_tb")}</strong><br><span style="font-size:.75rem;color:var(--ts)">Pay via Telebirr</span></label>
           </div>
         </div>
       </div>
       
-      <div style="padding:16px;background:var(--bg)">
-        <div class="chk-sec" style="margin-bottom:12px">
-          <h3><i class="fas fa-wallet" style="color:var(--g)"></i> Payment Method</h3>
-          <div class="pmopts">
-            <div class="pmopt on" id="pm_cod" onclick="selPayment('cod')">
-              <input type="radio" name="pm" id="r_cod" checked/>
-              <span class="pm-ico">💵</span>
-              <label for="r_cod"><strong>${tr("p_cod")}</strong><br><span style="font-size:.75rem;color:var(--ts)">Pay when order arrives</span></label>
-            </div>
-            <div class="pmopt" id="pm_telebirr" onclick="selPayment('telebirr')">
-              <input type="radio" name="pm" id="r_telebirr"/>
-              <span class="pm-ico">📱</span>
-              <label for="r_telebirr"><strong>${tr("p_tb")}</strong><br><span style="font-size:.75rem;color:var(--ts)">Pay via Telebirr</span></label>
-            </div>
-          </div>
-        </div>
-        
-        <button class="place-btn" id="placeBtn" onclick="placeOrder()" disabled>
-          <i class="fas fa-map-marker-alt"></i> Select delivery location to continue
-        </button>
-      </div>`;
+      <button class="place-btn" id="placeBtn" onclick="placeOrder()">
+        <i class="fas fa-check-circle"></i> Place Order — ETB ${Math.round(finalTot).toLocaleString()}
+      </button>
+    `;
     return;
   }
 }

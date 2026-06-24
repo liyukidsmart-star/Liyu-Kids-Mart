@@ -364,15 +364,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const lat = pos.coords.latitude, lng = pos.coords.longitude;
         const dist = getDistanceFromStore(lat, lng);
         
-        // Smart fallback: if location is ridiculously far (e.g. desktop IP in USA)
-        if (dist > 45) {
-          alert("Your device reported a location far outside Addis Ababa. Please drag the pin manually.");
-          map.setView([9.02, 38.76], 12, { animate: true });
-        } else {
-          const latlng = L.latLng(lat, lng);
-          map.setView(latlng, 15, { animate: true });
-          setPin(latlng);
-        }
+        const ll = L.latLng(lat, lng);
+        map.setView(ll, 15, { animate: true });
+        setPin(ll);
       },
       () => {
         locating = false;
@@ -389,10 +383,8 @@ document.addEventListener('DOMContentLoaded', function() {
     navigator.geolocation.getCurrentPosition(
       pos => {
         const lat = pos.coords.latitude, lng = pos.coords.longitude;
-        if (getDistanceFromStore(lat, lng) <= 45) {
-          map.setView([lat, lng], 14, { animate: true });
-          setPin(L.latLng(lat, lng));
-        }
+        map.setView([lat, lng], 14, { animate: true });
+        setPin(L.latLng(lat, lng));
       },
       () => {}, { timeout: 6000 }
     );
