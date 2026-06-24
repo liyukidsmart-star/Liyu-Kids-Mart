@@ -205,10 +205,8 @@ def _call_gemini(prompt):
     from google.genai import types
 
     client = genai.Client(api_key=gemini_key)
-    # The official Flash Lite model ID in the Gemini API is gemini-1.5-flash-8b (or gemini-1.5-flash).
-    # "gemini-3.1-flash-lite" does not exist and throws a 404 error.
     response = client.models.generate_content(
-        model=os.getenv('GEMINI_MODEL', 'gemini-1.5-flash-8b'),
+        model=os.getenv('GEMINI_MODEL', 'gemini-3.1-flash-lite'),
         contents=prompt,
         config=types.GenerateContentConfig(
             temperature=0.7,
