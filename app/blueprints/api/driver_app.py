@@ -15,7 +15,7 @@ from app.models.order import Order, OrderStatus, OrderItem
 from app.models.user import User
 from app.utils import success_response, error_response
 
-DRIVER_TELEGRAM_ID = '851785627'
+DRIVER_TELEGRAM_IDS = ['851785627', '7733651914']
 STORE_LAT = 8.956133150795546
 STORE_LNG = 38.78781484232836
 
@@ -61,6 +61,28 @@ async def _send_telegram_message(telegram_id, text):
         pass
 
 
+def _notify_driver(order_number, total_amount, lat, lng):
+    """Notify all drivers about a new order asynchronously."""
+    token = os.getenv('TELEGRAM_BOT_TOKEN', '')
+    if not token:
+        return
+    
+    msg = (f"🚨 *NEW DELIVERY ORDER* 🚨\n"
+           f"Order: `{order_number}`\n"
+           f"Total: ETB {total_amount}\n\n"
+           f"[Open Driver Dashboard]({APP_URL}/telegram/driver-app)")
+           
+    for driver_id in DRIVER_TELEGRAM_IDS:
+        try:
+            httpx.post(
+                f'https://api.telegram.org/bot{token}/sendMessage',
+                json={'chat_id': driver_id, 'text': msg, 'parse_mode': 'Markdown'},
+                timeout=5
+            )
+        except Exception:
+            pass
+
+
 def _notify_customer(order, status_msg):
     """Synchronous Telegram notification via httpx."""
     token = os.getenv('TELEGRAM_BOT_TOKEN', '')
@@ -101,10 +123,11 @@ def driver_check_auth():
     """Check if the telegram_id belongs to the designated driver."""
     data = request.get_json(silent=True) or {}
     telegram_id = str(data.get('telegram_id', ''))
-    if telegram_id == DRIVER_TELEGRAM_ID:
+    if telegram_id in DRIVER_TELEGRAM_IDS:
         # Auto-create driver profile if needed
         user = User.query.filter_by(telegram_id=telegram_id).first()
         if user:
+            # Ensure driver profile exists
             driver = Driver.query.filter_by(user_id=user.id).first()
             if not driver:
                 driver = Driver(user_id=user.id, is_available=True, is_active=True)
@@ -146,17 +169,17 @@ def update_driver_location():
 @api_bp.route('/driver/live-location', methods=['GET'])
 def get_driver_live_location():
     """Get driver's current GPS coordinates for customer tracking."""
-    user = User.query.filter_by(telegram_id=DRIVER_TELEGRAM_ID).first()
-    if not user:
-        return success_response({'lat': None, 'lng': None})
-    driver = Driver.query.filter_by(user_id=user.id).first()
-    if not driver:
-        return success_response({'lat': None, 'lng': None})
-    return success_response({
-        'lat': driver.current_lat,
-        'lng': driver.current_lng,
-        'updated_at': datetime.now(timezone.utc).isoformat()
-    })
+    for driver_id in DRIVER_TELEGRAM_IDS:
+        user = User.query.filter_by(telegram_id=driver_id).first()
+        if user:
+            driver = Driver.query.filter_by(user_id=user.id).first()
+            if driver and driver.current_lat and driver.current_lng:
+                return success_response({
+                    'lat': driver.current_lat,
+                    'lng': driver.current_lng,
+                    'is_active': driver.is_active
+                })
+    return error_response('Driver offline', 404)
 
 
 # ── Active Orders for Driver ──────────────────────────────
@@ -326,12 +349,14 @@ def track_order_public(order_number):
     driver_lng = None
     if order.status == OrderStatus.out_for_delivery:
         # Return driver's live location
-        drv_user = User.query.filter_by(telegram_id=DRIVER_TELEGRAM_ID).first()
-        if drv_user:
-            drv = Driver.query.filter_by(user_id=drv_user.id).first()
-            if drv:
-                driver_lat = drv.current_lat
-                driver_lng = drv.current_lng
+        for driver_id in DRIVER_TELEGRAM_IDS:
+            drv_user = User.query.filter_by(telegram_id=driver_id).first()
+            if drv_user:
+                drv = Driver.query.filter_by(user_id=drv_user.id).first()
+                if drv and drv.current_lat and drv.current_lng:
+                    driver_lat = drv.current_lat
+                    driver_lng = drv.current_lng
+                    break
 
     addr = order.address
     return success_response({
