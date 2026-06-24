@@ -1030,11 +1030,17 @@ async function ckUpdateLocation(lat,lng){
   fcDistWrap.style.display='none';
   if(proceedBtn){proceedBtn.disabled=true;proceedBtn.innerHTML='<i class="fas fa-spinner fa-spin"></i>';}
 
-  const[priceResp,routeData]=await Promise.all([
-    fetch('/api/v1/delivery/calculate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lat,lng})})
-      .then(r=>r.json()).catch(()=>({success:false})),
-    ckFetchRoute(lat,lng)
-  ]);
+  const routeData = await ckFetchRoute(lat,lng);
+  let calcBody = {lat, lng};
+  if(routeData && routeData.distKm) {
+    calcBody.distance_km = parseFloat(routeData.distKm);
+  }
+
+  const priceResp = await fetch('/api/v1/delivery/calculate',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(calcBody)
+  }).then(r=>r.json()).catch(()=>({success:false}));
 
   if(ckMap&&routeData){
     if(ckRoute)ckMap.removeLayer(ckRoute);
