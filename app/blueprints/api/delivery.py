@@ -78,28 +78,33 @@ def calculate_price():
     data = request.get_json() or {}
     lat = data.get('lat')
     lng = data.get('lng')
+    distance_km = data.get('distance_km')
 
-    if lat is None or lng is None:
-        return error_response('Latitude and longitude are required')
-
-    try:
-        lat = float(lat)
-        lng = float(lng)
-    except ValueError:
-        return error_response('Invalid coordinates')
-
-    distance = calculate_distance(STORE_LAT, STORE_LNG, lat, lng)
+    if distance_km is not None:
+        try:
+            distance = float(distance_km)
+        except ValueError:
+            return error_response('Invalid distance')
+    else:
+        if lat is None or lng is None:
+            return error_response('Latitude and longitude are required')
+        try:
+            lat = float(lat)
+            lng = float(lng)
+        except ValueError:
+            return error_response('Invalid coordinates')
+        distance = calculate_distance(STORE_LAT, STORE_LNG, lat, lng)
 
     # Pricing: 100 ETB for first 5km, then 40 ETB per additional km
     if distance <= 5:
         price = 100
     else:
-        extra_km = math.ceil(distance - 5)
+        extra_km = distance - 5
         price = 100 + (extra_km * 40)
 
     return success_response({
         'distance_km': round(distance, 2),
-        'price': price,
+        'price': round(price, 2),
         'store_lat': STORE_LAT,
         'store_lng': STORE_LNG
     })

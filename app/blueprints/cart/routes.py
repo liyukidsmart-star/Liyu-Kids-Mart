@@ -161,7 +161,7 @@ def checkout():
         if distance <= 5:
             delivery_fee = 100
         else:
-            extra_km = math.ceil(distance - 5)
+            extra_km = distance - 5
             delivery_fee = 100 + (extra_km * 40)
             
         # Update total with new delivery fee
