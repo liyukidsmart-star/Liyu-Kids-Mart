@@ -57,7 +57,7 @@ def get_product_by_id(product_id):
 def get_or_create_user(telegram_id, username, full_name):
     user = User.query.filter_by(telegram_id=str(telegram_id)).first()
     if not user:
-        user = User(telegram_id=str(telegram_id), username=username, full_name=full_name)
+        user = User(telegram_id=str(telegram_id), telegram_username=username, full_name=full_name)
         db.session.add(user)
         db.session.commit()
     return {'id': user.id, 'full_name': user.full_name}
