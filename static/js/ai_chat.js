@@ -50,9 +50,10 @@ async function aiSend(overrideMsg) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message: msg, session_id: aiSessionId, channel: 'web' })
     });
-    const data = await res.json();
+    let data = null;
+    try { data = await res.json(); } catch (parseErr) { data = null; }
     removeTyping();
-    if (data.success) {
+    if (res.ok && data?.success) {
       aiSessionId = data.data.session_id;
       localStorage.setItem('lkm_ai_session', aiSessionId);
       appendMessage('assistant', stripMarkdown(data.data.message));
@@ -70,11 +71,11 @@ async function aiSend(overrideMsg) {
         setTimeout(() => appendCheckoutPrompt(data.data.cart_summary), 800);
       }
     } else {
-      appendMessage('assistant', "Sorry, I'm having a bit of trouble right now. Give me a moment and try again!");
+      appendMessage('assistant', stripMarkdown(data?.message || data?.data?.message || "Sorry, I'm having a bit of trouble right now. Give me a moment and try again!"));
     }
   } catch (e) {
     removeTyping();
-    appendMessage('assistant', "Oops, something went wrong on my end. Please try again in a moment.");
+    appendMessage('assistant', "I couldn't reach the AI service right now. Please try again in a moment.");
   }
 }
 

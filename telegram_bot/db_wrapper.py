@@ -1,13 +1,19 @@
 import asyncio
 import random
+import os
 from app import create_app
 from app.extensions import db
 from app.models.product import Product, Category
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.models.delivery import Driver
 from app.models.order import Cart, Order, OrderItem, Address, OrderStatus
 
 app = create_app('development')
+DRIVER_TG_IDS = {
+    tg_id.strip()
+    for tg_id in os.getenv('DRIVER_TG_IDS', '851785627,7733651914').split(',')
+    if tg_id.strip()
+}
 
 def _run_in_app_context(func, *args, **kwargs):
     with app.app_context():
@@ -57,10 +63,30 @@ def get_product_by_id(product_id):
 def get_or_create_user(telegram_id, username, full_name):
     user = User.query.filter_by(telegram_id=str(telegram_id)).first()
     if not user:
-        user = User(telegram_id=str(telegram_id), telegram_username=username, full_name=full_name)
+        is_driver = str(telegram_id) in DRIVER_TG_IDS
+        user = User(
+            telegram_id=str(telegram_id),
+            telegram_username=username,
+            full_name=full_name,
+            role=UserRole.driver if is_driver else UserRole.customer,
+        )
         db.session.add(user)
         db.session.commit()
+    elif str(telegram_id) in DRIVER_TG_IDS and user.role != UserRole.driver:
+        user.role = UserRole.driver
+        if not user.driver_profile:
+            db.session.add(Driver(user_id=user.id, is_available=True, is_active=True))
+        db.session.commit()
     return {'id': user.id, 'full_name': user.full_name}
+
+
+def is_driver_user(telegram_id):
+    user = User.query.filter_by(telegram_id=str(telegram_id)).first()
+    if not user:
+        return str(telegram_id) in DRIVER_TG_IDS
+    if user.role == UserRole.driver or user.driver_profile:
+        return True
+    return str(telegram_id) in DRIVER_TG_IDS
 
 def add_to_cart(telegram_id, product_id, quantity=1):
     user = User.query.filter_by(telegram_id=str(telegram_id)).first()

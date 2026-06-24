@@ -350,7 +350,7 @@ ul{list-style:none}
 <div id="tab-home" class="tab on">
   <header class="hdr">
     <div class="hdr-brand">
-      <img src="/static/images/liyu_kids_mart_logo.png" alt="Liyu Kids Mart" style="height: 30px; border-radius: 4px;">
+      <img src="/static/images/liyu_kids_mart_logo.png" alt="Liyu Kids Mart" style="height: 56px; width: auto; max-width: none; border-radius: 8px; object-fit: contain;">
     </div>
     <div class="hdr-acts">
       <button class="hdr-btn" id="langBtn" style="font-weight:bold;font-size:0.9rem;border:1px solid rgba(255,255,255,0.3)" onclick="toggleLang()">አማ</button>
@@ -876,7 +876,9 @@ function aiAppend(role,text,products=[]){
 
   let pcHTML='';
   if(products&&products.length){
-    pcHTML=`<div class="ai-pcards">${products.map(p=>`
+    pcHTML=`<div class="ai-pcards">${products.map(p=>{
+      const n = p.name || 'Product';
+      return `
       <div class="ai-pc" onclick="openSheet(this.dataset.p)" data-p="${esc(JSON.stringify(p))}">
         <img src="${p.primary_image}" alt="${n}" onerror="this.src='/static/images/placeholder.png'"/>
         <div class="ai-pc-inf">
@@ -889,7 +891,8 @@ function aiAppend(role,text,products=[]){
             onclick="event.stopPropagation();aiSend('I added ${esc(n)} to my cart.')">
             💬 Tell Liyu</button>
         </div>
-      </div>`).join('')}</div>
+      </div>`;
+    }).join('')}</div>
     <div class="ai-cta">
       <p>Your cart has ${cart.reduce((s,i)=>s+i.qty,0)} item(s). Ready to checkout?</p>
       <button class="ai-cta-btn" onclick="openCheckout()">🛒 ${tr("c_co")}</button>
@@ -927,11 +930,15 @@ async function aiSend(text){
   try{
     const r=await fetch('/api/v1/ai/chat',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({message:msg+ctx,session_id:aiSid,telegram_id:TGID,platform:'mini_app'})});
-    const d=await r.json();
+    let d=null;
+    try { d = await r.json(); } catch (parseErr) { d = null; }
     aiHideTyping();
-    if(d.success)aiAppend('assistant',d.data?.message||d.data?.response||'Let me check that for you!',d.data?.products||[]);
-    else aiAppend('assistant','Sorry, I had trouble. Please try again 😊');
-  }catch{aiHideTyping();aiAppend('assistant','Connection issue. Please check your internet.');}
+    if(r.ok && d?.success){
+      aiAppend('assistant',d.data?.message||d.data?.response||'Let me check that for you!',d.data?.products||[]);
+    } else {
+      aiAppend('assistant',d?.message||d?.data?.message||'Sorry, I had trouble reaching the AI service. Please try again in a moment 😊');
+    }
+  }catch{aiHideTyping();aiAppend('assistant','I could not reach the AI service right now. Please check your connection and try again.');}
   aiTyping=false;
 }
 
