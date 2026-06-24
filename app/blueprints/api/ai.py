@@ -1,5 +1,4 @@
 import os
-import json
 from flask import request
 from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
 from app.blueprints.api import api_bp
@@ -48,77 +47,97 @@ def _save_message(session_id, role, content, user_id=None, channel='web'):
     db.session.commit()
 
 
-def _call_ai(messages):
-    """Call the configured AI provider with safe fallbacks."""
-    provider_errors = []
+def _detect_age_months_from_text(text):
+    import re
 
-    grok_key = os.getenv('GROK_API_KEY', '').strip()
-    openai_key = os.getenv('OPENAI_API_KEY', '').strip()
-    gemini_key = os.getenv('GEMINI_API_KEY', '').strip()
+    age_months = []
+    for m in re.finditer(r'(\d+)\s*[-\s]?(?:year|yr)', text.lower()):
+        age_months.append(int(m.group(1)) * 12)
+    for m in re.finditer(r'(\d+)\s*(?:month|mo)', text.lower()):
+        age_months.append(int(m.group(1)))
 
-    if grok_key or openai_key:
-        try:
-            from openai import OpenAI
+    amharic_numbers = {
+        'አንድ': 1, 'ሁለት': 2, 'ሶስት': 3, 'አራት': 4, 'አምስት': 5,
+        'ስድስት': 6, 'ሰባት': 7, 'ስምንት': 8, 'ዘጠኝ': 9, 'አስር': 10,
+    }
+    for word, num in amharic_numbers.items():
+        if word in text:
+            age_months.append(num * 12)
+    return age_months
 
-            api_key = grok_key or openai_key
-            base_url = 'https://api.x.ai/v1' if grok_key else None
-            client = OpenAI(api_key=api_key, base_url=base_url) if base_url else OpenAI(api_key=api_key)
-            model = os.getenv('AI_CHAT_MODEL') or ('grok-3-mini' if grok_key else 'gpt-4o-mini')
-            response = client.chat.completions.create(
-                model=model,
-                messages=messages,
-                temperature=0.7,
-                max_tokens=350,
-            )
-            assistant_text = (response.choices[0].message.content or '').strip()
-            if assistant_text:
-                return assistant_text
-        except Exception as exc:
-            provider_errors.append(f'OpenAI/xAI: {exc}')
 
-    if gemini_key:
-        try:
-            from google import genai
-            from google.genai import types
+_PRODUCT_KEYWORDS = [
+    'montessori', 'wooden', 'puzzle', 'book', 'art', 'music', 'building',
+    'blocks', 'paint', 'sensory', 'stacking', 'shape', 'color', 'number',
+    'letter', 'alphabet', 'animal', 'toy', 'game', 'doll', 'instrument',
+    'reading', 'drawing', 'math', 'counting', 'abacus', 'flashcard',
+]
 
-            client = genai.Client(api_key=gemini_key)
-            system_instruction = ''
-            gemini_history = []
 
-            for m in messages:
-                if m['role'] == 'system':
-                    system_instruction += m['content'] + '\n'
-                elif m['role'] == 'assistant':
-                    gemini_history.append(
-                        types.Content(role='model', parts=[types.Part.from_text(text=m['content'])])
-                    )
-                elif m['role'] == 'user':
-                    gemini_history.append(
-                        types.Content(role='user', parts=[types.Part.from_text(text=m['content'])])
-                    )
-                    gemini_history.append(
-                        types.Content(role='user', parts=[types.Part.from_text(text=m['content'])])
-                    )
+def _get_all_candidate_products(query_text, history_text='', exclude_ids=None):
+    exclude_ids = set(exclude_ids or [])
+    combined = (query_text + ' ' + history_text).lower()
 
-            if not gemini_history:
-                return "I'm ready to help with products, orders, and delivery."
+    age_months_list = _detect_age_months_from_text(combined)
+    min_age, max_age = None, None
+    if age_months_list:
+        min_age = max(0, min(age_months_list) - 3)
+        max_age = max(age_months_list) + 12
 
-            last_user_msg = gemini_history.pop().parts[0].text
-            chat = client.chats.create(
-                model=os.getenv('GEMINI_MODEL', 'gemini-2.0-flash'),
-                config=types.GenerateContentConfig(system_instruction=system_instruction),
-                history=gemini_history,
-            )
-            response = chat.send_message(last_user_msg)
-            assistant_text = (getattr(response, 'text', '') or '').strip()
-            if assistant_text:
-                return assistant_text
-        except Exception as exc:
-            provider_errors.append(f'Gemini: {exc}')
+    import re
+    max_price = None
+    price_match = re.search(r'(?:under|below|less than|max(?:imum)?)\s*(\d+)', combined)
+    if not price_match:
+        price_match = re.search(r'(\d+)\s*(?:birr|etb|br)', combined)
+        if price_match and ('under' in combined or 'cheap' in combined):
+            max_price = int(price_match.group(1))
+    else:
+        max_price = int(price_match.group(1))
 
-    if provider_errors:
-        return "I'm having trouble reaching the AI service right now. Please try again in a moment."
-    return "I'm ready to help with products, orders, and delivery, but the AI service is not configured yet."
+    q = Product.query.filter(Product.is_active == True)
+    if max_price:
+        q = q.filter(Product.price <= max_price)
+    if min_age is not None and max_age is not None:
+        q = q.filter(Product.age_min_months <= max_age, Product.age_max_months >= min_age)
+
+    results = []
+    seen = set()
+    for kw in _PRODUCT_KEYWORDS:
+        if kw in combined:
+            kw_q = q.filter(
+                db.or_(
+                    Product.name.ilike(f'%{kw}%'),
+                    Product.description.ilike(f'%{kw}%'),
+                )
+            ).all()
+            for p in kw_q:
+                if p.id not in seen and p.id not in exclude_ids:
+                    results.append(p)
+                    seen.add(p.id)
+
+    if not results:
+        for p in q.order_by(Product.sales_count.desc()).limit(8).all():
+            if p.id not in exclude_ids:
+                results.append(p)
+
+    return results[:8]
+
+
+def _match_products_from_reply(reply_text, candidates):
+    reply_lower = reply_text.lower()
+    mentioned = []
+    others = []
+
+    for p in candidates:
+        words = [w for w in p.name.lower().split() if len(w) > 3]
+        score = sum(1 for w in words if w in reply_lower)
+        if score >= max(1, len(words) // 2):
+            mentioned.append((score, p))
+        else:
+            others.append(p)
+
+    mentioned.sort(key=lambda x: -x[0])
+    return [p for _, p in mentioned], others
 
 
 SYSTEM_PROMPT = """You are Liyu, a warm and knowledgeable shopping guide at Liyu Kids Mart, Addis Ababa's best educational toy store. You feel like a real person - not an AI.
@@ -148,109 +167,58 @@ Critical rules:
 - Never use markdown formatting."""
 
 
-_PRODUCT_KEYWORDS = [
-    'montessori', 'wooden', 'puzzle', 'book', 'art', 'music', 'building',
-    'blocks', 'paint', 'sensory', 'stacking', 'shape', 'color', 'number',
-    'letter', 'alphabet', 'animal', 'toy', 'game', 'doll', 'instrument',
-    'reading', 'drawing', 'math', 'counting', 'abacus', 'flashcard',
-]
+def _build_gemini_prompt(user_message, history, cart_items, candidates):
+    parts = [SYSTEM_PROMPT]
 
+    if history:
+        history_lines = []
+        for item in history[-6:]:
+            label = 'User' if item.role == 'user' else 'Assistant'
+            history_lines.append(f'{label}: {item.content}')
+        parts.append('Conversation history:\n' + '\n'.join(history_lines))
 
-def _detect_age_months_from_text(text):
-    """Extract age in months from any text (handles years and months)."""
-    import re
-
-    age_months = []
-    for m in re.finditer(r'(d+)s*[-s]?(?:year|yr)', text.lower()):
-        age_months.append(int(m.group(1)) * 12)
-    for m in re.finditer(r'(d+)s*(?:month|mo)', text.lower()):
-        age_months.append(int(m.group(1)))
-
-    amharic_numbers = {
-        'አንድ': 1,
-        'ሁለት': 2,
-        'ሶስት': 3,
-        'አራት': 4,
-        'አምስት': 5,
-        'ስድስት': 6,
-        'ሰባት': 7,
-        'ስምንት': 8,
-        'ዘጠኝ': 9,
-        'አስር': 10,
-    }
-    for word, num in amharic_numbers.items():
-        if word in text:
-            age_months.append(num * 12)
-    return age_months
-
-
-def _get_all_candidate_products(query_text, history_text='', exclude_ids=None):
-    """Fetch a wide pool of candidate products based on age, keywords, and price."""
-    exclude_ids = set(exclude_ids or [])
-    combined = (query_text + ' ' + history_text).lower()
-
-    age_months_list = _detect_age_months_from_text(combined)
-    min_age, max_age = None, None
-    if age_months_list:
-        min_age = max(0, min(age_months_list) - 3)
-        max_age = max(age_months_list) + 12
-
-    import re
-    max_price = None
-    price_match = re.search(r'(?:under|below|less than|max(?:imum)?)s*(d+)', combined)
-    if not price_match:
-        price_match = re.search(r'(d+)s*(?:birr|etb|br)', combined)
-        if price_match and ('under' in combined or 'cheap' in combined):
-            max_price = int(price_match.group(1))
+    if cart_items:
+        cart_lines = [
+            f"- {item.quantity}x {item.product.name} (ETB {float(item.product.price):,.0f})"
+            for item in cart_items
+        ]
+        parts.append('SYSTEM CONTEXT - CART:\n' + '\n'.join(cart_lines))
     else:
-        max_price = int(price_match.group(1))
+        parts.append('SYSTEM CONTEXT - CART: Cart is EMPTY. Do NOT mention any cart items.')
 
-    q = Product.query.filter(Product.is_active == True)
-    if max_price:
-        q = q.filter(Product.price <= max_price)
-    if min_age is not None and max_age is not None:
-        q = q.filter(Product.age_min_months <= max_age, Product.age_max_months >= min_age)
+    if candidates:
+        product_lines = []
+        for p in candidates:
+            stock_note = f'In stock ({p.stock_qty} left)' if p.stock_qty > 0 else 'Out of stock'
+            product_lines.append(f'- {p.name} | ETB {float(p.price):,.0f} | Age: {p.age_label()} | {stock_note}')
+        parts.append('SYSTEM CONTEXT - PRODUCTS:\n' + '\n'.join(product_lines))
 
-    results = []
-    seen = set()
-    for kw in _PRODUCT_KEYWORDS:
-        if kw in combined:
-            kw_q = q.filter(
-                db.or_(
-                    Product.name.ilike(f'%{kw}%'),
-                    Product.description.ilike(f'%{kw}%'),
-                )
-            ).all()
-            for p in kw_q:
-                if p.id not in seen and p.id not in exclude_ids:
-                    results.append(p)
-                    seen.add(p.id)
+    parts.append('User message:\n' + user_message)
+    return '\n\n'.join(parts)
 
-    if not results:
-        all_p = q.order_by(Product.sales_count.desc()).limit(8).all()
-        for p in all_p:
-            if p.id not in exclude_ids:
-                results.append(p)
+def _call_gemini(prompt):
+    gemini_key = os.getenv('GEMINI_API_KEY', '').strip()
+    if not gemini_key:
+        raise RuntimeError('GEMINI_API_KEY is not configured')
 
-    return results[:8]
+    from google import genai
+    from google.genai import types
 
-
-def _match_products_from_reply(reply_text, candidates):
-    """Figure out which candidate products were actually mentioned by name."""
-    reply_lower = reply_text.lower()
-    mentioned = []
-    others = []
-
-    for p in candidates:
-        words = [w for w in p.name.lower().split() if len(w) > 3]
-        score = sum(1 for w in words if w in reply_lower)
-        if score >= max(1, len(words) // 2):
-            mentioned.append((score, p))
-        else:
-            others.append(p)
-
-    mentioned.sort(key=lambda x: -x[0])
-    return [p for _, p in mentioned], others
+    client = genai.Client(api_key=gemini_key)
+    # The official Flash Lite model ID in the Gemini API is gemini-1.5-flash-8b (or gemini-1.5-flash).
+    # "gemini-3.1-flash-lite" does not exist and throws a 404 error.
+    response = client.models.generate_content(
+        model=os.getenv('GEMINI_MODEL', 'gemini-1.5-flash-8b'),
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            temperature=0.7,
+            max_output_tokens=350,
+        ),
+    )
+    text = (getattr(response, 'text', '') or '').strip()
+    if not text:
+        raise RuntimeError('Gemini returned an empty response')
+    return text
 
 
 @api_bp.route('/ai/chat', methods=['POST'])
@@ -268,40 +236,21 @@ def ai_chat():
     history = _get_conversation_history(session_id)
     recent_history_text = ' '.join(h.content for h in history[-6:])
 
-    messages = [{'role': 'system', 'content': SYSTEM_PROMPT}]
-
-    if user and user.get_child_ages():
-        ages = user.get_child_ages()
-        age_context = f"\n\nThis customer has children aged: {', '.join(str(a) + ' years' for a in ages)}. Tailor recommendations accordingly."
-        messages[0]['content'] += age_context
-
     from app.blueprints.api.cart import _resolve_user, _cart_query
     cart_user, cart_session_id = _resolve_user()
     cart_items = _cart_query(cart_user, cart_session_id).all()
-    if cart_items:
-        cart_context = '\n\n[SYSTEM CONTEXT - CART] The user currently has these items in their cart:\n'
-        for item in cart_items:
-            cart_context += f'- {item.quantity}x {item.product.name} (ETB {float(item.product.price):,.0f})\n'
-        messages[0]['content'] += cart_context
-    else:
-        messages[0]['content'] += '\n\n[SYSTEM CONTEXT - CART] Cart is EMPTY. Do NOT mention any cart items.'
 
     cart_product_ids = [item.product_id for item in cart_items]
     candidates = _get_all_candidate_products(user_message, recent_history_text, exclude_ids=cart_product_ids)
 
-    product_context = (
-        '\n\n[SYSTEM CONTEXT - PRODUCTS] These are ALL the real products in our store that match the customer. '
-        'You MUST only recommend products from this list. Do NOT invent names or prices. '
-        'Just mention them naturally - the product cards appear automatically below your reply:\n'
-    )
-    for p in candidates:
-        stock_note = f'In stock ({p.stock_qty} left)' if p.stock_qty > 0 else 'Out of stock'
-        product_context += f'- {p.name} | ETB {float(p.price):,.0f} | Age: {p.age_label()} | {stock_note}\n'
-    messages[0]['content'] += product_context
+    prompt = _build_gemini_prompt(user_message, history, cart_items, candidates)
+    try:
+        assistant_reply = _call_gemini(prompt)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return error_response(f"AI Service Error: {str(e)}")
 
-    messages.append({'role': 'user', 'content': user_message})
-
-    assistant_reply = _call_ai(messages)
     mentioned, _others = _match_products_from_reply(assistant_reply, candidates)
 
     non_product_patterns = [
