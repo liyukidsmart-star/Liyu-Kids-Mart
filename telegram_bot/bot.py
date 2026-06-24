@@ -13,7 +13,7 @@ load_dotenv()
 TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 APP_URL = os.getenv('APP_URL', 'http://localhost:5000')
 BOT_MODE = os.getenv('BOT_MODE', 'polling')
-DRIVER_TG_ID = '851785627'
+DRIVER_TG_IDS = ['851785627', '7733651914']
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 logger = logging.getLogger(__name__)
@@ -47,7 +47,7 @@ def main_keyboard(user_id=None):
         [InlineKeyboardButton("🔍 Track Order", callback_data="track_init"),
          InlineKeyboardButton("📞 Support", callback_data="support")],
     ]
-    if user_id and str(user_id) == DRIVER_TG_ID:
+    if user_id and str(user_id) in DRIVER_TG_IDS:
         rows.append([store_btn("🛵 Driver Dashboard", "/telegram/driver-app")])
     return InlineKeyboardMarkup(rows)
 
