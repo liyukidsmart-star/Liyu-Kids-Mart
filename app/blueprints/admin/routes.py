@@ -14,36 +14,89 @@ from app.utils import allowed_file
 from slugify import slugify
 from slugify import slugify
 
-def _upload_file_to_supabase(file_obj, filename):
+def _upload_to_telegram(file_obj):
+    """Upload an image to Telegram via sendPhoto to a dedicated media channel.
+
+    Returns a /media/<file_id> URL.  The proxy endpoint in main/routes.py
+    resolves this at request time into a 302 redirect → Telegram CDN.
+    Image bytes never pass through our server — zero egress cost.
+
+    Falls back to Supabase if TELEGRAM_BOT_TOKEN or TELEGRAM_MEDIA_CHAT_ID
+    is not configured.
+    """
+    import httpx
+    token = os.environ.get('TELEGRAM_BOT_TOKEN', '').strip()
+    chat_id = os.environ.get('TELEGRAM_MEDIA_CHAT_ID', '').strip()
+
+    if not token or not chat_id:
+        current_app.logger.warning(
+            'TELEGRAM_BOT_TOKEN or TELEGRAM_MEDIA_CHAT_ID not set — '
+            'falling back to Supabase'
+        )
+        return _upload_file_to_supabase(file_obj)
+
+    try:
+        file_content = file_obj.read()
+        file_obj.seek(0)
+        content_type = getattr(file_obj, 'content_type', 'image/jpeg') or 'image/jpeg'
+        orig_name = getattr(file_obj, 'filename', 'photo.jpg') or 'photo.jpg'
+        ext = orig_name.rsplit('.', 1)[-1].lower() if '.' in orig_name else 'jpg'
+        safe_name = f'product.{ext}'
+
+        resp = httpx.post(
+            f'https://api.telegram.org/bot{token}/sendPhoto',
+            data={'chat_id': chat_id, 'disable_notification': 'true'},
+            files={'photo': (safe_name, file_content, content_type)},
+            timeout=30,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        if not data.get('ok'):
+            raise ValueError(f"Telegram API error: {data.get('description')}")
+
+        # Pick the largest photo variant (best quality)
+        photos = data['result']['photo']
+        best = max(photos, key=lambda p: p.get('file_size', 0))
+        file_id = best['file_id']
+
+        # Return our proxy URL — clean, no token exposed
+        app_url = os.environ.get('APP_URL', '').rstrip('/')
+        return f'{app_url}/media/{file_id}'
+
+    except Exception as e:
+        current_app.logger.warning(f'Telegram upload failed: {e} — falling back to Supabase')
+        file_obj.seek(0)
+        return _upload_file_to_supabase(file_obj)
+
+
+def _upload_file_to_supabase(file_obj, filename=None):
+    """Fallback: upload to Supabase Storage and return public URL."""
     supabase_url = os.environ.get('SUPABASE_URL')
-    # Vercel-Supabase native integration uses SUPABASE_ANON_KEY or SUPABASE_SERVICE_ROLE_KEY
     supabase_key = (
         os.environ.get('SUPABASE_SERVICE_ROLE_KEY') or
         os.environ.get('SUPABASE_KEY') or
         os.environ.get('SUPABASE_ANON_KEY')
     )
     if not supabase_url or not supabase_key:
-        current_app.logger.warning("Supabase credentials not found in env vars (SUPABASE_URL, SUPABASE_KEY/SUPABASE_ANON_KEY/SUPABASE_SERVICE_ROLE_KEY)")
+        current_app.logger.warning('Supabase credentials not configured — skipping fallback upload')
         return None
+    if filename is None:
+        orig = getattr(file_obj, 'filename', 'upload.jpg') or 'upload.jpg'
+        filename = orig
     try:
         from supabase import create_client, Client
         supabase: Client = create_client(supabase_url, supabase_key)
         bucket_name = 'uploads'
-
-        # Read the file content
         file_content = file_obj.read()
-        file_obj.seek(0)  # Reset pointer
-
-        # Upload
+        file_obj.seek(0)
         supabase.storage.from_(bucket_name).upload(
             file=file_content,
             path=filename,
-            file_options={"content-type": file_obj.content_type, "upsert": "true"}
+            file_options={'content-type': file_obj.content_type, 'upsert': 'true'}
         )
-        # Return public URL
         return supabase.storage.from_(bucket_name).get_public_url(filename)
     except Exception as e:
-        current_app.logger.error(f"Supabase upload failed: {e}")
+        current_app.logger.error(f'Supabase upload failed: {e}')
         return None
 
 def _try_broadcast(product):
@@ -155,39 +208,40 @@ def create_product():
         db.session.add(product)
         db.session.flush()
 
-        # Handle image uploads
+        # Handle image uploads — primary destination is Telegra.ph (Telegram's free CDN)
         images = request.files.getlist('images')
         upload_folder = current_app.config.get('UPLOAD_FOLDER', 'static/uploads')
         try:
-            # We don't want to crash if we can't make dirs, maybe we are using supabase
-            if not os.environ.get('SUPABASE_URL'):
-                os.makedirs(upload_folder, exist_ok=True)
-                
             for i, img_file in enumerate(images):
                 if img_file and img_file.filename and allowed_file(img_file.filename):
-                    ext = img_file.filename.rsplit('.', 1)[1].lower()
-                    fname = f'product_{product.id}_{i}.{ext}'
-                    
-                    # Try Supabase First
-                    supabase_url = _upload_file_to_supabase(img_file, fname)
-                    
-                    if supabase_url:
-                        img_url = supabase_url
-                    else:
-                        # Fallback to local
-                        img_file.save(os.path.join(upload_folder, fname))
-                        img_url = f'/static/uploads/{fname}'
-                        
-                    img = ProductImage(product_id=product.id,
-                                       image_url=img_url,
-                                       is_primary=(i == 0), sort_order=i)
+                    # 1st choice: Telegram media channel (free, unlimited, zero egress cost)
+                    img_url = _upload_to_telegram(img_file)
+
+                    if not img_url:
+                        # Last-resort fallback: local disk (dev only)
+                        try:
+                            os.makedirs(upload_folder, exist_ok=True)
+                            ext = img_file.filename.rsplit('.', 1)[1].lower()
+                            fname = f'product_{product.id}_{i}.{ext}'
+                            img_file.seek(0)
+                            img_file.save(os.path.join(upload_folder, fname))
+                            img_url = f'/static/uploads/{fname}'
+                        except OSError:
+                            current_app.logger.error('All upload methods failed for image %s', i)
+                            continue
+
+                    img = ProductImage(
+                        product_id=product.id,
+                        image_url=img_url,
+                        is_primary=(i == 0),
+                        sort_order=i,
+                    )
                     db.session.add(img)
             db.session.commit()
-        except OSError as e:
+        except Exception as e:
             db.session.rollback()
-            current_app.logger.error(f"Upload failed: {e}")
-            flash("Image upload skipped: Vercel requires Supabase Storage (SUPABASE_URL and SUPABASE_KEY).", "warning")
-            # Re-add product since rollback killed it, but without images
+            current_app.logger.error(f'Image upload block failed: {e}')
+            flash('Image upload failed. Product was saved without images.', 'warning')
             db.session.add(product)
             db.session.commit()
 
@@ -233,40 +287,39 @@ def edit_product(product_id):
 
         images = request.files.getlist('images')
         upload_folder = current_app.config.get('UPLOAD_FOLDER', 'static/uploads')
-        
+
         try:
-            if not os.environ.get('SUPABASE_URL'):
-                os.makedirs(upload_folder, exist_ok=True)
-                
             existing_count = product.images.count()
             for i, img_file in enumerate(images):
                 if img_file and img_file.filename and allowed_file(img_file.filename):
-                    ext = img_file.filename.rsplit('.', 1)[1].lower()
-                    fname = f'product_{product.id}_{existing_count + i}.{ext}'
-                    
-                    # Try Supabase First
-                    supabase_url = _upload_file_to_supabase(img_file, fname)
-                    
-                    if supabase_url:
-                        img_url = supabase_url
-                    else:
-                        img_file.save(os.path.join(upload_folder, fname))
-                        img_url = f'/static/uploads/{fname}'
-                        
-                    img = ProductImage(product_id=product.id,
-                                       image_url=img_url,
-                                       is_primary=(existing_count == 0 and i == 0),
-                                       sort_order=existing_count + i)
+                    # 1st choice: Telegram media channel (free, unlimited, zero egress cost)
+                    img_url = _upload_to_telegram(img_file)
+
+                    if not img_url:
+                        # Last-resort fallback: local disk (dev only)
+                        try:
+                            os.makedirs(upload_folder, exist_ok=True)
+                            ext = img_file.filename.rsplit('.', 1)[1].lower()
+                            fname = f'product_{product.id}_{existing_count + i}.{ext}'
+                            img_file.seek(0)
+                            img_file.save(os.path.join(upload_folder, fname))
+                            img_url = f'/static/uploads/{fname}'
+                        except OSError:
+                            current_app.logger.error('All upload methods failed for image %s', i)
+                            continue
+
+                    img = ProductImage(
+                        product_id=product.id,
+                        image_url=img_url,
+                        is_primary=(existing_count == 0 and i == 0),
+                        sort_order=existing_count + i,
+                    )
                     db.session.add(img)
             db.session.commit()
-        except OSError as e:
+        except Exception as e:
             db.session.rollback()
-            current_app.logger.error(f"Upload failed: {e}")
-            flash("Image upload skipped: Vercel requires Supabase Storage setup.", "warning")
-            # We don't need to re-add the product here because the edits are already on the attached object,
-            # but rollback reverts them. We should re-apply the text edits if we want, or just let them fail.
-            # Easiest is just flash warning and let text edits be lost, or we can avoid the rollback on the text fields.
-            # To be safe, let's just let it rollback and warn.
+            current_app.logger.error(f'Image upload block failed: {e}')
+            flash('Image upload failed. Product edits may have been lost — please try again.', 'warning')
 
         # If admin clicked the "Broadcast" button, announce this product
         if request.form.get('broadcast_telegram'):

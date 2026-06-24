@@ -1,4 +1,5 @@
-from flask import render_template, request
+from flask import render_template, request, redirect, abort
+import os
 from app.blueprints.main import main_bp
 from app.models.product import Product, Category
 from app.models.order import Order
@@ -59,3 +60,33 @@ def contact():
 def track_order(order_number):
     order = Order.query.filter_by(order_number=order_number).first()
     return render_template('main/track.html', order=order, order_number=order_number)
+
+
+# ── TELEGRAM MEDIA PROXY ──────────────────────────────────────────────────────
+# Images uploaded to Telegram are stored by file_id.
+# To serve them securely (without leaking the bot token in <img> src),
+# this endpoint calls getFile on the fly and issues a 302 redirect to
+# Telegram's CDN URL.  The redirect is instant; image bytes NEVER pass through
+# our server, so there is zero Vercel / Supabase egress cost.
+@main_bp.route('/media/<path:file_id>')
+def telegram_media(file_id):
+    token = os.getenv('TELEGRAM_BOT_TOKEN', '')
+    if not token:
+        abort(503, 'Media service not configured')
+
+    import httpx
+    try:
+        resp = httpx.get(
+            f'https://api.telegram.org/bot{token}/getFile',
+            params={'file_id': file_id},
+            timeout=10,
+        )
+        data = resp.json()
+        if not data.get('ok'):
+            abort(404, 'File not found on Telegram')
+        file_path = data['result']['file_path']
+        cdn_url = f'https://api.telegram.org/file/bot{token}/{file_path}'
+        return redirect(cdn_url, code=302)
+    except Exception as e:
+        abort(502, f'Telegram CDN error: {e}')
+
