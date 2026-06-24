@@ -67,19 +67,85 @@
           </div>
         </div>
         <!-- Live Map -->
-        {% if order.delivery.driver.current_lat %}
-        <div id="trackingMap" style="height:200px;border-radius:12px;margin-top:12px;"></div>
+        <div id="trackingMap" style="height:350px;border-radius:12px;margin-top:12px;border:2px solid var(--lkm-green);"></div>
+        <div id="trackingStatusPanel" class="mt-2 p-2 bg-light rounded text-center small text-muted">Waiting for location update...</div>
+        
         <script>
-        window.addEventListener('load', function() {
-          if (typeof L !== 'undefined') {
-            var map = L.map('trackingMap').setView([{{ order.delivery.driver.current_lat }}, {{ order.delivery.driver.current_lng }}], 14);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-            L.marker([{{ order.delivery.driver.current_lat }}, {{ order.delivery.driver.current_lng }}]).addTo(map).bindPopup('Driver Location');
-          }
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof L === 'undefined') return;
+            
+            var map = L.map('trackingMap');
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OpenStreetMap contributors',
+                maxZoom: 20
+            }).addTo(map);
+
+            // Custom Icons
+            const storeIcon = L.icon({
+                iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
+                shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
+            });
+            const customerIcon = L.icon({
+                iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png',
+                shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
+            });
+            const deliveryIcon = L.icon({
+                iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png', // Or a custom motorcycle icon
+                shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
+            });
+
+            // Store Marker
+            L.marker([8.9220, 38.7401], {icon: storeIcon}).addTo(map).bindPopup("Store");
+            
+            {% if order.address and order.address.lat %}
+            // Customer Marker
+            L.marker([{{ order.address.lat }}, {{ order.address.lng }}], {icon: customerIcon}).addTo(map).bindPopup("Delivery Address");
+            {% endif %}
+
+            var driverMarker = null;
+            var isFirstLoad = true;
+
+            function updateTracking() {
+                fetch('/api/delivery/{{ order.id }}/track')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success && data.data.delivery && data.data.delivery.driver) {
+                        const lat = data.data.delivery.driver.current_lat;
+                        const lng = data.data.delivery.driver.current_lng;
+                        
+                        if (lat && lng) {
+                            if (!driverMarker) {
+                                driverMarker = L.marker([lat, lng], {icon: deliveryIcon}).addTo(map).bindPopup("Driver is here!");
+                            } else {
+                                driverMarker.setLatLng([lat, lng]); // Move marker
+                            }
+                            
+                            document.getElementById('trackingStatusPanel').innerHTML = `<i class="fas fa-satellite-dish text-success me-1"></i> Live tracking active`;
+                            
+                            if (isFirstLoad) {
+                                // Fit bounds to show both customer and driver
+                                {% if order.address and order.address.lat %}
+                                var bounds = L.latLngBounds([[lat, lng], [{{ order.address.lat }}, {{ order.address.lng }}], [8.9220, 38.7401]]);
+                                map.fitBounds(bounds, {padding: [30, 30]});
+                                {% else %}
+                                map.setView([lat, lng], 15);
+                                {% endif %}
+                                isFirstLoad = false;
+                            }
+                        }
+                    }
+                })
+                .catch(e => console.error("Tracking poll failed:", e));
+            }
+            
+            // Poll every 5 seconds
+            updateTracking();
+            setInterval(updateTracking, 5000);
         });
         </script>
-        {% endif %}
-      </div>
       {% endif %}
     </div>
 

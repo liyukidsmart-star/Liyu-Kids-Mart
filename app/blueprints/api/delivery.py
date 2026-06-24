@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import math
 from flask import request
 from app.blueprints.api import api_bp
 from app.extensions import db
@@ -54,3 +55,54 @@ def update_driver_location():
     driver.current_lng = data.get('lng')
     db.session.commit()
     return success_response(message='Location updated')
+
+
+STORE_LAT = 8.9220
+STORE_LNG = 38.7401
+MAX_DELIVERY_RADIUS_KM = 30  # Roughly covers Addis Ababa
+
+def calculate_distance(lat1, lon1, lat2, lon2):
+    R = 6371  # Radius of the earth in km
+    dLat = math.radians(lat2 - lat1)
+    dLon = math.radians(lon2 - lon1)
+    a = math.sin(dLat/2) * math.sin(dLat/2) + \
+        math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * \
+        math.sin(dLon/2) * math.sin(dLon/2)
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+    d = R * c # Distance in km
+    return d
+
+
+@api_bp.route('/delivery/calculate', methods=['POST'])
+def calculate_price():
+    data = request.get_json() or {}
+    lat = data.get('lat')
+    lng = data.get('lng')
+
+    if lat is None or lng is None:
+        return error_response('Latitude and longitude are required')
+
+    try:
+        lat = float(lat)
+        lng = float(lng)
+    except ValueError:
+        return error_response('Invalid coordinates')
+
+    distance = calculate_distance(STORE_LAT, STORE_LNG, lat, lng)
+
+    if distance > MAX_DELIVERY_RADIUS_KM:
+        return error_response('Sorry, we do not deliver to this location yet.', 400)
+
+    # Pricing logic: 100 Birr up to 5km, +16 Birr for each additional km
+    if distance <= 5:
+        price = 100
+    else:
+        extra_km = math.ceil(distance - 5)
+        price = 100 + (extra_km * 16)
+
+    return success_response({
+        'distance_km': round(distance, 2),
+        'price': price,
+        'store_lat': STORE_LAT,
+        'store_lng': STORE_LNG
+    })

@@ -4,6 +4,7 @@ from app import create_app
 from app.extensions import db
 from app.models.product import Product, Category
 from app.models.user import User
+from app.models.delivery import Driver
 from app.models.order import Cart, Order, OrderItem, Address, OrderStatus
 
 app = create_app('development')
@@ -186,3 +187,21 @@ def get_order_by_number(order_num):
         'total': float(o.total),
         'created_at': o.created_at
     }
+
+def cancel_order(order_id, user_id):
+    order = Order.query.filter_by(id=order_id, user_id=user_id).first()
+    if order and order.status == OrderStatus.pending:
+        order.status = OrderStatus.cancelled
+        db.session.commit()
+        return True
+    return False
+
+def update_driver_location(telegram_id, lat, lng):
+    user = User.query.filter_by(telegram_id=str(telegram_id)).first()
+    if user and user.driver_profile:
+        driver = user.driver_profile
+        driver.current_lat = lat
+        driver.current_lng = lng
+        db.session.commit()
+        return True
+    return False

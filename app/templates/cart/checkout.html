@@ -1,5 +1,26 @@
 {% extends 'base.html' %}
 {% block title %}Checkout — Liyu Kids Mart{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<style>
+  #deliveryMap {
+    height: 300px;
+    width: 100%;
+    border-radius: 12px;
+    border: 2px solid var(--lkm-green);
+    margin-bottom: 15px;
+    z-index: 1; /* Keep below navbar */
+  }
+  .map-glass-panel {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(10px);
+    border-radius: 8px;
+    padding: 10px;
+    border: 1px solid rgba(255,255,255,0.3);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  }
+</style>
+{% endblock %}
 {% block content %}
 <div class="container py-4">
   <h1 class="page-title mb-4"><i class="fas fa-lock me-2"></i>Checkout</h1>
@@ -39,7 +60,13 @@
               <input type="text" name="woreda" class="form-control lkm-input" placeholder="e.g. Woreda 03"/>
             </div>
             <div class="col-12">
-              <label class="form-label">Specific Location / Landmark *</label>
+              <label class="form-label">Drop a pin on your exact location *</label>
+              <div id="deliveryMap"></div>
+              <input type="hidden" name="lat" id="latInput" required>
+              <input type="hidden" name="lng" id="lngInput" required>
+              <input type="hidden" name="calculated_delivery_fee" id="calculatedDeliveryFeeInput" value="0">
+              
+              <label class="form-label mt-2">Specific Location / Landmark *</label>
               <textarea name="specific_location" class="form-control lkm-input" rows="2"
                         placeholder="e.g. Near Bole Medhanealem Church, Blue building 2nd floor" required></textarea>
             </div>
@@ -113,16 +140,155 @@
         </div>
         {% endfor %}
         <hr/>
-        <div class="summary-row"><span>Subtotal</span><span>ETB {{ "%.0f"|format(subtotal) }}</span></div>
-        <div class="summary-row"><span>Delivery</span><span>{{ 'FREE ✅' if delivery_fee == 0 else 'ETB ' ~ "%.0f"|format(delivery_fee) }}</span></div>
+        <div class="summary-row"><span>Subtotal</span><span id="summarySubtotal" data-value="{{ subtotal }}">ETB {{ "%.0f"|format(subtotal) }}</span></div>
+        <div class="summary-row"><span>Delivery</span><span id="summaryDelivery">Select Location</span></div>
         {% if discount > 0 %}
         <div class="summary-row text-success"><span>Discount</span><span>−ETB {{ "%.0f"|format(discount) }}</span></div>
         {% endif %}
         <hr/>
-        <div class="summary-row summary-total"><span>Total</span><span>ETB {{ "%.0f"|format(total) }}</span></div>
+        <div class="summary-row summary-total"><span>Total</span><span id="summaryTotal">ETB {{ "%.0f"|format(total - delivery_fee) }}</span></div>
         <div class="mt-3 small text-muted"><i class="fas fa-shield-alt me-1 text-green"></i>Your order is safe & secure</div>
       </div>
     </div>
   </div>
 </div>
+{% endblock %}
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize map centered on Addis Ababa
+    const addisLat = 8.9806;
+    const addisLng = 38.7578;
+    const map = L.map('deliveryMap').setView([addisLat, addisLng], 12);
+
+    // CartoDB Positron for a beautiful, clean, light aesthetic
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 20
+    }).addTo(map);
+
+    const storeLat = 8.9220;
+    const storeLng = 38.7401;
+
+    // Store Marker (Red)
+    const storeIcon = L.icon({
+        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
+        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34],
+        shadowSize: [41, 41]
+    });
+    L.marker([storeLat, storeLng], {icon: storeIcon}).addTo(map).bindPopup("<b>Liyu Kids Mart</b><br>Store Location").openPopup();
+
+    let customerMarker = null;
+
+    // Custom Customer Pin
+    const customerIcon = L.icon({
+        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png',
+        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34],
+        shadowSize: [41, 41]
+    });
+
+    const latInput = document.getElementById('latInput');
+    const lngInput = document.getElementById('lngInput');
+    const deliveryFeeInput = document.getElementById('calculatedDeliveryFeeInput');
+    const summaryDelivery = document.getElementById('summaryDelivery');
+    const summaryTotal = document.getElementById('summaryTotal');
+    const summarySubtotal = document.getElementById('summarySubtotal');
+    const checkoutBtn = document.querySelector('#checkoutForm button[type="submit"]');
+    
+    // Disable checkout until location is picked
+    checkoutBtn.disabled = true;
+    checkoutBtn.innerHTML = '<i class="fas fa-map-marker-alt me-2"></i>Please select delivery location on map';
+
+    const baseTotal = parseFloat(summarySubtotal.getAttribute('data-value'));
+    // Need to handle discount logic here if present, simplified for now assuming discount already applied to subtotal or not present.
+    // In Liyu Kids Mart, total = subtotal + delivery_fee - discount.
+    const discountElement = document.querySelector('.text-success span:last-child');
+    let discountVal = 0;
+    if(discountElement) {
+        discountVal = parseFloat(discountElement.innerText.replace(/[^0-9.]/g, ''));
+    }
+
+    map.on('click', function(e) {
+        const lat = e.latlng.lat;
+        const lng = e.latlng.lng;
+
+        if (customerMarker) {
+            customerMarker.setLatLng(e.latlng);
+        } else {
+            customerMarker = L.marker(e.latlng, {icon: customerIcon, draggable: true}).addTo(map);
+            customerMarker.on('dragend', function(event) {
+                const marker = event.target;
+                const position = marker.getLatLng();
+                updateLocationAndPrice(position.lat, position.lng);
+            });
+        }
+        
+        updateLocationAndPrice(lat, lng);
+    });
+
+    function updateLocationAndPrice(lat, lng) {
+        latInput.value = lat;
+        lngInput.value = lng;
+        
+        summaryDelivery.innerHTML = '<span class="spinner-border spinner-border-sm text-primary" role="status"></span> Calculating...';
+
+        fetch('/api/delivery/calculate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ lat: lat, lng: lng })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const price = data.data.price;
+                deliveryFeeInput.value = price;
+                
+                if (price === 0) {
+                    summaryDelivery.innerHTML = 'FREE ✅';
+                } else {
+                    summaryDelivery.innerHTML = `ETB ${price.toFixed(0)}`;
+                }
+                
+                const finalTotal = baseTotal + price - discountVal;
+                summaryTotal.innerHTML = `ETB ${finalTotal.toFixed(0)}`;
+                
+                checkoutBtn.disabled = false;
+                checkoutBtn.innerHTML = `<i class="fas fa-check me-2"></i>Place Order — ETB ${finalTotal.toFixed(0)}`;
+                
+                if (customerMarker) {
+                    customerMarker.bindPopup(`<b>Delivery Price: ETB ${price.toFixed(0)}</b><br>Distance: ${data.data.distance_km} km`).openPopup();
+                }
+            } else {
+                summaryDelivery.innerHTML = '<span class="text-danger">Out of range</span>';
+                checkoutBtn.disabled = true;
+                checkoutBtn.innerHTML = `<i class="fas fa-times me-2"></i>Cannot deliver to this location`;
+                if (customerMarker) {
+                    customerMarker.bindPopup(`<span class="text-danger">Sorry, we do not deliver here yet.</span>`).openPopup();
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            summaryDelivery.innerHTML = '<span class="text-danger">Error calculating</span>';
+        });
+    }
+
+    // Attempt HTML5 Geolocation to center map (optional)
+    if ("geolocation" in navigator) {
+        navigator.geolocation.getCurrentPosition(function(position) {
+            map.setView([position.coords.latitude, position.coords.longitude], 13);
+        });
+    }
+});
+</script>
 {% endblock %}

@@ -428,6 +428,22 @@ async def support_info(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 # --- MAIN RUNNER ---
 
+async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message or not update.message.location:
+        return
+    lat = update.message.location.latitude
+    lng = update.message.location.longitude
+    user_id = update.effective_user.id
+    
+    # Try to update driver location
+    is_driver = await db.run_in_db(db.update_driver_location, user_id, lat, lng)
+    if is_driver:
+        # We only send a reply if it's a static location. If it's a live location, 
+        # Telegram sends multiple updates silently, we don't want to spam the driver.
+        # But for confirmation, we might just log it or send one message if we wanted.
+        logger.info(f"Updated driver {user_id} location to {lat}, {lng}")
+    # If not driver, ignore location outside of checkout conversation
+
 def run_bot():
     if not TOKEN:
         logger.error("TELEGRAM_BOT_TOKEN not set!")
@@ -465,6 +481,9 @@ def run_bot():
 
     # Messages
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
+    
+    # Live Location Updates
+    app.add_handler(MessageHandler(filters.LOCATION, handle_location))
 
     if BOT_MODE == 'polling':
         app.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)

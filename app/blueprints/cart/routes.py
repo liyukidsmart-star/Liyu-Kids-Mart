@@ -5,6 +5,8 @@ from app.extensions import db
 from app.models.product import Product
 from app.models.order import (Cart as CartModel, Order, OrderItem, OrderStatus,
                               PaymentMethod, Address, Coupon)
+from app.blueprints.api.delivery import calculate_distance, STORE_LAT, STORE_LNG, MAX_DELIVERY_RADIUS_KM
+import math
 from app.utils import success_response, error_response, generate_order_number, get_or_create_session_id
 
 FREE_DELIVERY_THRESHOLD = 1000
@@ -138,6 +140,36 @@ def checkout():
     subtotal, delivery_fee, discount, total = _calc_totals(items, coupon)
 
     if request.method == 'POST':
+        # Get coordinates
+        lat_str = request.form.get('lat')
+        lng_str = request.form.get('lng')
+        
+        if not lat_str or not lng_str:
+            flash('Please select a delivery location on the map.', 'danger')
+            return redirect(url_for('cart.checkout'))
+            
+        try:
+            lat = float(lat_str)
+            lng = float(lng_str)
+        except ValueError:
+            flash('Invalid location coordinates.', 'danger')
+            return redirect(url_for('cart.checkout'))
+
+        # Recalculate delivery fee securely
+        distance = calculate_distance(STORE_LAT, STORE_LNG, lat, lng)
+        if distance > MAX_DELIVERY_RADIUS_KM:
+            flash('Sorry, your location is outside our delivery area.', 'danger')
+            return redirect(url_for('cart.checkout'))
+            
+        if distance <= 5:
+            delivery_fee = 100
+        else:
+            extra_km = math.ceil(distance - 5)
+            delivery_fee = 100 + (extra_km * 16)
+            
+        # Update total with new delivery fee
+        total = max(0, subtotal + delivery_fee - discount)
+
         # Create address
         addr = Address(
             user_id=current_user.id if current_user.is_authenticated else None,
@@ -147,6 +179,8 @@ def checkout():
             sub_city=request.form.get('sub_city', ''),
             woreda=request.form.get('woreda', ''),
             specific_location=request.form.get('specific_location', ''),
+            lat=lat,
+            lng=lng,
         )
         db.session.add(addr)
         db.session.flush()
