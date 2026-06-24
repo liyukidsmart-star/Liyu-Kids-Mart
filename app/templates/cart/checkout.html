@@ -290,7 +290,7 @@ document.addEventListener('DOMContentLoaded', function() {
     submitBtn.disabled = true;
 
     const [priceResp, routeData] = await Promise.all([
-      fetch('/api/delivery/calculate', {
+      fetch('/api/v1/delivery/calculate', {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({lat, lng})
       }).then(r=>r.json()).catch(()=>({success:false})),

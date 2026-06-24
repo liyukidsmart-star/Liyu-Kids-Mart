@@ -1031,7 +1031,7 @@ async function ckUpdateLocation(lat,lng){
   if(proceedBtn){proceedBtn.disabled=true;proceedBtn.innerHTML='<i class="fas fa-spinner fa-spin"></i>';}
 
   const[priceResp,routeData]=await Promise.all([
-    fetch('/api/delivery/calculate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lat,lng})})
+    fetch('/api/v1/delivery/calculate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lat,lng})})
       .then(r=>r.json()).catch(()=>({success:false})),
     ckFetchRoute(lat,lng)
   ]);
