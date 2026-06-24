@@ -57,8 +57,8 @@ def update_driver_location():
     return success_response(message='Location updated')
 
 
-STORE_LAT = 8.9220
-STORE_LNG = 38.7401
+STORE_LAT = 8.956133150795546
+STORE_LNG = 38.78781484232836
 
 
 def calculate_distance(lat1, lon1, lat2, lon2):
@@ -90,12 +90,12 @@ def calculate_price():
 
     distance = calculate_distance(STORE_LAT, STORE_LNG, lat, lng)
 
-    # Pricing logic: 100 Birr up to 5km, +16 Birr for each additional km
+    # Pricing: 100 ETB for first 5km, then 40 ETB per additional km
     if distance <= 5:
         price = 100
     else:
         extra_km = math.ceil(distance - 5)
-        price = 100 + (extra_km * 16)
+        price = 100 + (extra_km * 40)
 
     return success_response({
         'distance_km': round(distance, 2),

@@ -157,12 +157,12 @@ def checkout():
 
         # Recalculate delivery fee securely
         distance = calculate_distance(STORE_LAT, STORE_LNG, lat, lng)
-            
+        # Pricing: 100 ETB for first 5km, then 40 ETB per additional km
         if distance <= 5:
             delivery_fee = 100
         else:
             extra_km = math.ceil(distance - 5)
-            delivery_fee = 100 + (extra_km * 16)
+            delivery_fee = 100 + (extra_km * 40)
             
         # Update total with new delivery fee
         total = max(0, subtotal + delivery_fee - discount)

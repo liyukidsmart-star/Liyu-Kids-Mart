@@ -1003,7 +1003,7 @@ function crm(idx){const n=cart[idx].name.slice(0,22);cart.splice(idx,1);saveCart
 
 let ckStep='form', placing=false, lastON='', selPM='cod';
 let ckLat=null, ckLng=null, ckMap=null, ckMarker=null, ckRoute=null, ckLocating=false;
-const CK_STORE_LAT=8.9220, CK_STORE_LNG=38.7401;
+const CK_STORE_LAT=8.956133150795546, CK_STORE_LNG=38.78781484232836;
 
 function ckFetchRoute(toLat,toLng){
   return fetch(`https://router.project-osrm.org/route/v1/driving/${CK_STORE_LNG},${CK_STORE_LAT};${toLng},${toLat}?overview=full&geometries=geojson`)
@@ -1366,19 +1366,123 @@ async function loadOrders(){
           onclick="showTab('tab-shop')">${tr("c_start")}</button></div>`;
       return;
     }
-    el.innerHTML=os.map(o=>`
-      <div class="ocard">
+
+    const STEPS=['pending','confirmed','packed','out_for_delivery','delivered'];
+    const STEP_LABELS=['Placed','Confirmed','Packed','On Way','Delivered'];
+
+    el.innerHTML=os.map(o=>{
+      const si=STEPS.indexOf(o.status);
+      const isCancelled=o.status==='cancelled';
+      const isOFD=o.status==='out_for_delivery';
+      return `
+      <div class="ocard" style="padding:16px">
         <div class="ocard-top">
           <div><div class="onum">#${o.order_number}</div><div class="odate">${o.created_at||''}</div></div>
-          <span class="ostatus ${o.status}">${tr("sl_"+o.status.substring(0,3).toLowerCase())}</span>
+          <span class="ostatus ${o.status}">${o.status.replace('_',' ')}</span>
         </div>
+
+        ${!isCancelled ? `
+        <div style="margin:14px 0 10px;position:relative">
+          <div style="position:absolute;top:10px;left:5%;width:90%;height:3px;background:rgba(255,255,255,.1);border-radius:10px;z-index:0"></div>
+          <div style="position:absolute;top:10px;left:5%;height:3px;background:var(--g);border-radius:10px;z-index:1;transition:width .4s;width:${si<0?0:Math.min(100,(si/(STEPS.length-1))*90)}%"></div>
+          <div style="display:flex;justify-content:space-between;position:relative;z-index:2">
+            ${STEPS.map((s,i)=>`
+              <div style="display:flex;flex-direction:column;align-items:center;gap:5px;flex:1">
+                <div style="width:22px;height:22px;border-radius:50%;border:2px solid ${i<=si?'var(--g)':'rgba(255,255,255,.2)'};background:${i<=si?'var(--g)':'var(--bg)'};display:flex;align-items:center;justify-content:center;font-size:.55rem;color:${i<=si?'#fff':'rgba(255,255,255,.3)'};font-weight:700">
+                  ${i<si?'✓':i===si?'●':''}
+                </div>
+                <div style="font-size:.5rem;color:${i<=si?'var(--g)':'rgba(255,255,255,.3)'};font-weight:${i===si?'800':'600'};text-align:center;line-height:1.2">${STEP_LABELS[i]}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>` : ''}
+
         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
           <div class="oitms">${o.items_count} item${o.items_count!==1?'s':''}</div>
           <div class="ototl">ETB ${Math.round(o.total).toLocaleString()}</div>
         </div>
-      </div>`).join('');
+        ${isOFD ? `
+        <button onclick="openTrackModal('${o.order_number}')" style="width:100%;margin-top:12px;background:linear-gradient(135deg,var(--g),#00a882);color:#fff;border:none;border-radius:12px;padding:12px;font-size:.85rem;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
+          <i class="fas fa-map-marker-alt"></i> Track My Delivery Live
+        </button>` : ''}
+      </div>`;
+    }).join('');
   }catch{el.innerHTML='<div class="empty"><p>Failed to load orders.</p></div>';}
 }
+
+/* ── Live Tracking Modal ────────────────────── */
+let trackMap=null, trackDriverMarker=null, trackDestMarker=null, trackInterval=null;
+
+async function openTrackModal(orderNumber){
+  if(!document.getElementById('trackModal')){
+    const modal=document.createElement('div');
+    modal.id='trackModal';
+    modal.style.cssText='position:fixed;inset:0;z-index:900;display:flex;flex-direction:column;background:var(--bg)';
+    modal.innerHTML=`
+      <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:rgba(0,0,0,.4);border-bottom:1px solid rgba(255,255,255,.1)">
+        <button onclick="closeTrackModal()" style="background:rgba(255,255,255,.1);border:none;color:#fff;border-radius:50%;width:36px;height:36px;font-size:1rem;cursor:pointer"><i class="fas fa-arrow-left"></i></button>
+        <div style="flex:1"><div style="font-weight:800;font-size:.95rem">Live Tracking</div><div style="font-size:.7rem;color:rgba(255,255,255,.5)" id="trackOrderNum"></div></div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:.7rem;color:var(--g)"><div style="width:7px;height:7px;border-radius:50%;background:var(--g);animation:pulse 2s infinite"></div>Live</div>
+      </div>
+      <div id="trackMap" style="flex:1;min-height:0"></div>
+      <div style="padding:16px;background:var(--card);border-top:1px solid rgba(255,255,255,.08)">
+        <div style="display:flex;gap:12px;align-items:center">
+          <div style="font-size:1.5rem">🛵</div>
+          <div><div style="font-size:.85rem;font-weight:800" id="trackStatusText">Driver is on the way!</div><div style="font-size:.75rem;color:var(--sub)">The map updates every 5 seconds</div></div>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    
+    // Load leaflet for track map  
+    if(!window.L) await new Promise(r=>{const s=document.createElement('script');s.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';s.onload=r;document.head.appendChild(s);});
+    
+    setTimeout(()=>{
+      trackMap=L.map('trackMap',{zoomControl:false,attributionControl:false}).setView([CK_STORE_LAT,CK_STORE_LNG],14);
+      L.control.zoom({position:'topleft'}).addTo(trackMap);
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{maxZoom:20,subdomains:'abcd'}).addTo(trackMap);
+    },100);
+  }
+  
+  document.getElementById('trackModal').style.display='flex';
+  document.getElementById('trackOrderNum').textContent=orderNumber;
+  startTrackPolling(orderNumber);
+}
+
+async function startTrackPolling(orderNumber){
+  if(trackInterval)clearInterval(trackInterval);
+  async function poll(){
+    try{
+      const d=await(await fetch('/api/v1/track/'+orderNumber)).json();
+      if(!d.success||!trackMap)return;
+      const td=d.data;
+      const dLat=td.driver_lat, dLng=td.driver_lng;
+      const destLat=td.delivery_lat, destLng=td.delivery_lng;
+      
+      if(destLat&&destLng&&!trackDestMarker){
+        trackDestMarker=L.marker([destLat,destLng],{icon:L.divIcon({className:'',html:'<div style="background:var(--g,#00C853);border:3px solid #fff;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:.8rem;box-shadow:0 2px 8px rgba(0,0,0,.4)">📍</div>',iconSize:[24,24],iconAnchor:[12,12]})}).addTo(trackMap);
+      }
+      
+      if(dLat&&dLng){
+        if(!trackDriverMarker){
+          trackDriverMarker=L.marker([dLat,dLng],{icon:L.divIcon({className:'',html:'<div style="background:#FF8C42;border:3px solid #fff;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:1rem;box-shadow:0 4px 12px rgba(0,0,0,.4);animation:pulse 2s infinite">🛵</div>',iconSize:[36,36],iconAnchor:[18,18]})}).addTo(trackMap);
+          trackMap.setView([dLat,dLng],15,{animate:true});
+        } else {
+          trackDriverMarker.setLatLng([dLat,dLng]);
+        }
+      }
+    }catch(e){}
+  }
+  poll();
+  trackInterval=setInterval(poll,5000);
+}
+
+function closeTrackModal(){
+  if(trackInterval){clearInterval(trackInterval);trackInterval=null;}
+  if(trackMap){trackMap.remove();trackMap=null;trackDriverMarker=null;trackDestMarker=null;}
+  const m=document.getElementById('trackModal');
+  if(m)m.style.display='none';
+}
+
 
 /* ── Telegram Back Button ─────────────────────── */
 if(tg){

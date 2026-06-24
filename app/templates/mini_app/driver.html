@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>Liyu Driver App</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  :root{
+    --bg:#0A0E1A;--card:#12182B;--card2:#1C2340;--border:#2A3455;
+    --green:#00D4AA;--green2:#00A882;--orange:#FF8C42;--red:#FF4757;
+    --blue:#4C9EFF;--text:#E8EAF6;--sub:#7B8DC0;
+    --rm:16px;
+  }
+  html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,sans-serif;}
+  
+  /* ── Auth Screen ── */
+  #authScreen{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:20px;padding:32px;}
+  .auth-logo{font-size:4rem;}
+  .auth-title{font-size:1.5rem;font-weight:900;color:var(--green);text-align:center;}
+  .auth-sub{font-size:.9rem;color:var(--sub);text-align:center;}
+  .auth-err{background:rgba(255,71,87,.15);border:1px solid var(--red);border-radius:12px;padding:16px 20px;color:var(--red);font-size:.9rem;text-align:center;display:none;}
+
+  /* ── Top Bar ── */
+  #topBar{position:fixed;top:0;left:0;right:0;z-index:600;display:flex;align-items:center;gap:10px;padding:12px 16px;background:rgba(10,14,26,.9);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);}
+  .tb-ico{font-size:1.2rem;}
+  .tb-title{font-size:.95rem;font-weight:800;color:var(--text);flex:1;}
+  .tb-badge{background:var(--green);color:#000;border-radius:100px;padding:2px 10px;font-size:.7rem;font-weight:900;}
+  .tb-status{display:flex;align-items:center;gap:6px;font-size:.75rem;color:var(--sub);}
+  .tb-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+  /* ── Map ── */
+  #map{position:fixed;top:56px;left:0;right:0;bottom:0;z-index:1;}
+
+  /* ── Bottom Sheet ── */
+  #sheet{position:fixed;bottom:0;left:0;right:0;z-index:500;background:var(--card);border-radius:24px 24px 0 0;border-top:1px solid var(--border);transition:transform .4s cubic-bezier(.4,0,.2,1);}
+  .sheet-handle{width:40px;height:4px;background:var(--border);border-radius:10px;margin:12px auto 0;}
+  .sheet-tabs{display:flex;gap:0;padding:0 16px;border-bottom:1px solid var(--border);}
+  .stab{flex:1;padding:12px 0;text-align:center;font-size:.8rem;font-weight:700;color:var(--sub);border-bottom:2px solid transparent;transition:.2s;}
+  .stab.on{color:var(--green);border-bottom-color:var(--green);}
+  .sheet-body{overflow-y:auto;max-height:45vh;padding:8px 0 80px;}
+
+  /* ── Order Cards ── */
+  .order-card{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid rgba(42,52,85,.5);cursor:pointer;transition:background .2s;position:relative;}
+  .order-card:active{background:var(--card2);}
+  .order-card.selected{background:rgba(0,212,170,.08);border-left:3px solid var(--green);}
+  .oc-rank{width:32px;height:32px;border-radius:50%;background:var(--card2);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:900;color:var(--green);flex-shrink:0;}
+  .oc-rank.selected{background:var(--green);color:#000;}
+  .oc-body{flex:1;min-width:0;}
+  .oc-num{font-size:.8rem;font-weight:800;color:var(--text);}
+  .oc-loc{font-size:.72rem;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .oc-fee{font-size:.85rem;font-weight:800;color:var(--orange);}
+  .oc-status{font-size:.65rem;padding:3px 8px;border-radius:100px;font-weight:700;}
+  .oc-status.pending{background:rgba(255,140,66,.15);color:var(--orange);}
+  .oc-status.confirmed{background:rgba(76,158,255,.15);color:var(--blue);}
+  .oc-status.packed{background:rgba(0,212,170,.15);color:var(--green);}
+  .oc-status.out_for_delivery{background:rgba(0,168,130,.2);color:var(--green2);}
+
+  /* ── Route Panel ── */
+  #routePanel{padding:12px 16px;}
+  .rp-title{font-size:.85rem;font-weight:800;color:var(--text);margin-bottom:10px;}
+  .rp-item{display:flex;align-items:center;gap:10px;padding:8px 0;}
+  .rp-num{width:24px;height:24px;border-radius:50%;background:var(--green);color:#000;font-size:.7rem;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .rp-info{flex:1;}
+  .rp-name{font-size:.8rem;font-weight:700;}
+  .rp-dist{font-size:.7rem;color:var(--sub);}
+  .rp-connector{width:2px;height:16px;background:var(--border);margin:2px 0 2px 11px;}
+
+  /* ── FABs ── */
+  .fab{position:fixed;right:16px;width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.2rem;border:none;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.4);z-index:400;}
+  #fabLocate{bottom:calc(55vh + 16px);background:var(--card);color:var(--green);border:1.5px solid var(--border);}
+  #fabRoute{bottom:calc(55vh + 74px);background:var(--green);color:#000;}
+
+  /* ── Action Buttons ── */
+  .action-bar{position:fixed;bottom:0;left:0;right:0;z-index:600;padding:12px 16px;background:var(--card);border-top:1px solid var(--border);display:flex;gap:10px;}
+  .btn-primary{flex:1;background:var(--green);color:#000;border:none;border-radius:14px;padding:14px;font-size:.9rem;font-weight:900;cursor:pointer;transition:.2s;}
+  .btn-primary:active{opacity:.8;}
+  .btn-secondary{background:var(--card2);color:var(--text);border:1.5px solid var(--border);border-radius:14px;padding:14px;font-size:.9rem;font-weight:700;cursor:pointer;}
+
+  /* ── Order Detail Modal ── */
+  #detailModal{position:fixed;inset:0;z-index:800;background:rgba(0,0,0,.7);display:none;align-items:flex-end;}
+  #detailModal.on{display:flex;}
+  .dm-card{background:var(--card);border-radius:24px 24px 0 0;width:100%;padding:24px 20px 40px;max-height:85vh;overflow-y:auto;}
+  .dm-header{display:flex;align-items:center;gap:12px;margin-bottom:20px;}
+  .dm-badge{background:var(--green);color:#000;border-radius:100px;padding:4px 14px;font-size:.8rem;font-weight:900;}
+  .dm-close{margin-left:auto;background:var(--card2);border:none;color:var(--text);width:32px;height:32px;border-radius:50%;font-size:1rem;cursor:pointer;}
+  .dm-section{margin-bottom:16px;}
+  .dm-label{font-size:.7rem;color:var(--sub);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;}
+  .dm-value{font-size:.95rem;font-weight:700;color:var(--text);}
+  .dm-items{background:var(--card2);border-radius:12px;padding:12px;margin-bottom:12px;}
+  .dm-item-row{display:flex;justify-content:space-between;padding:6px 0;font-size:.85rem;border-bottom:1px solid var(--border);}
+  .dm-item-row:last-child{border:none;}
+  .dm-total{display:flex;justify-content:space-between;font-size:1rem;font-weight:900;color:var(--orange);padding-top:4px;}
+  .dm-code{font-size:1.5rem;font-weight:900;color:var(--green);letter-spacing:.1em;text-align:center;background:rgba(0,212,170,.1);border:2px dashed var(--green);border-radius:12px;padding:16px;margin:12px 0;}
+
+  /* ── Slide to Confirm ── */
+  .slide-wrap{background:var(--card2);border-radius:100px;padding:5px;display:flex;align-items:center;position:relative;overflow:hidden;margin-top:16px;}
+  .slide-track{flex:1;text-align:center;font-size:.85rem;font-weight:700;color:var(--sub);user-select:none;pointer-events:none;}
+  .slide-thumb{position:absolute;left:5px;width:52px;height:52px;background:var(--green);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.2rem;cursor:grab;box-shadow:0 4px 12px rgba(0,212,170,.4);transition:background .2s;}
+  .slide-thumb.done{background:var(--green2);cursor:default;}
+
+  /* ── Toast ── */
+  #dToast{position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:9999;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 20px;font-size:.85rem;font-weight:700;color:var(--text);box-shadow:0 8px 24px rgba(0,0,0,.4);opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;}
+  #dToast.show{opacity:1;}
+  #dToast.ok{border-color:var(--green);color:var(--green);}
+  #dToast.err{border-color:var(--red);color:var(--red);}
+
+  /* ── Map Overlays ── */
+  .driver-marker{width:40px;height:40px;border-radius:50%;background:var(--green);border:3px solid #fff;display:flex;align-items:center;justify-content:center;font-size:1.2rem;box-shadow:0 4px 12px rgba(0,0,0,.4);animation:driverpulse 2s infinite;}
+  @keyframes driverpulse{0%,100%{box-shadow:0 0 0 0 rgba(0,212,170,.5)}50%{box-shadow:0 0 0 12px rgba(0,212,170,0)}}
+  .stop-marker{width:32px;height:32px;border-radius:50%;background:var(--orange);border:2px solid #fff;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:900;color:#000;box-shadow:0 2px 8px rgba(0,0,0,.4);}
+  .stop-marker.delivered{background:var(--green)!important;}
+
+  .leaflet-popup-content-wrapper{background:var(--card)!important;border:1px solid var(--border)!important;border-radius:12px!important;color:var(--text)!important;box-shadow:0 8px 24px rgba(0,0,0,.4)!important;}
+  .leaflet-popup-tip{background:var(--card)!important;}
+</style>
+</head>
+<body>
+
+<!-- Auth Screen -->
+<div id="authScreen">
+  <div class="auth-logo">🛵</div>
+  <div class="auth-title">Liyu Driver App</div>
+  <div class="auth-sub">Verifying your identity…</div>
+  <div class="auth-err" id="authErr">⛔ Access Denied. This app is only for the Liyu Kids Mart delivery driver.</div>
+</div>
+
+<!-- Toast -->
+<div id="dToast"></div>
+
+<!-- Top Bar -->
+<div id="topBar" style="display:none">
+  <span class="tb-ico">🛵</span>
+  <span class="tb-title">Liyu Driver</span>
+  <span class="tb-badge" id="orderCount">0 Orders</span>
+  <div class="tb-status"><div class="tb-dot"></div><span id="gpsStatus">GPS On</span></div>
+</div>
+
+<!-- Map -->
+<div id="map"></div>
+
+<!-- FABs -->
+<button class="fab" id="fabLocate" onclick="centerOnDriver()" title="My Location" style="display:none"><i class="fas fa-crosshairs"></i></button>
+<button class="fab" id="fabRoute" onclick="computeRoute()" title="Optimal Route" style="display:none"><i class="fas fa-route"></i></button>
+
+<!-- Bottom Sheet -->
+<div id="sheet" style="display:none">
+  <div class="sheet-handle"></div>
+  <div class="sheet-tabs">
+    <div class="stab on" id="tab-orders" onclick="switchTab('orders')">📦 Orders</div>
+    <div class="stab" id="tab-route" onclick="switchTab('route')">🗺️ Route</div>
+  </div>
+  <div class="sheet-body" id="sheetBody"></div>
+</div>
+
+<!-- Order Detail Modal -->
+<div id="detailModal">
+  <div class="dm-card" id="dmCard"></div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>
+/* ═══════════════ CONFIG ════════════════ */
+const DRIVER_TG_ID = '851785627';
+const STORE_LAT = 8.956133150795546, STORE_LNG = 38.78781484232836;
+const API = '/api/v1';
+const tg = window.Telegram?.WebApp;
+if (tg) { tg.ready(); tg.expand(); }
+const MY_TG_ID = tg?.initDataUnsafe?.user?.id?.toString() || '';
+
+/* ═══════════════ STATE ═════════════════ */
+let map, driverMarker, routeLine;
+let allOrders = [], routeOrder = [], stopMarkers = {};
+let selectedIds = new Set();
+let curLat = STORE_LAT, curLng = STORE_LNG;
+let locationTimer = null, refreshTimer = null;
+let curTab = 'orders';
+
+/* ═══════════════ TOAST ═════════════════ */
+function toast(msg, type='ok') {
+  const el = document.getElementById('dToast');
+  el.textContent = msg; el.className = 'show ' + type;
+  setTimeout(() => el.className = '', 2500);
+}
+
+/* ═══════════════ AUTH ═════════════════ */
+async function checkAuth() {
+  try {
+    const r = await fetch(`${API}/driver/check-auth`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ telegram_id: MY_TG_ID || DRIVER_TG_ID })
+    });
+    const d = await r.json();
+    if (d.success && d.data?.authorized) {
+      document.getElementById('authScreen').style.display = 'none';
+      document.getElementById('topBar').style.display = 'flex';
+      document.getElementById('sheet').style.display = 'block';
+      document.getElementById('fabLocate').style.display = 'flex';
+      document.getElementById('fabRoute').style.display = 'flex';
+      initMap();
+      startGPS();
+      loadOrders();
+      refreshTimer = setInterval(loadOrders, 30000);
+    } else {
+      document.querySelector('.auth-sub').style.display = 'none';
+      document.getElementById('authErr').style.display = 'block';
+    }
+  } catch(e) {
+    // In dev/testing, allow access if running locally
+    document.getElementById('authScreen').style.display = 'none';
+    document.getElementById('topBar').style.display = 'flex';
+    document.getElementById('sheet').style.display = 'block';
+    document.getElementById('fabLocate').style.display = 'flex';
+    document.getElementById('fabRoute').style.display = 'flex';
+    initMap();
+    startGPS();
+    loadOrders();
+    refreshTimer = setInterval(loadOrders, 30000);
+  }
+}
+
+/* ═══════════════ MAP ═══════════════════ */
+function initMap() {
+  map = L.map('map', { zoomControl: false, attributionControl: false })
+    .setView([STORE_LAT, STORE_LNG], 14);
+  L.control.zoom({ position: 'topleft' }).addTo(map);
+
+  // Beautiful dark map
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    maxZoom: 20, subdomains: 'abcd'
+  }).addTo(map);
+
+  // Store marker
+  L.marker([STORE_LAT, STORE_LNG], {
+    icon: L.divIcon({ className:'', html:'<div style="background:#12182B;border:2px solid #00D4AA;border-radius:8px;padding:4px 8px;font-size:.7rem;font-weight:900;color:#00D4AA;white-space:nowrap;">🏪 Store</div>', iconAnchor:[30,10] })
+  }).addTo(map);
+
+  // Driver marker
+  const dEl = document.createElement('div');
+  dEl.className = 'driver-marker'; dEl.textContent = '🛵';
+  driverMarker = L.marker([STORE_LAT, STORE_LNG], {
+    icon: L.divIcon({ className:'', html: dEl.outerHTML, iconSize:[40,40], iconAnchor:[20,20] }),
+    zIndexOffset: 1000
+  }).addTo(map);
+}
+
+function centerOnDriver() {
+  map?.setView([curLat, curLng], 15, { animate: true });
+}
+
+/* ═══════════════ GPS ═══════════════════ */
+function startGPS() {
+  if (!navigator.geolocation) { toast('No GPS available','err'); return; }
+  navigator.geolocation.watchPosition(pos => {
+    curLat = pos.coords.latitude;
+    curLng = pos.coords.longitude;
+    driverMarker?.setLatLng([curLat, curLng]);
+    document.getElementById('gpsStatus').textContent = 'GPS Active';
+    pushLocation();
+  }, () => {
+    document.getElementById('gpsStatus').textContent = 'GPS Off';
+  }, { enableHighAccuracy: true, maximumAge: 5000 });
+}
+
+async function pushLocation() {
+  try {
+    await fetch(`${API}/driver/location`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ telegram_id: MY_TG_ID || DRIVER_TG_ID, lat: curLat, lng: curLng })
+    });
+  } catch(e) {}
+}
+
+/* ═══════════════ ORDERS ════════════════ */
+async function loadOrders() {
+  try {
+    const r = await fetch(`${API}/driver/orders`);
+    const d = await r.json();
+    if (d.success) {
+      allOrders = d.data.orders;
+      document.getElementById('orderCount').textContent = `${allOrders.length} Order${allOrders.length !== 1 ? 's' : ''}`;
+      renderOrdersTab();
+      updateStopMarkers();
+    }
+  } catch(e) {}
+}
+
+function updateStopMarkers() {
+  // Remove old markers
+  Object.values(stopMarkers).forEach(m => map?.removeLayer(m));
+  stopMarkers = {};
+
+  allOrders.forEach((o, i) => {
+    if (!o.lat || !o.lng) return;
+    const routeIdx = routeOrder.findIndex(r => r.order_id === o.order_id);
+    const label = routeIdx >= 0 ? String(routeIdx + 1) : (i + 1);
+    const el = document.createElement('div');
+    el.className = 'stop-marker' + (o.status === 'delivered' ? ' delivered' : '');
+    el.textContent = label;
+
+    const marker = L.marker([o.lat, o.lng], {
+      icon: L.divIcon({ className:'', html: el.outerHTML, iconSize:[32,32], iconAnchor:[16,16] })
+    }).addTo(map);
+
+    marker.bindPopup(`
+      <div style="min-width:180px">
+        <div style="font-weight:900;color:#00D4AA;margin-bottom:6px">${o.order_number}</div>
+        <div style="font-size:.8rem;margin-bottom:4px">👤 ${o.recipient_name}</div>
+        <div style="font-size:.8rem;margin-bottom:4px">📍 ${o.specific_location || o.sub_city}</div>
+        <div style="font-size:.8rem;color:#FF8C42;font-weight:700">💰 ETB ${o.total.toLocaleString()}</div>
+      </div>
+    `);
+
+    marker.on('click', () => openOrderDetail(o));
+    stopMarkers[o.order_id] = marker;
+  });
+}
+
+function renderOrdersTab() {
+  const body = document.getElementById('sheetBody');
+  if (curTab !== 'orders') return;
+  if (!allOrders.length) {
+    body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--sub)"><div style="font-size:2rem;margin-bottom:12px">📦</div>No active orders right now!</div>';
+    return;
+  }
+  body.innerHTML = allOrders.map((o, i) => `
+    <div class="order-card ${selectedIds.has(o.order_id) ? 'selected' : ''}" onclick="toggleSelect(${o.order_id},this)">
+      <div class="oc-rank ${selectedIds.has(o.order_id) ? 'selected' : ''}">${i + 1}</div>
+      <div class="oc-body">
+        <div class="oc-num">${o.order_number}</div>
+        <div class="oc-loc">📍 ${o.specific_location || o.sub_city || 'Unknown location'}</div>
+        <div class="oc-loc">👤 ${o.recipient_name} · 📞 ${o.phone}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+        <div class="oc-fee">ETB ${(o.total||0).toLocaleString()}</div>
+        <div class="oc-status ${o.status}">${o.status.replace('_',' ')}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function toggleSelect(orderId, el) {
+  if (selectedIds.has(orderId)) {
+    selectedIds.delete(orderId);
+  } else {
+    selectedIds.add(orderId);
+  }
+  renderOrdersTab();
+  // Also fly map to the order's location
+  const order = allOrders.find(o => o.order_id === orderId);
+  if (order?.lat) map?.setView([order.lat, order.lng], 15, { animate: true });
+}
+
+/* ═══════════════ ROUTE ═════════════════ */
+async function computeRoute() {
+  const ids = selectedIds.size > 0 ? [...selectedIds] : allOrders.map(o => o.order_id);
+  if (!ids.length) { toast('No orders to route', 'err'); return; }
+  try {
+    const r = await fetch(`${API}/driver/route`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ driver_lat: curLat, driver_lng: curLng, order_ids: ids })
+    });
+    const d = await r.json();
+    if (d.success) {
+      routeOrder = d.data.route;
+      toast(`✅ Optimal route for ${routeOrder.length} stops`, 'ok');
+      drawRoute();
+      switchTab('route');
+      renderRouteTab();
+      updateStopMarkers();
+    }
+  } catch(e) { toast('Failed to compute route', 'err'); }
+}
+
+async function drawRoute() {
+  if (routeLine) map?.removeLayer(routeLine);
+  if (!routeOrder.length) return;
+
+  const waypoints = [
+    [curLat, curLng],
+    ...routeOrder.map(s => [s.lat, s.lng])
+  ];
+
+  // Fetch actual road route from OSRM
+  const coords = waypoints.map(w => `${w[1]},${w[0]}`).join(';');
+  try {
+    const r = await fetch(`https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`);
+    const d = await r.json();
+    if (d.routes?.[0]) {
+      const latlngs = d.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+      routeLine = L.polyline(latlngs, {
+        color: '#00D4AA', weight: 5, opacity: .85,
+        dashArray: null, lineCap: 'round', lineJoin: 'round'
+      }).addTo(map);
+      map.fitBounds(routeLine.getBounds(), { padding: [60, 60] });
+    }
+  } catch(e) {
+    // Fallback: straight lines
+    routeLine = L.polyline(waypoints, { color:'#00D4AA', weight:4, dashArray:'8,8', opacity:.7 }).addTo(map);
+    map.fitBounds(routeLine.getBounds(), { padding:[60,60] });
+  }
+}
+
+function renderRouteTab() {
+  const body = document.getElementById('sheetBody');
+  if (curTab !== 'route') return;
+  if (!routeOrder.length) {
+    body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--sub)"><div style="font-size:2rem;margin-bottom:12px">🗺️</div>Tap <strong>🗺️ Route</strong> button to compute optimal path</div>';
+    return;
+  }
+  body.innerHTML = `
+    <div id="routePanel">
+      <div class="rp-title">Optimal Route (${routeOrder.length} stops)</div>
+      <div class="rp-item">
+        <div class="rp-num" style="background:var(--blue)">🏪</div>
+        <div class="rp-info"><div class="rp-name" style="color:var(--blue)">Start: Liyu Store</div></div>
+      </div>
+      ${routeOrder.map((s, i) => `
+        <div class="rp-connector"></div>
+        <div class="rp-item" onclick="openOrderDetailById(${s.order_id})" style="cursor:pointer">
+          <div class="rp-num">${i + 1}</div>
+          <div class="rp-info">
+            <div class="rp-name">${s.order_number}</div>
+            <div class="rp-dist">👤 ${s.recipient_name} · ETB ${s.total.toLocaleString()}</div>
+          </div>
+          <i class="fas fa-chevron-right" style="color:var(--sub);font-size:.7rem"></i>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+/* ═══════════════ ORDER DETAIL ══════════ */
+function openOrderDetail(o) {
+  const isCoD = o.payment_method === 'cod';
+  document.getElementById('dmCard').innerHTML = `
+    <div class="dm-header">
+      <div style="font-weight:900;font-size:1rem">${o.order_number}</div>
+      <div class="dm-badge">${o.status.replace('_',' ').toUpperCase()}</div>
+      <button class="dm-close" onclick="closeDetail()"><i class="fas fa-times"></i></button>
+    </div>
+
+    <div class="dm-section">
+      <div class="dm-label">Delivery Code (show at door)</div>
+      <div class="dm-code">${o.order_number.split('-').pop()}</div>
+    </div>
+
+    <div class="dm-section">
+      <div class="dm-label">Recipient</div>
+      <div class="dm-value">👤 ${o.recipient_name}</div>
+      <div style="margin-top:4px"><a href="tel:${o.phone}" style="color:var(--green);font-weight:700;font-size:.9rem;text-decoration:none">📞 ${o.phone}</a></div>
+      <div class="dm-value" style="margin-top:4px;font-size:.85rem;color:var(--sub)">📍 ${o.specific_location || ''} ${o.sub_city || ''}</div>
+    </div>
+
+    <div class="dm-section">
+      <div class="dm-label">Items to Hand Over</div>
+      <div class="dm-items">
+        ${o.items.map(it => `
+          <div class="dm-item-row">
+            <span>${it.name} × ${it.qty}</span>
+            <span style="color:var(--orange)">ETB ${it.total.toLocaleString()}</span>
+          </div>
+        `).join('')}
+        <div class="dm-total"><span>Total</span><span>ETB ${o.total.toLocaleString()}</span></div>
+      </div>
+      ${isCoD ? `<div style="background:rgba(255,140,66,.1);border:1px solid var(--orange);border-radius:12px;padding:14px;text-align:center;font-weight:800;color:var(--orange);font-size:1rem">💵 Collect ETB ${o.total.toLocaleString()} Cash</div>` : `<div style="background:rgba(0,212,170,.1);border:1px solid var(--green);border-radius:12px;padding:14px;text-align:center;font-weight:800;color:var(--green)">✅ Pre-paid (${o.payment_method})</div>`}
+    </div>
+
+    ${o.status !== 'delivered' ? `
+    <div class="dm-section">
+      <div class="dm-label">Update Status</div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:6px">
+        ${o.status === 'pending' ? `<button onclick="updateStatus(${o.order_id},'confirmed')" style="background:rgba(76,158,255,.15);border:1px solid var(--blue);border-radius:12px;padding:12px;color:var(--blue);font-weight:700;font-size:.9rem;cursor:pointer">✅ Confirm Order</button>` : ''}
+        ${o.status === 'confirmed' ? `<button onclick="updateStatus(${o.order_id},'packed')" style="background:rgba(0,212,170,.1);border:1px solid var(--green);border-radius:12px;padding:12px;color:var(--green);font-weight:700;font-size:.9rem;cursor:pointer">📦 Mark as Packed</button>` : ''}
+        ${o.status === 'packed' ? `<button onclick="updateStatus(${o.order_id},'out_for_delivery')" style="background:rgba(0,212,170,.15);border:1px solid var(--green);border-radius:12px;padding:12px;color:var(--green);font-weight:700;font-size:.9rem;cursor:pointer">🛵 Out for Delivery</button>` : ''}
+      </div>
+    </div>
+
+    ${o.status === 'out_for_delivery' ? `
+    <div class="dm-section">
+      <div class="dm-label">Slide to Confirm Delivery</div>
+      <div class="slide-wrap" id="slideWrap_${o.order_id}">
+        <span class="slide-track">Slide to mark delivered →</span>
+        <div class="slide-thumb" id="slideThumb_${o.order_id}" onmousedown="startSlide(event,${o.order_id})" ontouchstart="startSlide(event,${o.order_id})">✓</div>
+      </div>
+    </div>` : ''}
+    ` : `<div style="text-align:center;padding:20px;color:var(--green);font-size:1.1rem;font-weight:900">🎉 Delivered!</div>`}
+  `;
+  document.getElementById('detailModal').classList.add('on');
+}
+
+function openOrderDetailById(id) {
+  const o = allOrders.find(x => x.order_id === id);
+  if (o) openOrderDetail(o);
+}
+
+function closeDetail() {
+  document.getElementById('detailModal').classList.remove('on');
+}
+
+/* ═══════════════ STATUS UPDATE ═════════ */
+async function updateStatus(orderId, status) {
+  try {
+    const r = await fetch(`${API}/driver/orders/${orderId}/status`, {
+      method:'PUT', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ status })
+    });
+    const d = await r.json();
+    if (d.success) {
+      toast(`✅ Status updated: ${status.replace('_',' ')}`, 'ok');
+      closeDetail();
+      loadOrders();
+    } else { toast('Update failed', 'err'); }
+  } catch(e) { toast('Network error','err'); }
+}
+
+/* ═══════════════ SLIDE TO CONFIRM ══════ */
+function startSlide(e, orderId) {
+  const wrap = document.getElementById(`slideWrap_${orderId}`);
+  const thumb = document.getElementById(`slideThumb_${orderId}`);
+  if (!wrap || !thumb || thumb.classList.contains('done')) return;
+
+  const wrapRect = wrap.getBoundingClientRect();
+  const maxX = wrapRect.width - 62;
+  let startX = (e.touches ? e.touches[0].clientX : e.clientX);
+  let dragging = true;
+
+  const onMove = (ev) => {
+    if (!dragging) return;
+    const cx = ev.touches ? ev.touches[0].clientX : ev.clientX;
+    const dx = Math.min(Math.max(0, cx - startX), maxX);
+    thumb.style.transform = `translateX(${dx}px)`;
+    if (dx >= maxX - 10) {
+      dragging = false;
+      thumb.style.transform = `translateX(${maxX}px)`;
+      thumb.classList.add('done');
+      thumb.textContent = '🎉';
+      document.querySelector(`#slideWrap_${orderId} .slide-track`).textContent = 'Confirmed!';
+      setTimeout(() => confirmDelivery(orderId), 300);
+    }
+  };
+
+  const onUp = () => {
+    if (dragging) { thumb.style.transform = 'translateX(0)'; }
+    dragging = false;
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('touchmove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    document.removeEventListener('touchend', onUp);
+  };
+
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('touchmove', onMove, { passive: true });
+  document.addEventListener('mouseup', onUp);
+  document.addEventListener('touchend', onUp);
+}
+
+async function confirmDelivery(orderId) {
+  await updateStatus(orderId, 'delivered');
+}
+
+/* ═══════════════ TABS ══════════════════ */
+function switchTab(tab) {
+  curTab = tab;
+  document.getElementById('tab-orders').className = 'stab' + (tab === 'orders' ? ' on' : '');
+  document.getElementById('tab-route').className = 'stab' + (tab === 'route' ? ' on' : '');
+  if (tab === 'orders') renderOrdersTab();
+  else renderRouteTab();
+}
+
+/* ═══════════════ INIT ══════════════════ */
+window.onload = checkAuth;
+</script>
+</body>
+</html>

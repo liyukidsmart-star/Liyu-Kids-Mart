@@ -95,7 +95,7 @@ def mini_app_checkout():
     if not order_items:
         return error_response('No valid items in cart', 400)
 
-    delivery_fee = 0.0 if subtotal >= 1000 else 80.0
+    delivery_fee = float(delivery.get('delivery_fee', 0)) if delivery.get('delivery_fee') else 80.0
     total = subtotal + delivery_fee
 
     # Map payment method
@@ -106,7 +106,7 @@ def mini_app_checkout():
     }
     payment_method = pm_map.get(payment_method_str, PaymentMethod.cod)
 
-    # Create address
+    # Create address (with lat/lng from map pin)
     addr = Address(
         user_id=user.id,
         recipient_name=delivery.get('name', user.full_name or 'Customer'),
@@ -115,6 +115,8 @@ def mini_app_checkout():
         sub_city=delivery.get('sub_city', ''),
         woreda=delivery.get('woreda', ''),
         specific_location=delivery.get('specific_location', ''),
+        lat=delivery.get('lat'),
+        lng=delivery.get('lng'),
     )
     db.session.add(addr)
     db.session.flush()

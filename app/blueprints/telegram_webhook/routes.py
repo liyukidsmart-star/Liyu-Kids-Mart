@@ -71,3 +71,9 @@ def mini_app_products():
         'success': True,
         'data': [p.to_dict() for p in products]
     })
+
+
+@telegram_bp.route('/driver-app')
+def driver_app():
+    """Driver Mini App for the delivery man."""
+    return render_template('mini_app/driver.html')
