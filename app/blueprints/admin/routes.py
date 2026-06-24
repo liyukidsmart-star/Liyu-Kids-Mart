@@ -16,23 +16,29 @@ from slugify import slugify
 
 def _upload_file_to_supabase(file_obj, filename):
     supabase_url = os.environ.get('SUPABASE_URL')
-    supabase_key = os.environ.get('SUPABASE_KEY')
+    # Vercel-Supabase native integration uses SUPABASE_ANON_KEY or SUPABASE_SERVICE_ROLE_KEY
+    supabase_key = (
+        os.environ.get('SUPABASE_SERVICE_ROLE_KEY') or
+        os.environ.get('SUPABASE_KEY') or
+        os.environ.get('SUPABASE_ANON_KEY')
+    )
     if not supabase_url or not supabase_key:
+        current_app.logger.warning("Supabase credentials not found in env vars (SUPABASE_URL, SUPABASE_KEY/SUPABASE_ANON_KEY/SUPABASE_SERVICE_ROLE_KEY)")
         return None
     try:
         from supabase import create_client, Client
         supabase: Client = create_client(supabase_url, supabase_key)
         bucket_name = 'uploads'
-        
+
         # Read the file content
         file_content = file_obj.read()
-        file_obj.seek(0) # Reset pointer
-        
+        file_obj.seek(0)  # Reset pointer
+
         # Upload
         supabase.storage.from_(bucket_name).upload(
-            file=file_content, 
-            path=filename, 
-            file_options={"content-type": file_obj.content_type}
+            file=file_content,
+            path=filename,
+            file_options={"content-type": file_obj.content_type, "upsert": "true"}
         )
         # Return public URL
         return supabase.storage.from_(bucket_name).get_public_url(filename)

@@ -7,6 +7,8 @@
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <style>
 :root{
   --g:#2D6A4F;--gm:#40916C;--gl:#74C69D;--gp:#D8F3DC;
@@ -283,6 +285,31 @@ ul{list-style:none}
 .place-btn{width:100%;background:var(--g);color:#fff;border-radius:var(--rm);padding:16px;font-size:1rem;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 6px 24px rgba(45,106,79,.4)}
 .place-btn:active{transform:scale(.97)}
 .place-btn:disabled{background:var(--br);color:var(--ts);box-shadow:none}
+
+/* MAP IN CHECKOUT */
+.ck-map-wrap{position:relative;border-radius:16px;overflow:hidden;margin-bottom:10px;box-shadow:0 6px 24px rgba(0,0,0,.22)}
+#ckMap{height:240px;width:100%;border-radius:16px}
+.ck-locate-btn{position:absolute;bottom:10px;left:10px;z-index:500;background:#fff;border:none;border-radius:10px;padding:7px 12px;font-size:.75rem;font-weight:700;color:var(--g);display:flex;align-items:center;gap:6px;cursor:pointer;box-shadow:0 3px 12px rgba(0,0,0,.18)}
+.ck-hint{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:500;background:rgba(15,15,25,.82);color:#fff;backdrop-filter:blur(6px);border-radius:100px;padding:6px 14px;font-size:.7rem;font-weight:600;white-space:nowrap;pointer-events:none;transition:opacity .4s}
+.ck-hint.hidden{opacity:0}
+.ck-fee-card{background:linear-gradient(135deg,#1e3a2f,#2D6A4F);border-radius:14px;padding:13px 15px;color:#fff;display:flex;align-items:center;gap:12px;margin-bottom:10px;box-shadow:0 5px 18px rgba(45,106,79,.3);transition:background .3s}
+.ck-fee-card.idle{background:linear-gradient(135deg,#252535,#35354a);box-shadow:0 4px 14px rgba(0,0,0,.2)}
+.ck-fee-card.error{background:linear-gradient(135deg,#5a1a1a,#8B2020)}
+.cfc-ico{font-size:1.6rem;flex-shrink:0}
+.cfc-main{flex:1}
+.cfc-lbl{font-size:.62rem;font-weight:700;opacity:.7;text-transform:uppercase;letter-spacing:.7px}
+.cfc-val{font-size:1.1rem;font-weight:900;line-height:1.2}
+.cfc-sub{font-size:.7rem;opacity:.8;margin-top:2px}
+.cfc-dist{text-align:right;flex-shrink:0}
+.cfc-dv{font-size:.95rem;font-weight:900}
+.cfc-dl{font-size:.6rem;opacity:.7;text-transform:uppercase}
+.cfc-spin{width:18px;height:18px;border:2.5px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:cfcsp .8s linear infinite;display:inline-block}
+@keyframes cfcsp{to{transform:rotate(360deg)}}
+.ck-store-dot{width:14px;height:14px;background:#40916C;border:2.5px solid #fff;border-radius:50%;animation:cksp 2.2s ease-in-out infinite}
+@keyframes cksp{0%{box-shadow:0 0 0 0 rgba(64,145,108,.65)}70%{box-shadow:0 0 0 14px rgba(64,145,108,0)}100%{box-shadow:0 0 0 0 rgba(64,145,108,0)}}
+.ck-pin{width:20px;height:20px;background:#E63946;border:2.5px solid #fff;border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:0 3px 10px rgba(230,57,70,.45)}
+.ck-pin::after{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(45deg);width:6px;height:6px;background:#fff;border-radius:50%}
+.leaflet-control-attribution{font-size:.5rem!important}
 
 /* SUCCESS */
 .success-scr{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px 24px;text-align:center;gap:14px}
@@ -913,7 +940,8 @@ function aiClear(){
 
 /* ── Cart rendering ───────────────────────────── */
 function sub(){return cart.reduce((s,i)=>s+(i.price*i.qty),0);}
-function delfee(){return sub()>=1000?0:80;}
+let ckDeliveryFee=80; // will be updated by map
+function delfee(){return sub()>=1000?0:ckDeliveryFee;}
 function total(){return sub()+delfee();}
 
 function renderCart(){
@@ -971,13 +999,141 @@ function crm(idx){const n=cart[idx].name.slice(0,22);cart.splice(idx,1);saveCart
 /* ═══════════════ PART 4: CHECKOUT + ORDERS ═════════════════ */
 
 let ckStep='form', placing=false, lastON='', selPM='cod';
+let ckLat=null, ckLng=null, ckMap=null, ckMarker=null, ckRoute=null, ckLocating=false;
+const CK_STORE_LAT=8.9220, CK_STORE_LNG=38.7401;
+
+function ckFetchRoute(toLat,toLng){
+  return fetch(`https://router.project-osrm.org/route/v1/driving/${CK_STORE_LNG},${CK_STORE_LAT};${toLng},${toLat}?overview=full&geometries=geojson`)
+    .then(r=>r.json()).then(d=>{
+      if(d.routes&&d.routes.length)return{coords:d.routes[0].geometry.coordinates.map(c=>[c[1],c[0]]),distKm:(d.routes[0].distance/1000).toFixed(1),durMin:Math.round(d.routes[0].duration/60)};
+      return null;
+    }).catch(()=>null);
+}
+
+async function ckUpdateLocation(lat,lng){
+  ckLat=lat; ckLng=lng;
+  const feeCard=document.getElementById('ckFeeCard');
+  const fcVal=document.getElementById('ckFcVal');
+  const fcSub=document.getElementById('ckFcSub');
+  const fcIco=document.getElementById('ckFcIco');
+  const fcDistWrap=document.getElementById('ckFcDistWrap');
+  const fcDist=document.getElementById('ckFcDist');
+  const placeBtn=document.getElementById('placeBtn');
+  if(!feeCard)return;
+  feeCard.className='ck-fee-card';
+  fcIco.innerHTML='<div class="cfc-spin"></div>';
+  fcVal.textContent='Calculating…';
+  fcSub.textContent='Fetching route & price';
+  fcDistWrap.style.display='none';
+  if(placeBtn){placeBtn.disabled=true;placeBtn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Calculating fee…';}
+
+  const[priceResp,routeData]=await Promise.all([
+    fetch('/api/delivery/calculate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lat,lng})})
+      .then(r=>r.json()).catch(()=>({success:false})),
+    ckFetchRoute(lat,lng)
+  ]);
+
+  if(ckMap&&routeData){
+    if(ckRoute)ckMap.removeLayer(ckRoute);
+    ckRoute=L.polyline(routeData.coords,{color:'#52B788',weight:4,opacity:.9,lineCap:'round',lineJoin:'round'}).addTo(ckMap);
+    ckMap.fitBounds(ckRoute.getBounds(),{padding:[40,40]});
+    fcDistWrap.style.display='block';
+    fcDist.textContent=routeData.distKm+' km';
+  }
+
+  if(priceResp.success){
+    const price=priceResp.data.price;
+    ckDeliveryFee=price;
+    feeCard.className='ck-fee-card';
+    fcIco.textContent='🛵';
+    fcVal.textContent='ETB '+price.toFixed(0);
+    fcSub.textContent=routeData?`~${routeData.durMin} min estimated delivery`:`${priceResp.data.distance_km} km from store`;
+    const tot=sub()+price;
+    if(placeBtn){placeBtn.disabled=false;placeBtn.innerHTML=`<i class="fas fa-check-circle"></i> Place Order — ETB ${Math.round(tot).toLocaleString()}`;}
+  } else {
+    ckDeliveryFee=0;
+    feeCard.className='ck-fee-card error';
+    fcIco.textContent='🚫';
+    fcVal.textContent='Out of Range';
+    fcSub.textContent='Sorry, we cannot deliver here yet';
+    if(placeBtn){placeBtn.disabled=true;placeBtn.innerHTML='<i class="fas fa-times"></i> Cannot deliver here';}
+  }
+}
+
+function ckSetPin(latlng){
+  if(!ckMap)return;
+  if(ckMarker){ckMarker.setLatLng(latlng);}else{
+    const pinIcon=L.divIcon({className:'',html:'<div class="ck-pin"></div>',iconSize:[20,20],iconAnchor:[10,20],popupAnchor:[0,-22]});
+    ckMarker=L.marker(latlng,{icon:pinIcon,draggable:true}).addTo(ckMap);
+    ckMarker.on('dragend',e=>{const p=e.target.getLatLng();ckUpdateLocation(p.lat,p.lng);});
+  }
+  const hint=document.getElementById('ckHint');
+  if(hint)hint.classList.add('hidden');
+  ckUpdateLocation(latlng.lat,latlng.lng);
+}
+
+function ckLocateMe(){
+  if(ckLocating||!ckMap)return;
+  if(!navigator.geolocation){toast('Geolocation not available','err');return;}
+  ckLocating=true;
+  const btn=document.getElementById('ckLocBtn');
+  if(btn){btn.innerHTML='<i class="fas fa-spinner fa-spin"></i>';btn.style.opacity='.7';}
+  navigator.geolocation.getCurrentPosition(
+    pos=>{
+      const ll=L.latLng(pos.coords.latitude,pos.coords.longitude);
+      ckMap.setView(ll,15,{animate:true});
+      ckSetPin(ll);
+      ckLocating=false;
+      if(btn){btn.innerHTML='<i class="fas fa-crosshairs"></i> Locate Me';btn.style.opacity='1';}
+    },
+    ()=>{
+      ckLocating=false;
+      if(btn){btn.innerHTML='<i class="fas fa-crosshairs"></i> Locate Me';btn.style.opacity='1';}
+      toast('Could not get location. Tap the map.','err');
+    },{timeout:10000,enableHighAccuracy:true}
+  );
+}
+
+function initCkMap(){
+  if(ckMap)return;
+  setTimeout(()=>{
+    const el=document.getElementById('ckMap');
+    if(!el)return;
+    ckMap=L.map('ckMap',{zoomControl:true}).setView([9.02,38.76],12);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
+      attribution:'© OSM © CARTO',subdomains:'abcd',maxZoom:20
+    }).addTo(ckMap);
+    const sdEl=document.createElement('div');
+    sdEl.className='ck-store-dot';
+    L.marker([CK_STORE_LAT,CK_STORE_LNG],{
+      icon:L.divIcon({className:'',html:sdEl.outerHTML,iconSize:[14,14],iconAnchor:[7,7]})
+    }).addTo(ckMap).bindPopup('<b style="color:#2D6A4F">🏪 Liyu Kids Mart</b>');
+    ckMap.on('click',e=>ckSetPin(e.latlng));
+    // Auto-locate
+    if(navigator.geolocation){
+      navigator.geolocation.getCurrentPosition(
+        pos=>{const ll=L.latLng(pos.coords.latitude,pos.coords.longitude);ckMap.setView(ll,14,{animate:true});ckSetPin(ll);},
+        ()=>{},
+        {timeout:6000}
+      );
+    }
+    ckMap.invalidateSize();
+  },150);
+}
 
 function openCheckout(){
   if(!cart.length){toast('Your cart is empty!','err');return;}
-  ckStep='form'; renderCK();
+  ckStep='form'; ckLat=null; ckLng=null; ckDeliveryFee=80;
+  renderCK();
   document.getElementById('chkov').classList.add('on'); hap();
+  initCkMap();
 }
-function closeCheckout(){document.getElementById('chkov').classList.remove('on');ckStep='form';}
+function closeCheckout(){
+  document.getElementById('chkov').classList.remove('on');
+  ckStep='form';
+  // Reset map so it re-initializes next time
+  if(ckMap){ckMap.remove();ckMap=null;ckMarker=null;ckRoute=null;}
+}
 
 function selPayment(m){
   selPM=m;
@@ -1029,12 +1185,33 @@ function renderCK(){
         <input class="finp" id="cn" type="text" placeholder="Your name" value="${nm}"/></div>
       <div class="fg"><label class="flbl">Phone Number *</label>
         <input class="finp" id="cp" type="tel" placeholder="09XXXXXXXX"/></div>
-      <div class="fg"><label class="flbl">Sub-City</label>
-        <input class="finp" id="csc" type="text" placeholder="e.g. Bole, Kirkos, Yeka…"/></div>
       <div class="fg"><label class="flbl">Specific Location *</label>
         <input class="finp" id="cl" type="text" placeholder="Near landmark, building name…"/></div>
-      <div class="fg"><label class="flbl">Delivery Notes</label>
-        <input class="finp" id="cno" type="text" placeholder="Any special instructions"/></div>
+    </div>
+    <div class="chk-sec">
+      <h3><i class="fas fa-map-pin" style="color:var(--g)"></i> Pin Your Location</h3>
+      <p style="font-size:.76rem;color:var(--ts);margin-bottom:10px">Tap the map to drop your delivery pin. Drag it to adjust.</p>
+      <div class="ck-map-wrap">
+        <div id="ckMap"></div>
+        <div class="ck-hint" id="ckHint">📍 Tap to set delivery location</div>
+        <button type="button" class="ck-locate-btn" id="ckLocBtn" onclick="ckLocateMe()">
+          <i class="fas fa-crosshairs"></i> Locate Me
+        </button>
+      </div>
+      <div class="ck-fee-card idle" id="ckFeeCard">
+        <div class="cfc-ico" id="ckFcIco">📍</div>
+        <div class="cfc-main">
+          <div class="cfc-lbl">Delivery Fee</div>
+          <div class="cfc-val" id="ckFcVal">Select your location</div>
+          <div class="cfc-sub" id="ckFcSub">Tap the map above</div>
+        </div>
+        <div class="cfc-dist" id="ckFcDistWrap" style="display:none">
+          <div class="cfc-dv" id="ckFcDist">—</div>
+          <div class="cfc-dl">By road</div>
+        </div>
+      </div>
+      <div class="fg"><label class="flbl">Notes / Sub-City</label>
+        <input class="finp" id="cno" type="text" placeholder="Any special instructions or sub-city"/></div>
     </div>
     <div class="chk-sec">
       <h3><i class="fas fa-wallet" style="color:var(--g)"></i> Payment Method</h3>
@@ -1071,12 +1248,12 @@ async function placeOrder(){
   if(placing)return;
   const cn=document.getElementById('cn')?.value?.trim();
   const cp=document.getElementById('cp')?.value?.trim();
-  const csc=document.getElementById('csc')?.value?.trim();
   const cl=document.getElementById('cl')?.value?.trim();
   const cno=document.getElementById('cno')?.value?.trim();
   if(!cn){toast('Please enter your name','err');return;}
   if(!cp||cp.length<9){toast('Please enter a valid phone number','err');return;}
   if(!cl){toast('Please enter your delivery location','err');return;}
+  if(!ckLat||!ckLng){toast('Please drop a pin on the map first','err');return;}
   placing=true;
   const btn=document.getElementById('placeBtn');
   if(btn){btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Placing order…';}
@@ -1087,7 +1264,7 @@ async function placeOrder(){
         full_name:TGU?((TGU.first_name||'')+' '+(TGU.last_name||'')).trim():cn,
         telegram_username:TGU?.username||'',
         cart_items:cart.map(i=>({id:i.id,qty:i.qty})),
-        delivery:{name:cn,phone:cp,sub_city:csc||'',specific_location:cl,city:'Addis Ababa'},
+        delivery:{name:cn,phone:cp,sub_city:'',specific_location:cl,city:'Addis Ababa',lat:ckLat,lng:ckLng,delivery_fee:ckDeliveryFee},
         payment_method:selPM,
         notes:cno||'Placed via Telegram Mini App'
       })});
