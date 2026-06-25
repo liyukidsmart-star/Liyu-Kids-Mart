@@ -39,23 +39,12 @@ class Config:
     CORS_ORIGINS = ['*']
 
 
-class DevelopmentConfig(Config):
-    DEBUG = True
-    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'sqlite:///liyu_kids.db')
-    SQLALCHEMY_ECHO = False
-
-
-class ProductionConfig(Config):
-    DEBUG = False
-    
-    db_url = os.getenv('DATABASE_URL')
+    db_url = os.getenv('DATABASE_URL', 'sqlite:///liyu_kids.db')
     if db_url and db_url.startswith("postgres://"):
         db_url = db_url.replace("postgres://", "postgresql://", 1)
         
     SQLALCHEMY_DATABASE_URI = db_url
-    JWT_COOKIE_SECURE = True
-    WTF_CSRF_ENABLED = True
-    
+
     # For serverless environments like Vercel, we MUST use NullPool.
     # Otherwise, sleeping serverless instances hold onto database connections
     # and quickly exhaust the Supabase connection limit (15).
@@ -63,6 +52,15 @@ class ProductionConfig(Config):
         'poolclass': NullPool,
         'pool_pre_ping': True
     }
+
+class DevelopmentConfig(Config):
+    DEBUG = True
+    SQLALCHEMY_ECHO = False
+
+class ProductionConfig(Config):
+    DEBUG = False
+    JWT_COOKIE_SECURE = True
+    WTF_CSRF_ENABLED = True
 
 
 config = {
