@@ -93,13 +93,16 @@ async def _get_all_bot_users_async() -> list[int]:
         return [int(u.telegram_id) for u in users if u.telegram_id]
 
 
-async def _send_photo_to_user(client: httpx.AsyncClient, chat_id: int,
+async def _send_photo_to_user(client: httpx.AsyncClient, chat_id,
                                photo_url: str, caption: str, keyboard: dict) -> bool:
     """Send a product photo with caption to a single Telegram user."""
     api_url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}"
 
-    # If photo_url is a local path, send text only (can't send local files via API easily)
-    if photo_url.startswith('/static/'):
+    # Handle different types of photo URLs
+    if photo_url.startswith('/media/'):
+        # Extract the Telegram file_id directly
+        full_photo_url = photo_url.split('/media/')[-1]
+    elif photo_url.startswith('/static/'):
         full_photo_url = f"{APP_URL}{photo_url}"
     else:
         full_photo_url = photo_url
@@ -137,7 +140,16 @@ async def _broadcast_async(product: dict):
         logger.warning("No TELEGRAM_BOT_TOKEN set — skipping broadcast.")
         return
 
-    telegram_ids = await _get_all_bot_users_async()
+    telegram_ids = list(await _get_all_bot_users_async())
+    
+    # Also broadcast to the media channel where product photos are kept
+    media_chat_id = os.environ.get('TELEGRAM_MEDIA_CHAT_ID', '').strip()
+    if media_chat_id:
+        try:
+            telegram_ids.append(int(media_chat_id))
+        except ValueError:
+            telegram_ids.append(media_chat_id)
+
     if not telegram_ids:
         logger.info("No bot users to broadcast to.")
         return
