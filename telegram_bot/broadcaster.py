@@ -146,9 +146,9 @@ async def _broadcast_async(product: dict):
     media_chat_id = os.environ.get('TELEGRAM_MEDIA_CHAT_ID', '').strip()
     if media_chat_id:
         try:
-            telegram_ids.append(int(media_chat_id))
+            telegram_ids.insert(0, int(media_chat_id))
         except ValueError:
-            telegram_ids.append(media_chat_id)
+            telegram_ids.insert(0, media_chat_id)
 
     if not telegram_ids:
         logger.info("No bot users to broadcast to.")
@@ -182,19 +182,14 @@ async def _broadcast_async(product: dict):
 def broadcast_new_product(product: dict):
     """
     Synchronous wrapper — call this from Flask admin routes after product creation.
-    Runs async broadcast in a background thread so Flask request is not blocked.
+    On Vercel, this must run synchronously before the HTTP response is returned, 
+    otherwise the serverless function is frozen and the broadcast dies.
     """
-    import threading
-
-    def _run():
-        try:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            loop.run_until_complete(_broadcast_async(product))
-            loop.close()
-        except Exception as e:
-            logger.error(f"Broadcast thread error: {e}")
-
-    t = threading.Thread(target=_run, daemon=True)
-    t.start()
-    logger.info(f"Product broadcast thread started for '{product.get('name')}'.")
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(_broadcast_async(product))
+        loop.close()
+        logger.info(f"Product broadcast completed synchronously for '{product.get('name')}'.")
+    except Exception as e:
+        logger.error(f"Broadcast error: {e}")
