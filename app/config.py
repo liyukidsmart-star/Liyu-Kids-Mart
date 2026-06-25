@@ -1,6 +1,7 @@
 import os
 from datetime import timedelta
 from dotenv import load_dotenv
+from sqlalchemy.pool import NullPool
 
 load_dotenv(override=True)
 
@@ -55,14 +56,11 @@ class ProductionConfig(Config):
     JWT_COOKIE_SECURE = True
     WTF_CSRF_ENABLED = True
     
-    # Configure SQLAlchemy connection pooling to not exceed Supabase limits (max 15)
-    # By default, SQLAlchemy uses pool_size=5 and max_overflow=10 (15 total per worker)
-    # If using multiple workers, this easily exceeds the 15 limit.
+    # For serverless environments like Vercel, we MUST use NullPool.
+    # Otherwise, sleeping serverless instances hold onto database connections
+    # and quickly exhaust the Supabase connection limit (15).
     SQLALCHEMY_ENGINE_OPTIONS = {
-        'pool_size': 2,
-        'max_overflow': 2,
-        'pool_timeout': 30,
-        'pool_recycle': 1800,
+        'poolclass': NullPool,
         'pool_pre_ping': True
     }
 
