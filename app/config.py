@@ -54,6 +54,17 @@ class ProductionConfig(Config):
     SQLALCHEMY_DATABASE_URI = db_url
     JWT_COOKIE_SECURE = True
     WTF_CSRF_ENABLED = True
+    
+    # Configure SQLAlchemy connection pooling to not exceed Supabase limits (max 15)
+    # By default, SQLAlchemy uses pool_size=5 and max_overflow=10 (15 total per worker)
+    # If using multiple workers, this easily exceeds the 15 limit.
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        'pool_size': 2,
+        'max_overflow': 2,
+        'pool_timeout': 30,
+        'pool_recycle': 1800,
+        'pool_pre_ping': True
+    }
 
 
 config = {
