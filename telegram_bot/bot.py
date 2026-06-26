@@ -515,9 +515,14 @@ async def process_webhook_update(payload):
     if update is None:
         return False
 
-    await app.process_update(update)
+    if not getattr(app, "_running", False):
+        await app.start()
+    try:
+        await app.process_update(update)
+    finally:
+        if getattr(app, "_running", False):
+            await app.stop()
     return True
-
 
 def run_bot():
     if not TOKEN:
