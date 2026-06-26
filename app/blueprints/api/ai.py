@@ -73,10 +73,33 @@ _PRODUCT_KEYWORDS = [
     'reading', 'drawing', 'math', 'counting', 'abacus', 'flashcard',
 ]
 
+_AMHARIC_PRODUCT_HINTS = [
+    '\u121d\u122d\u1275', '\u121d\u122d\u1276\u127d', '\u1218\u1323\u12cb\u127b', '\u1218\u1323\u12cb\u127e\u127d', '\u1218\u132d\u1205\u134d', '\u1218\u132d\u1203\u134d', '\u121e\u1295\u1274\u1236\u122a',
+    '\u12a5\u1295\u1328\u1275', '\u1343\u12d5\u12d5\u120d', '\u1219\u12dd\u12ab', '\u1265\u120e\u12ad', '\u1265\u120e\u12ad\u1275', '\u1261\u1245\u122d', '\u134a\u12f0\u120d', '\u1240\u1208\u121d',
+    '\u1235\u1273\u12ad\u1309\u1295', '\u12f3\u12ed\u12ed', '\u12a0\u1233\u12ed\u129d', '\u12a0\u1233\u12ed', '\u12a0\u1208\u1295',
+]
+def _is_amharic_text(text):
+    return any('ሀ' <= ch <= '፿' for ch in text)
+
+
+def _is_product_request(text):
+    lowered = text.lower()
+    english_hints = [
+        'buy', 'find', 'search', 'looking for', 'show me', 'recommend', 'suggest',
+        'toy', 'product', 'montessori', 'wooden', 'puzzle', 'blocks', 'book',
+        'art', 'musical', 'educational', 'what do you have', 'do you sell',
+    ]
+    if any(hint in lowered for hint in english_hints):
+        return True
+    if _is_amharic_text(text) and any(hint in text for hint in _AMHARIC_PRODUCT_HINTS):
+        return True
+    return False
+
 
 def _get_all_candidate_products(query_text, history_text='', exclude_ids=None):
     exclude_ids = set(exclude_ids or [])
     combined = (query_text + ' ' + history_text).lower()
+    combined_original = f'{query_text} {history_text}'
 
     age_months_list = _detect_age_months_from_text(combined)
     min_age, max_age = None, None
@@ -100,20 +123,38 @@ def _get_all_candidate_products(query_text, history_text='', exclude_ids=None):
     if min_age is not None and max_age is not None:
         q = q.filter(Product.age_min_months <= max_age, Product.age_max_months >= min_age)
 
+    search_space = [combined, combined_original.lower()]
     results = []
     seen = set()
     for kw in _PRODUCT_KEYWORDS:
-        if kw in combined:
+        if any(kw in space for space in search_space):
             kw_q = q.filter(
                 db.or_(
                     Product.name.ilike(f'%{kw}%'),
+                    Product.name_am.ilike(f'%{kw}%'),
                     Product.description.ilike(f'%{kw}%'),
+                    Product.description_am.ilike(f'%{kw}%'),
+                    Product.short_description.ilike(f'%{kw}%'),
+                    Product.short_description_am.ilike(f'%{kw}%'),
+                    Product.slug.ilike(f'%{kw}%'),
                 )
             ).all()
             for p in kw_q:
                 if p.id not in seen and p.id not in exclude_ids:
                     results.append(p)
                     seen.add(p.id)
+
+    if not results and _is_amharic_text(combined_original):
+        am_q = q.filter(
+            db.or_(
+                Product.name_am.isnot(None),
+                Product.description_am.isnot(None),
+                Product.short_description_am.isnot(None),
+            )
+        ).order_by(Product.sales_count.desc()).limit(8).all()
+        for p in am_q:
+            if p.id not in exclude_ids:
+                results.append(p)
 
     if not results:
         for p in q.order_by(Product.sales_count.desc()).limit(8).all():
@@ -240,6 +281,7 @@ def ai_chat():
 
     cart_product_ids = [item.product_id for item in cart_items]
     candidates = _get_all_candidate_products(user_message, recent_history_text, exclude_ids=cart_product_ids)
+    product_requested = _is_product_request(user_message)
 
     prompt = _build_gemini_prompt(user_message, history, cart_items, candidates)
     try:
@@ -258,7 +300,9 @@ def ai_chat():
     ]
     is_non_product = any(kw in user_message.lower() for kw in non_product_patterns)
 
-    if is_non_product and not mentioned:
+    if product_requested:
+        final_products = candidates[:6] if candidates else []
+    elif is_non_product and not mentioned:
         final_products = []
     else:
         pool = mentioned + [p for p in candidates if p.id not in {x.id for x in mentioned}]

@@ -873,29 +873,35 @@ function aiAppend(role,text,products=[]){
   const init=isU?(TGU?.first_name?.[0]||'U'):'L';
   const div=document.createElement('div');
   div.className='ai-msg '+role;
+  const amharicChat = /[\u1200-\u137f]/.test(text||'');
 
   let pcHTML='';
   if(products&&products.length){
     pcHTML=`<div class="ai-pcards">${products.map(p=>{
-      const n = p.name || 'Product';
+      const n = amharicChat && (p.name_am || p.short_description_am) ? (p.name_am || p.name || 'Product') : (p.name || p.name_am || 'Product');
+      const desc = amharicChat ? (p.short_description_am || p.short_description || '') : (p.short_description || p.short_description_am || '');
+      const addLabel = amharicChat ? '?? ???? ???' : tr("sh_add");
+      const tellLiyu = amharicChat ? '??? ???' : '?? Tell Liyu';
+      const tellMsg = amharicChat ? `\u12ed\u1205\u1295 ${esc(n)} \u1260\u12dd\u1295\u1262\u120c \u12cd\u1235\u1325 \u1328\u121d\u122d\u1201` : `I added ${esc(n)} to my cart.`;
       return `
       <div class="ai-pc" onclick="openSheet(this.dataset.p)" data-p="${esc(JSON.stringify(p))}">
         <img src="${p.primary_image}" alt="${n}" onerror="this.src='/static/images/placeholder.png'"/>
         <div class="ai-pc-inf">
           <div class="ai-pc-name">${n}</div>
+          ${desc ? `<div class="ai-pc-desc">${desc}</div>` : ''}
           <div class="ai-pc-price">ETB ${Math.round(p.price).toLocaleString()}</div>
           <button class="ai-pc-add" data-pid="${p.id}"
             onclick="event.stopPropagation();addCart(${p.id},'${esc(n)}',${p.price},'${p.primary_image}');this.style.display='none';this.nextElementSibling.style.display='block';">
-            ${tr("sh_add")}</button>
+            ${addLabel}</button>
           <button class="ai-pc-add ok" style="display:none;background:var(--org);color:#fff"
-            onclick="event.stopPropagation();aiSend('I added ${esc(n)} to my cart.')">
-            💬 Tell Liyu</button>
+            onclick="event.stopPropagation();aiSend('${tellMsg}')">
+            ${tellLiyu}</button>
         </div>
       </div>`;
     }).join('')}</div>
     <div class="ai-cta">
-      <p>Your cart has ${cart.reduce((s,i)=>s+i.qty,0)} item(s). Ready to checkout?</p>
-      <button class="ai-cta-btn" onclick="openCheckout()">🛒 ${tr("c_co")}</button>
+      <p>${amharicChat ? `????? ??? ${cart.reduce((s,i)=>s+i.qty,0)} ?? ??? ????? ??? ????` : `Your cart has ${cart.reduce((s,i)=>s+i.qty,0)} item(s). Ready to checkout?`}</p>
+      <button class="ai-cta-btn" onclick="openCheckout()">?? ${tr("c_co")}</button>
     </div>`;
   }
   div.innerHTML=`<div class="ai-mav">${init}</div>
