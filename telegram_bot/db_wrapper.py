@@ -1,14 +1,21 @@
 import asyncio
 import random
 import os
-from app import create_app
 from app.extensions import db
 from app.models.product import Product, Category
 from app.models.user import User, UserRole
 from app.models.delivery import Driver
 from app.models.order import Cart, Order, OrderItem, Address, OrderStatus
 
-app = create_app('development')
+_app = None
+
+def _get_app():
+    global _app
+    if _app is None:
+        from app import create_app
+        config_name = os.getenv('FLASK_ENV', 'development')
+        _app = create_app(config_name)
+    return _app
 DRIVER_TG_IDS = {
     tg_id.strip()
     for tg_id in os.getenv('DRIVER_TG_IDS', '851785627,7733651914').split(',')
@@ -16,7 +23,7 @@ DRIVER_TG_IDS = {
 }
 
 def _run_in_app_context(func, *args, **kwargs):
-    with app.app_context():
+    with _get_app().app_context():
         return func(*args, **kwargs)
 
 async def run_in_db(func, *args, **kwargs):
