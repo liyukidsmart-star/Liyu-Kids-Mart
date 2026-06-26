@@ -781,6 +781,7 @@ const i18n = {
     c_cart: "Cart", c_empty: "Your cart is empty", c_empty_p: "Browse our products and add something for your little one!",
     c_start: "Start Shopping",
     c_fd_prog: "Free Delivery Progress", c_sub: "Subtotal", c_df: "Delivery fee", c_tot: "Total", c_co: "Checkout Now",
+    ck_order_sum: "Order Summary", ck_contact: "Contact Information", ck_full_name: "Full Name *", ck_phone: "Phone Number *", ck_location: "Specific Location / Landmark *", ck_notes: "Notes / Sub-City", ck_continue: "Continue to Delivery Map", ck_secure: "Secure Checkout", ck_pin: "Pin Location", ck_tap_map: "Tap the map to set location", ck_locate: "Locate Me", ck_fee: "Delivery Fee", ck_select_loc: "Select location", ck_tap_any: "Tap anywhere on the map", ck_select_pin: "Select Pin", ck_final_review: "Final Review", ck_summary: "Summary", ck_payment: "Payment Method", ck_place_order: "Place Order", ck_view_orders: "View My Orders", ck_continue_shopping: "Continue Shopping", ck_order_placed: "Order Placed!", ck_thanks: "Thank you! Your order has been received.\nOur team will confirm it shortly.", ck_questions: "Questions? Call", ck_map_first: "Please select a delivery location first", ck_pin_first: "Please drop a pin on the map first", ck_name_err: "Please enter your name", ck_phone_err: "Please enter a valid phone number", ck_loc_err: "Please enter your delivery location", ck_free_delivery: "You qualify for FREE delivery!", ck_more_free: "Add ETB {amount} more for free delivery",
     o_orders: "My Orders",
     ck_rev: "Order Review", ck_del: "Delivery Information", ck_pm: "Payment Method",
     f_nm: "Full Name *", f_ph: "Phone Number *", f_sc: "Sub-City", f_loc: "Specific Location *", f_not: "Delivery Notes",
@@ -874,6 +875,7 @@ function aiAppend(role,text,products=[]){
   const div=document.createElement('div');
   div.className='ai-msg '+role;
   const amharicChat = /[\u1200-\u137f]/.test(text||'');
+  if(amharicChat && curLang!=='am'){ setLang('am'); }
 
   let pcHTML='';
   if(products&&products.length){
@@ -984,7 +986,7 @@ function renderCart(){
             <button class="qbtn" onclick="cqty(${idx},-1)">−</button>
             <span class="qval">${item.qty}</span>
             <button class="qbtn" onclick="cqty(${idx},1)">+</button>
-            <button class="ci-rm" onclick="crm(${idx})"><i class="fas fa-trash-alt"></i> Remove</button>
+            <button class="ci-rm" onclick="crm(${idx})"><i class="fas fa-trash-alt"></i> ${curLang==='am'?'?????':'Remove'}</button>
           </div>
         </div>
       </div>`).join('')}
@@ -1111,7 +1113,7 @@ function ckLocateMe(){
     pos=>{
       const lat=pos.coords.latitude, lng=pos.coords.longitude;
       ckLocating=false;
-      if(btn){btn.innerHTML='<i class="fas fa-crosshairs"></i> Locate Me';btn.style.opacity='1';}
+      if(btn){btn.innerHTML='<i class="fas fa-crosshairs"></i> '+(curLang==='am'?'??? ???':'Locate Me');btn.style.opacity='1';}
       
       const ll=L.latLng(lat,lng);
       ckMap.setView(ll,15,{animate:true});
@@ -1119,7 +1121,7 @@ function ckLocateMe(){
     },
     ()=>{
       ckLocating=false;
-      if(btn){btn.innerHTML='<i class="fas fa-crosshairs"></i> Locate Me';btn.style.opacity='1';}
+      if(btn){btn.innerHTML='<i class="fas fa-crosshairs"></i> '+(curLang==='am'?'??? ???':'Locate Me');btn.style.opacity='1';}
       toast('Could not get precise location. Tap the map.','err');
     },{timeout:10000,enableHighAccuracy:true}
   );
@@ -1167,9 +1169,9 @@ function goToMapStep(){
   const cn=document.getElementById('cn')?.value?.trim();
   const cp=document.getElementById('cp')?.value?.trim();
   const cl=document.getElementById('cl')?.value?.trim();
-  if(!cn){toast('Please enter your name','err');return;}
-  if(!cp||cp.length<9){toast('Please enter a valid phone number','err');return;}
-  if(!cl){toast('Please enter your delivery location','err');return;}
+  if(!cn){toast(tr('ck_name_err'),'err');return;}
+  if(!cp||cp.length<9){toast(tr('ck_phone_err'),'err');return;}
+  if(!cl){toast(tr('ck_loc_err'),'err');return;}
   // Save form data globally so we can send it on place order
   window.ckFormData = {
     cn: cn, cp: cp, cl: cl, cno: document.getElementById('cno')?.value?.trim()||''
@@ -1179,7 +1181,7 @@ function goToMapStep(){
   initCkMap();
 }
 function goToPayStep(){
-  if(!ckLat||!ckLng){toast('Please select a delivery location first','err');return;}
+  if(!ckLat||!ckLng){toast(tr('ck_map_first'),'err');return;}
   ckStep='pay';
   renderCK();
 }
@@ -1205,42 +1207,42 @@ function renderCK(){
     document.getElementById('chkBody').innerHTML=`
       <div class="success-scr">
         <div class="suc-ico">🎉</div>
-        <h2>Order Placed!</h2>
-        <p>Thank you! Your order has been received.<br>Our team will confirm it shortly.</p>
+        <h2>${tr('ck_order_placed')}</h2>
+        <p>${tr('ck_thanks').replace('\n','<br>')}</p>
         <div class="suc-onum">Order #${lastON}</div>
         <p style="font-size:.82rem;color:var(--ts);margin-top:6px">
           📍 Bole Bulbula, 93 Mazoriya, Addis Ababa<br>
           📞 Questions? Call <strong>0947967117</strong>
         </p>
         <button class="suc-btn" onclick="closeCheckout();showTab('tab-orders')">
-          <i class="fas fa-box"></i> View My Orders
+          <i class="fas fa-box"></i> ${tr('ck_view_orders')}
         </button>
         <button style="width:100%;margin-top:8px;padding:12px;border-radius:var(--rm);background:var(--bg);border:1.5px solid var(--br);font-size:.9rem;font-weight:700;color:var(--tm)"
-          onclick="closeCheckout();showTab('tab-shop')">Continue Shopping</button>
+          onclick="closeCheckout();showTab('tab-shop')">${tr('ck_continue_shopping')}</button>
       </div>`;
     return;
   }
   if(ckStep==='form'){
     document.getElementById('chkBody').innerHTML=`
       <div class="chk-sec">
-        <h3><i class="fas fa-shopping-bag" style="color:var(--g)"></i> Order Summary</h3>
+        <h3><i class="fas fa-shopping-bag" style="color:var(--g)"></i> ${tr('ck_order_sum')}</h3>
         <div style="display:flex;justify-content:space-between;font-weight:800;font-size:.95rem">
-          <span>Subtotal (${cart.reduce((s,i)=>s+i.qty,0)} items)</span><span style="color:var(--g)">ETB ${Math.round(st).toLocaleString()}</span>
+          <span>${tr('c_sub')} (${cart.reduce((s,i)=>s+i.qty,0)} items)</span><span style="color:var(--g)">ETB ${Math.round(st).toLocaleString()}</span>
         </div>
       </div>
       <div class="chk-sec">
-        <h3><i class="fas fa-user" style="color:var(--g)"></i> Contact Information</h3>
-        <div class="fg"><label class="flbl">Full Name *</label>
-          <input class="finp" id="cn" type="text" placeholder="Your name" value="${window.ckFormData?.cn||nm}"/></div>
-        <div class="fg"><label class="flbl">Phone Number *</label>
-          <input class="finp" id="cp" type="tel" placeholder="09XXXXXXXX" value="${window.ckFormData?.cp||''}"/></div>
-        <div class="fg"><label class="flbl">Specific Location / Landmark *</label>
+        <h3><i class="fas fa-user" style="color:var(--g)"></i> ${tr('ck_contact')}</h3>
+        <div class="fg"><label class="flbl">${tr('ck_full_name')}</label>
+          <input class="finp" id="cn" type="text" placeholder="${curLang==='am'?'???':'Your name'}" value="${window.ckFormData?.cn||nm}"/></div>
+        <div class="fg"><label class="flbl">${tr('ck_phone')}</label>
+          <input class="finp" id="cp" type="tel" placeholder="${curLang==='am'?'09XXXXXXXX':'09XXXXXXXX'}" value="${window.ckFormData?.cp||''}"/></div>
+        <div class="fg"><label class="flbl">${tr('ck_location')}</label>
           <input class="finp" id="cl" type="text" placeholder="Near landmark, building name…" value="${window.ckFormData?.cl||''}"/></div>
-        <div class="fg"><label class="flbl">Notes / Sub-City</label>
-          <input class="finp" id="cno" type="text" placeholder="Any special instructions or sub-city" value="${window.ckFormData?.cno||''}"/></div>
+        <div class="fg"><label class="flbl">${tr('ck_notes')}</label>
+          <input class="finp" id="cno" type="text" placeholder="${curLang==='am'?'???? ??? ??? ???':'Any special instructions or sub-city'}" value="${window.ckFormData?.cno||''}"/></div>
       </div>
       <button class="place-btn" onclick="goToMapStep()">
-        Continue to Delivery Map <i class="fas fa-arrow-right"></i>
+        ${curLang==='am'?'?? ??? ????':'Continue to Delivery Map'} <i class="fas fa-arrow-right"></i>
       </button>
       <p style="text-align:center;font-size:.75rem;color:var(--ts);margin-top:12px">🔒 Secure Checkout</p>`;
     return;
@@ -1254,28 +1256,28 @@ function renderCK(){
       <div style="position:absolute;top:10px;left:10px;z-index:600;background:#fff;border-radius:10px;box-shadow:0 3px 12px rgba(0,0,0,.15);display:flex;align-items:center;padding:4px 10px;gap:6px">
         <button onclick="ckStep='form';document.getElementById('chkBody').style.padding='16px';document.getElementById('chkBody').style.height='auto';renderCK();" 
                 style="background:transparent;border:none;font-size:1.1rem;color:var(--g);padding:4px"><i class="fas fa-arrow-left"></i></button>
-        <span style="font-weight:800;font-size:.9rem">Pin Location</span>
+        <span style="font-weight:800;font-size:.9rem">${tr('ck_pin')}</span>
       </div>
       
       <div class="ck-map-wrap" style="height:100vh;margin:0;border-radius:0;">
         <div id="ckMap"></div>
         <div class="ck-hint" id="ckHint" style="top:60px">👆 Tap the map to set location</div>
         <button type="button" class="ck-locate-btn" id="ckLocBtn" onclick="ckLocateMe()" style="top:60px">
-          <i class="fas fa-crosshairs"></i> Locate Me
+          <i class="fas fa-crosshairs"></i> ${tr('ck_locate')}
         </button>
         <div class="ck-fee-card idle" id="ckFeeCard" style="bottom:20px;">
           <div class="cfc-ico" id="ckFcIco">📍</div>
           <div class="cfc-main">
-            <div class="cfc-lbl">Delivery Fee</div>
-            <div class="cfc-val" id="ckFcVal">Select location</div>
-            <div class="cfc-sub" id="ckFcSub">Tap anywhere on the map</div>
+            <div class="cfc-lbl">${tr('ck_fee')}</div>
+            <div class="cfc-val" id="ckFcVal">${tr('ck_select_loc')}</div>
+            <div class="cfc-sub" id="ckFcSub">${tr('ck_tap_any')}</div>
           </div>
           <div class="cfc-dist" id="ckFcDistWrap" style="display:none;margin-right:10px">
             <div class="cfc-dv" id="ckFcDist">—</div>
-            <div class="cfc-dl">By road</div>
+            <div class="cfc-dl">${curLang==='am'?'????? ???':'By road'}</div>
           </div>
           <button id="proceedBtn" onclick="goToPayStep()" disabled style="background:var(--g);color:#fff;border:none;border-radius:8px;padding:10px 16px;font-weight:800;font-size:.9rem;box-shadow:0 4px 12px rgba(45,106,79,.3);cursor:pointer;white-space:nowrap;">
-            Select Pin
+            ${tr('ck_select_pin')}
           </button>
         </div>
       </div>`;
@@ -1291,34 +1293,34 @@ function renderCK(){
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
         <button onclick="ckStep='map';renderCK();initCkMap();" 
                 style="background:transparent;border:none;font-size:1.2rem;color:var(--g);padding:4px"><i class="fas fa-arrow-left"></i></button>
-        <h3 style="margin:0;font-size:1.1rem;font-weight:800">Final Review</h3>
+        <h3 style="margin:0;font-size:1.1rem;font-weight:800">${tr('ck_final_review')}</h3>
       </div>
       
       <div class="chk-sec">
-        <h3><i class="fas fa-receipt" style="color:var(--g)"></i> Summary</h3>
+        <h3><i class="fas fa-receipt" style="color:var(--g)"></i> ${tr('ck_summary')}</h3>
         <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:.9rem">
-          <span>Subtotal (${cart.reduce((s,i)=>s+i.qty,0)} items)</span><span style="font-weight:700">ETB ${Math.round(st).toLocaleString()}</span>
+          <span>${tr('c_sub')} (${cart.reduce((s,i)=>s+i.qty,0)} items)</span><span style="font-weight:700">ETB ${Math.round(st).toLocaleString()}</span>
         </div>
         <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:.9rem;border-bottom:1px solid var(--br)">
-          <span>Delivery Fee</span><span style="font-weight:700;color:var(--g)">ETB ${Math.round(ckDeliveryFee||0).toLocaleString()}</span>
+          <span>${tr('ck_fee')}</span><span style="font-weight:700;color:var(--g)">ETB ${Math.round(ckDeliveryFee||0).toLocaleString()}</span>
         </div>
         <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:1.1rem;font-weight:900">
-          <span>Total</span><span style="color:var(--g)">ETB ${Math.round(finalTot).toLocaleString()}</span>
+          <span>${tr('c_tot')}</span><span style="color:var(--g)">ETB ${Math.round(finalTot).toLocaleString()}</span>
         </div>
       </div>
       
       <div class="chk-sec" style="margin-bottom:20px">
-        <h3><i class="fas fa-wallet" style="color:var(--g)"></i> Payment Method</h3>
+        <h3><i class="fas fa-wallet" style="color:var(--g)"></i> ${tr('ck_payment')}</h3>
         <div class="pmopts">
           <div class="pmopt on" id="pm_cod" onclick="selPayment('cod')">
             <input type="radio" name="pm" id="r_cod" checked/>
             <span class="pm-ico">💵</span>
-            <label for="r_cod"><strong>${tr("p_cod")}</strong><br><span style="font-size:.75rem;color:var(--ts)">Pay when order arrives</span></label>
+            <label for="r_cod"><strong>${tr("p_cod")}</strong><br><span style="font-size:.75rem;color:var(--ts)">${tr('p_cod_s')}</span></label>
           </div>
           <div class="pmopt" id="pm_telebirr" onclick="selPayment('telebirr')">
             <input type="radio" name="pm" id="r_telebirr"/>
             <span class="pm-ico">📱</span>
-            <label for="r_telebirr"><strong>${tr("p_tb")}</strong><br><span style="font-size:.75rem;color:var(--ts)">Pay via Telebirr</span></label>
+            <label for="r_telebirr"><strong>${tr("p_tb")}</strong><br><span style="font-size:.75rem;color:var(--ts)">${tr('p_tb_s')}</span></label>
           </div>
         </div>
       </div>
@@ -1358,11 +1360,11 @@ async function placeOrder(){
       cart=[];saveCart();ckStep='success';renderCK();
       try{tg?.HapticFeedback?.notificationOccurred('success');}catch{}
     }else{
-      toast(d.message||'Order failed. Please try again.','err');
-      if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-check-circle"></i> Place Order';}
+      toast(d.message||(curLang==='am'?'???? ??????? ???? ???? ????.':'Order failed. Please try again.'),'err');
+      if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-check-circle"></i> '+(curLang==='am'?'???? ???':'Place Order');}
     }
   }catch{
-    toast('Network error. Please try again.','err');
+    toast(curLang==='am'?'?????? ??? ??? ???? ???? ????.':'Network error. Please try again.','err');
     if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-check-circle"></i> Place Order';}
   }
   placing=false;
