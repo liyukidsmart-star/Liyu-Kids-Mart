@@ -450,17 +450,12 @@ async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"Updated driver {user_id} location to {lat}, {lng}")
     # If not driver, ignore location outside of checkout conversation
 
-def run_bot():
-    if not TOKEN:
-        logger.error("TELEGRAM_BOT_TOKEN not set!")
-        return
 
-    logger.info(f"Starting Liyu Kids Mart Native Bot...")
-    app = Application.builder().token(TOKEN).build()
-
+def register_handlers(app):
+    """Attach all Telegram handlers to a PTB Application instance."""
     # Commands
     app.add_handler(CommandHandler("start", cmd_start))
-    
+
     # Checkout Conversation
     conv_handler = ConversationHandler(
         entry_points=[CallbackQueryHandler(checkout_start, pattern="^checkout_start$")],
@@ -471,7 +466,7 @@ def run_bot():
         fallbacks=[CommandHandler("cancel", checkout_cancel)]
     )
     app.add_handler(conv_handler)
-    
+
     # Callbacks
     app.add_handler(CallbackQueryHandler(menu_callback, pattern="^main_menu$"))
     app.add_handler(CallbackQueryHandler(shop_categories, pattern="^shop_cats$"))
@@ -487,9 +482,50 @@ def run_bot():
 
     # Messages
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
-    
+
     # Live Location Updates
     app.add_handler(MessageHandler(filters.LOCATION, handle_location))
+
+
+def build_application():
+    """Create a configured PTB Application."""
+    application = Application.builder().token(TOKEN).build()
+    register_handlers(application)
+    return application
+
+
+_application = None
+
+
+def get_application():
+    """Return a cached PTB Application for webhook dispatch."""
+    global _application
+    if _application is None:
+        _application = build_application()
+    return _application
+
+
+async def process_webhook_update(payload):
+    """Process a raw Telegram webhook payload."""
+    app = get_application()
+    if not getattr(app, "_initialized", False):
+        await app.initialize()
+
+    update = Update.de_json(payload, app.bot)
+    if update is None:
+        return False
+
+    await app.process_update(update)
+    return True
+
+
+def run_bot():
+    if not TOKEN:
+        logger.error("TELEGRAM_BOT_TOKEN not set!")
+        return
+
+    logger.info(f"Starting Liyu Kids Mart Native Bot...")
+    app = build_application()
 
     if BOT_MODE == 'polling':
         app.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
@@ -501,6 +537,5 @@ def run_bot():
             url_path=TOKEN,
             webhook_url=f"{webhook_url}/{TOKEN}",
         )
-
 if __name__ == '__main__':
     run_bot()
