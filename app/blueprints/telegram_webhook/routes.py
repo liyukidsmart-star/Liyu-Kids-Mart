@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 
 import httpx
 from flask import current_app, jsonify, render_template, request
@@ -10,6 +11,41 @@ from app.models.user import User, UserRole
 from telegram_bot.bot import process_webhook_update
 
 logger = logging.getLogger(__name__)
+
+
+def _normalize_base_url(value):
+    value = (value or '').strip().rstrip('/')
+    if not value:
+        return ''
+    if value.startswith('http://') or value.startswith('https://'):
+        return value
+    return f'https://{value}'
+
+
+def _build_webhook_target():
+    """Build the public Telegram webhook URL for this deployment."""
+    configured = _normalize_base_url(current_app.config.get('TELEGRAM_WEBHOOK_URL'))
+    if configured:
+        if configured.endswith('/telegram/webhook'):
+            return configured
+        return f'{configured}/telegram/webhook'
+
+    vercel_url = _normalize_base_url(os.getenv('VERCEL_URL', ''))
+    if vercel_url:
+        return f'{vercel_url}/telegram/webhook'
+
+    return ''
+
+
+def _set_telegram_webhook():
+    token = current_app.config.get('TELEGRAM_BOT_TOKEN', '').strip()
+    webhook_target = _build_webhook_target()
+    if not token or not webhook_target:
+        return {'ok': False, 'message': 'Bot token or webhook URL not configured'}, 400
+
+    url = f'https://api.telegram.org/bot{token}/setWebhook'
+    resp = httpx.post(url, json={'url': webhook_target}, timeout=20)
+    return resp.json(), resp.status_code
 
 
 @telegram_bp.route('/webhook', methods=['POST'])
@@ -32,6 +68,16 @@ def webhook(secret=None):
         return jsonify({'ok': False, 'message': str(exc)}), 500
 
     return jsonify({'ok': True})
+
+
+@telegram_bp.route('/health', methods=['GET'])
+def health():
+    """Quick health check for Vercel and Telegram webhook wiring."""
+    return jsonify({
+        'ok': True,
+        'webhook_target': _build_webhook_target(),
+        'has_token': bool(current_app.config.get('TELEGRAM_BOT_TOKEN')),
+    })
 
 
 @telegram_bp.route('/register-user', methods=['POST'])
@@ -62,15 +108,24 @@ def register_user():
 @telegram_bp.route('/set-webhook')
 def set_webhook():
     """Manually set the Telegram webhook URL."""
-    token = current_app.config.get('TELEGRAM_BOT_TOKEN')
-    webhook_url = current_app.config.get('TELEGRAM_WEBHOOK_URL')
-    if not token or not webhook_url:
-        return jsonify({'success': False, 'message': 'Bot token or webhook URL not configured'})
+    payload, status = _set_telegram_webhook()
+    return jsonify(payload), status
 
-    url = f'https://api.telegram.org/bot{token}/setWebhook'
-    target_url = f"{webhook_url.rstrip('/')}/{token}"
-    resp = httpx.post(url, json={'url': target_url})
-    return jsonify(resp.json())
+
+@telegram_bp.route('/status', methods=['GET'])
+def status():
+    """Inspect Telegram's view of the webhook."""
+    token = current_app.config.get('TELEGRAM_BOT_TOKEN', '').strip()
+    if not token:
+        return jsonify({'ok': False, 'message': 'TELEGRAM_BOT_TOKEN not configured'}), 400
+
+    url = f'https://api.telegram.org/bot{token}/getWebhookInfo'
+    resp = httpx.get(url, timeout=20)
+    return jsonify({
+        'ok': resp.status_code == 200,
+        'expected_webhook': _build_webhook_target(),
+        'telegram': resp.json(),
+    }), resp.status_code
 
 
 # -- MINI APP --
