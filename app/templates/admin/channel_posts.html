@@ -24,15 +24,10 @@
           <label class="form-label fw-600">Images</label>
           <input type="file" name="images" class="form-control" accept="image/*" multiple/>
         </div>
-        <div class="row g-2">
-          <div class="col-md-6 mb-3">
-            <label class="form-label fw-600">Button Text</label>
-            <input type="text" name="button_text" class="form-control" value="Open Mini App"/>
-          </div>
-          <div class="col-md-6 mb-3">
-            <label class="form-label fw-600">Button URL</label>
-            <input type="url" name="button_url" class="form-control" placeholder="https://..."/>
-          </div>
+        <div class="mb-3">
+          <label class="form-label fw-600">Button Text</label>
+          <input type="text" name="button_text" class="form-control" value="Open Mini App"/>
+          <div class="form-text">The mini app URL is pulled automatically from your Vercel environment.</div>
         </div>
         <div class="mb-3">
           <label class="form-label fw-600">Schedule For</label>
@@ -75,16 +70,6 @@
           <label class="form-label fw-600">Custom Caption</label>
           <textarea name="caption" class="form-control" rows="5" placeholder="Optional extra note below the product caption."></textarea>
         </div>
-        <div class="row g-2">
-          <div class="col-md-6 mb-3">
-            <label class="form-label fw-600">Button Text</label>
-            <input type="text" name="button_text" class="form-control" value="Open Mini App"/>
-          </div>
-          <div class="col-md-6 mb-3">
-            <label class="form-label fw-600">Mini App URL Override</label>
-            <input type="url" name="button_url" class="form-control" placeholder="Optional"/>
-          </div>
-        </div>
         <div class="mb-3">
           <label class="form-label fw-600">Schedule For</label>
           <input type="datetime-local" name="scheduled_at" class="form-control"/>
@@ -92,6 +77,7 @@
         </div>
         <div class="alert alert-info small">
           The product caption will auto-fill from the product details, price, and any active discount.
+          Product posts automatically use the two-button layout: <strong>??? ????</strong> and <strong>??? ???</strong>.
         </div>
         <button type="submit" class="btn admin-btn-green w-100">Publish Product Post</button>
       </form>

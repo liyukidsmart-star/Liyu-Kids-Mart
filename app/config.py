@@ -30,6 +30,8 @@ class Config:
     TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '')
     TELEGRAM_WEBHOOK_URL = os.getenv('TELEGRAM_WEBHOOK_URL', '')
     ADMIN_TELEGRAM_CHAT_ID = os.getenv('ADMIN_TELEGRAM_CHAT_ID', '')
+    TELEGRAM_MAIN_CHANNEL_ID = os.getenv('TELEGRAM_MAIN_CHANNEL_ID', '')
+    TELEGRAM_CHANNEL_CHAT_ID = os.getenv('TELEGRAM_CHANNEL_CHAT_ID', '')
 
     APP_URL = os.getenv('APP_URL', 'http://localhost:5000')
     MINI_APP_URL = os.getenv('MINI_APP_URL', 'http://localhost:5000/mini-app')

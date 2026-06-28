@@ -453,6 +453,21 @@ def analytics():
 ADMIN_TZ = ZoneInfo("Africa/Addis_Ababa")
 
 
+def _configured_mini_app_url():
+    return current_app.config.get('MINI_APP_URL') or os.environ.get('MINI_APP_URL', '').strip() or 'http://localhost:5000/mini-app'
+
+
+def _configured_channel_id():
+    return (
+        current_app.config.get('TELEGRAM_CHANNEL_CHAT_ID')
+        or current_app.config.get('TELEGRAM_MAIN_CHANNEL_ID')
+        or os.environ.get('TELEGRAM_CHANNEL_CHAT_ID', '').strip()
+        or os.environ.get('TELEGRAM_MAIN_CHANNEL_ID', '').strip()
+        or os.environ.get('TELEGRAM_CHANNEL_ID', '').strip()
+        or ''
+    )
+
+
 def _admin_now_utc():
     return datetime.now(timezone.utc)
 
@@ -533,7 +548,7 @@ def _publish_post(post, product=None):
         image_urls = [product.primary_image()]
 
     button_text = post.button_text or 'Open Mini App'
-    button_url = post.button_url or ''
+    button_url = post.button_url or _configured_mini_app_url()
     result = asyncio.run(publish_channel_post(
         post,
         images=image_urls if image_urls else None,
@@ -602,7 +617,6 @@ def channel_posts():
         title = request.form.get('title', '').strip()
         caption = request.form.get('caption', '').strip()
         button_text = request.form.get('button_text', 'Open Mini App').strip() or 'Open Mini App'
-        button_url = request.form.get('button_url', '').strip()
         scheduled_at = _parse_admin_datetime(request.form.get('scheduled_at', '').strip())
         send_now = 'send_now' in request.form or not scheduled_at or scheduled_at <= _admin_now_utc()
         status = 'sent' if send_now else 'scheduled'
@@ -612,10 +626,10 @@ def channel_posts():
             title=title,
             caption=caption,
             button_text=button_text,
-            button_url=button_url,
+            button_url=_configured_mini_app_url(),
             status=status,
             scheduled_at=scheduled_at,
-            channel_chat_id=os.environ.get('TELEGRAM_CHANNEL_CHAT_ID') or os.environ.get('TELEGRAM_MAIN_CHANNEL_ID') or os.environ.get('TELEGRAM_CHANNEL_ID') or '',
+            channel_chat_id=_configured_channel_id(),
         )
 
         product = None
@@ -635,7 +649,7 @@ def channel_posts():
                 else:
                     image_urls = [product.primary_image()]
                 if not caption:
-                    caption = product.short_description or product.description or ''
+                    caption = product.short_description_am or product.short_description or product.description_am or product.description or ''
                     post.caption = caption
             else:
                 uploaded = request.files.getlist('images')
@@ -690,7 +704,7 @@ def edit_channel_post(post_id):
         post.title = request.form.get('title', post.title or '').strip()
         post.caption = request.form.get('caption', post.caption or '').strip()
         post.button_text = request.form.get('button_text', post.button_text or 'Open Mini App').strip() or 'Open Mini App'
-        post.button_url = request.form.get('button_url', post.button_url or '').strip()
+        post.button_url = _configured_mini_app_url()
         post.scheduled_at = _parse_admin_datetime(request.form.get('scheduled_at', '').strip())
         republish_now = 'republish_now' in request.form
         schedule_later = post.scheduled_at and post.scheduled_at > _admin_now_utc() and not republish_now
@@ -711,7 +725,7 @@ def edit_channel_post(post_id):
                     image_urls = product.all_images() if image_mode == 'gallery' else [product.primary_image()]
                     _save_post_images(post, image_urls)
                 if not post.caption:
-                    post.caption = product.short_description or product.description or ''
+                    post.caption = product.short_description_am or product.short_description or product.description_am or product.description or ''
             else:
                 uploaded = request.files.getlist('images')
                 if uploaded:

@@ -50,6 +50,14 @@ def create_app(config_name='development'):
     app.register_blueprint(api_bp, url_prefix='/api/v1')
     app.register_blueprint(telegram_bp, url_prefix='/telegram')
 
+    # Ensure newly added tables exist in deployed environments.
+    if os.getenv('AUTO_CREATE_TABLES', 'true').lower() in ('1', 'true', 'yes'):
+        try:
+            with app.app_context():
+                db.create_all()
+        except Exception:
+            app.logger.exception('Automatic table creation failed')
+
     # User loader for Flask-Login
     from app.models.user import User
 

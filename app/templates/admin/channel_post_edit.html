@@ -48,16 +48,15 @@
       <div class="form-text">Leave empty to keep the current photos.</div>
     </div>
     {% endif %}
-    <div class="row g-2">
-      <div class="col-md-6 mb-3">
-        <label class="form-label fw-600">Button Text</label>
-        <input type="text" name="button_text" class="form-control" value="{{ post.button_text or 'Open Mini App' }}"/>
-      </div>
-      <div class="col-md-6 mb-3">
-        <label class="form-label fw-600">Button URL</label>
-        <input type="url" name="button_url" class="form-control" value="{{ post.button_url or '' }}"/>
-      </div>
+    {% if post.post_type == 'announcement' %}
+    <div class="mb-3">
+      <label class="form-label fw-600">Button Text</label>
+      <input type="text" name="button_text" class="form-control" value="{{ post.button_text or 'Open Mini App' }}"/>
+      <div class="form-text">The mini app URL is pulled automatically from your Vercel environment.</div>
     </div>
+    {% else %}
+    <div class="alert alert-info small">Product posts automatically use the two-button layout: <strong>??? ????</strong> and <strong>??? ???</strong>.</div>
+    {% endif %}
     <div class="mb-3">
       <label class="form-label fw-600">Schedule For</label>
       <input type="datetime-local" name="scheduled_at" class="form-control" value="{{ post.scheduled_at.astimezone(configured_tz).strftime('%Y-%m-%dT%H:%M') if post.scheduled_at else '' }}"/>

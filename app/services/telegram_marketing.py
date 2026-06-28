@@ -1,10 +1,11 @@
-﻿import html
-import json
+import html
 import logging
 import os
 from typing import Iterable, List, Optional
 
 import httpx
+from flask import current_app, has_app_context
+
 from app.models.product import ProductImage
 
 logger = logging.getLogger(__name__)
@@ -13,17 +14,29 @@ DEFAULT_MINI_APP_URL = os.getenv('MINI_APP_URL', 'http://localhost:5000/telegram
 DEFAULT_APP_URL = os.getenv('APP_URL', 'http://localhost:5000')
 
 
+def _config_value(name: str, default: str = '') -> str:
+    if has_app_context():
+        value = current_app.config.get(name, '')
+        if value:
+            return str(value).strip()
+    return os.getenv(name, default).strip()
+
+
 def _token() -> str:
-    return os.getenv('TELEGRAM_BOT_TOKEN', '').strip()
+    return _config_value('TELEGRAM_BOT_TOKEN')
+
+
+def _mini_app_url() -> str:
+    return _config_value('MINI_APP_URL', DEFAULT_MINI_APP_URL) or DEFAULT_MINI_APP_URL
 
 
 def _channel_id(override: Optional[str] = None) -> str:
     if override:
         return str(override).strip()
     return (
-        os.getenv('TELEGRAM_CHANNEL_CHAT_ID', '').strip()
-        or os.getenv('TELEGRAM_MAIN_CHANNEL_ID', '').strip()
-        or os.getenv('TELEGRAM_CHANNEL_ID', '').strip()
+        _config_value('TELEGRAM_CHANNEL_CHAT_ID')
+        or _config_value('TELEGRAM_MAIN_CHANNEL_ID')
+        or _config_value('TELEGRAM_CHANNEL_ID')
     )
 
 
@@ -31,7 +44,7 @@ def _truncate(text: str, limit: int) -> str:
     text = (text or '').strip()
     if len(text) <= limit:
         return text
-    return text[: max(0, limit - 1)].rstrip() + '…'
+    return text[: max(0, limit - 1)].rstrip() + '?'
 
 
 def _absolute_url(url: str) -> str:
@@ -53,40 +66,52 @@ def _button_markup(button_text: str, button_url: str) -> dict:
     }
 
 
+def _product_reply_markup(product, button_text: str = '') -> dict:
+    slug = getattr(product, 'slug', '') or ''
+    ask_url = f"{_mini_app_url()}?tab=liyu&query={slug}"
+    buy_url = _mini_app_url()
+    return {
+        'inline_keyboard': [[
+            {'text': '??? ????', 'url': ask_url},
+            {'text': '??? ???', 'url': buy_url},
+        ]]
+    }
+
+
 def _escape(text: str) -> str:
     return html.escape(text or '')
 
 
 def _build_product_caption(product, custom_caption: str = '') -> str:
-    name = _escape(getattr(product, 'name', '') or '')
-    name_am = _escape(getattr(product, 'name_am', '') or '')
-    description = _escape(getattr(product, 'short_description_am', None) or getattr(product, 'short_description', '') or getattr(product, 'description_am', '') or getattr(product, 'description', '') or '')
+    name = _escape(getattr(product, 'name_am', None) or getattr(product, 'name', '') or '')
+    description = _escape(
+        getattr(product, 'description_am', None)
+        or getattr(product, 'short_description_am', None)
+        or getattr(product, 'short_description', '')
+        or getattr(product, 'description', '')
+        or ''
+    )
     current_price = float(getattr(product, 'current_price', lambda: product.price)())
-    base_price = float(getattr(product, 'price', 0) or 0)
-    compare_price = float(getattr(product, 'compare_price', 0) or 0) if getattr(product, 'compare_price', None) else None
-    discount_label = _escape(getattr(product, 'discount_label', lambda: '')())
+    compare_price = getattr(product, 'compare_at_price', lambda: None)()
     age_label = _escape(getattr(product, 'age_label', lambda: '')())
+    custom_caption = _escape(custom_caption.strip())
 
     parts = [
-        f"<b>{name}</b>",
+        '?? ??? ?? ????! ??',
+        '',
+        f'?? {name}',
     ]
-    if name_am and name_am != name:
-        parts.append(name_am)
     if age_label:
-        parts.append(f"Age: {age_label}")
-    if compare_price and compare_price > current_price:
-        parts.append(f"Price: ETB {current_price:,.0f} <s>ETB {compare_price:,.0f}</s>")
-    elif current_price < base_price:
-        parts.append(f"Price: ETB {current_price:,.0f} <s>ETB {base_price:,.0f}</s>")
+        parts.append(f'?? ????: {age_label}')
+    if compare_price and float(compare_price) > current_price:
+        parts.append(f'?? ??: {current_price:,.0f} ??  ~~{float(compare_price):,.0f} ??~~')
     else:
-        parts.append(f"Price: ETB {current_price:,.0f}")
-    if discount_label:
-        parts.append(discount_label)
+        parts.append(f'?? ??: {current_price:,.0f} ??')
     if description:
-        parts.append(description)
-    if custom_caption.strip():
-        parts.append(_escape(custom_caption.strip()))
-    return '\n'.join(part for part in parts if part)
+        parts.extend(['', description])
+    if custom_caption:
+        parts.extend(['', custom_caption])
+    return '\n'.join(parts).strip()
 
 
 def _build_announcement_caption(title: str, caption: str) -> str:
@@ -98,17 +123,6 @@ def _build_announcement_caption(title: str, caption: str) -> str:
     if caption:
         parts.append(caption)
     return '\n\n'.join(parts).strip()
-
-
-def _resolve_product_button_url(product) -> str:
-    slug = getattr(product, 'slug', '') or ''
-    if slug:
-        return f"{DEFAULT_MINI_APP_URL}?tab=liyu&query={slug}"
-    return DEFAULT_MINI_APP_URL
-
-
-def _resolve_announcement_button_url(button_url: str) -> str:
-    return button_url.strip() or DEFAULT_MINI_APP_URL
 
 
 def _send_photo(client: httpx.AsyncClient, chat_id, photo_url: str, caption: str, reply_markup: dict) -> dict:
@@ -134,7 +148,7 @@ async def publish_channel_post(post, *, images: Optional[Iterable[str]] = None, 
     if not channel_id:
         return {'ok': False, 'error': 'Telegram channel chat ID is not configured.'}
 
-    reply_markup = _button_markup(button_text, button_url or DEFAULT_MINI_APP_URL)
+    reply_markup = _button_markup(button_text, button_url or _mini_app_url())
     caption = ''
     media: List[dict] = []
 
@@ -142,14 +156,10 @@ async def publish_channel_post(post, *, images: Optional[Iterable[str]] = None, 
         caption = _build_product_caption(product, getattr(post, 'caption', '') or '')
         if images is None:
             images = [getattr(product, 'primary_image', lambda: '')()]
-        if not button_url:
-            button_url = _resolve_product_button_url(product)
-        reply_markup = _button_markup(button_text, button_url)
+        reply_markup = _product_reply_markup(product, getattr(post, 'button_text', '') or button_text)
     else:
         caption = _build_announcement_caption(getattr(post, 'title', '') or '', getattr(post, 'caption', '') or '')
-        if not button_url:
-            button_url = _resolve_announcement_button_url(getattr(post, 'button_url', '') or '')
-        reply_markup = _button_markup(button_text or getattr(post, 'button_text', '') or 'Open Mini App', button_url)
+        reply_markup = _button_markup(button_text or getattr(post, 'button_text', '') or 'Open Mini App', _mini_app_url())
 
     image_urls = [img for img in (images or []) if img]
     image_urls = [_absolute_url(url) for url in image_urls]
@@ -168,8 +178,7 @@ async def publish_channel_post(post, *, images: Optional[Iterable[str]] = None, 
                     },
                     timeout=20,
                 )
-                data = resp.json()
-                return data
+                return resp.json()
 
             if len(image_urls) == 1:
                 resp = await _send_photo(client, channel_id, image_urls[0], caption, reply_markup)
@@ -227,7 +236,7 @@ async def publish_channel_post(post, *, images: Optional[Iterable[str]] = None, 
             return {'ok': False, 'error': str(exc)}
 
 
-def build_product_post_payload(product, *, caption: str = '', title: str = '', button_text: str = 'Open Mini App') -> dict:
+def build_product_post_payload(product, *, caption: str = '', title: str = '', button_text: str = '??? ????') -> dict:
     images = []
     try:
         images = [img.image_url for img in product.images.order_by(ProductImage.sort_order.asc()).all()]
@@ -238,7 +247,7 @@ def build_product_post_payload(product, *, caption: str = '', title: str = '', b
         'title': title or product.name,
         'caption': caption or '',
         'button_text': button_text,
-        'button_url': _resolve_product_button_url(product),
+        'button_url': _mini_app_url(),
         'product_id': product.id,
         'images': images,
     }
@@ -250,5 +259,5 @@ def build_announcement_payload(title: str, caption: str, *, button_text: str = '
         'title': title,
         'caption': caption,
         'button_text': button_text,
-        'button_url': _resolve_announcement_button_url(button_url),
+        'button_url': _mini_app_url(),
     }
