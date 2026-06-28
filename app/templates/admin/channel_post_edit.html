@@ -1,0 +1,88 @@
+{% extends 'admin/base_admin.html' %}
+{% block title %}Edit Channel Post - Admin{% endblock %}
+{% block page_title %}Edit Channel Post{% endblock %}
+{% block content %}
+<div class="admin-card">
+  <div class="admin-card-header">
+    <h5>Edit {{ post.post_type|title }} Post</h5>
+    <a href="{{ url_for('admin.channel_posts') }}" class="btn btn-sm admin-btn-outline">Back</a>
+  </div>
+  <form method="POST" enctype="multipart/form-data" class="p-3">
+    <input type="hidden" name="post_type" value="{{ post.post_type }}"/>
+    <div class="mb-3">
+      <label class="form-label fw-600">Status</label>
+      <div class="form-control-plaintext"><span class="badge bg-{{ 'success' if post.status == 'sent' else 'secondary' if post.status == 'draft' else 'warning' if post.status == 'scheduled' else 'danger' if post.status == 'failed' else 'info' }}">{{ post.status|title }}</span></div>
+    </div>
+    {% if post.post_type == 'product' %}
+    <div class="mb-3">
+      <label class="form-label fw-600">Product *</label>
+      <select name="product_id" class="form-select" required>
+        <option value="">Select a product</option>
+        {% for product in products %}
+        <option value="{{ product.id }}" {% if post.product_id == product.id %}selected{% endif %}>{{ product.name }} - ETB {{ '{:,.0f}'.format(product.current_price()) }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="mb-3">
+      <label class="form-label fw-600">Image Mode</label>
+      <select name="product_image_mode" class="form-select">
+        <option value="primary">Primary image only</option>
+        <option value="gallery">Send gallery</option>
+      </select>
+      <div class="form-text">If you upload new images below, they will replace the current media set.</div>
+    </div>
+    {% else %}
+    <div class="mb-3">
+      <label class="form-label fw-600">Title *</label>
+      <input type="text" name="title" class="form-control" value="{{ post.title or '' }}" required/>
+    </div>
+    {% endif %}
+    <div class="mb-3">
+      <label class="form-label fw-600">Caption</label>
+      <textarea name="caption" class="form-control" rows="5">{{ post.caption or '' }}</textarea>
+    </div>
+    {% if post.post_type == 'announcement' %}
+    <div class="mb-3">
+      <label class="form-label fw-600">Replace Images</label>
+      <input type="file" name="images" class="form-control" accept="image/*" multiple/>
+      <div class="form-text">Leave empty to keep the current photos.</div>
+    </div>
+    {% endif %}
+    <div class="row g-2">
+      <div class="col-md-6 mb-3">
+        <label class="form-label fw-600">Button Text</label>
+        <input type="text" name="button_text" class="form-control" value="{{ post.button_text or 'Open Mini App' }}"/>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label fw-600">Button URL</label>
+        <input type="url" name="button_url" class="form-control" value="{{ post.button_url or '' }}"/>
+      </div>
+    </div>
+    <div class="mb-3">
+      <label class="form-label fw-600">Schedule For</label>
+      <input type="datetime-local" name="scheduled_at" class="form-control" value="{{ post.scheduled_at.astimezone(configured_tz).strftime('%Y-%m-%dT%H:%M') if post.scheduled_at else '' }}"/>
+      <div class="form-text">Leave blank to publish now.</div>
+    </div>
+    {% if post.status == 'sent' %}
+    <div class="form-check mb-3">
+      <input class="form-check-input" type="checkbox" name="republish_now" id="republishNow" value="1"/>
+      <label class="form-check-label" for="republishNow">Delete the old post if possible and republish the updated version now</label>
+    </div>
+    {% endif %}
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn admin-btn-green">Save Changes</button>
+      {% if post.status == 'sent' %}<span class="text-muted align-self-center small">Check the republish box to send a replacement post.</span>{% endif %}
+    </div>
+  </form>
+
+  <div class="p-3 pt-0">
+    <h6 class="fw-700 mb-2">Existing Media</h6>
+    <div class="d-flex flex-wrap gap-2">
+      {% for img in post.images.all() %}
+      <img src="{{ img.image_url }}" style="width:96px;height:96px;object-fit:cover;border-radius:10px;border:1px solid #ddd"/>
+      {% endfor %}
+      {% if not post.images.count() %}<span class="text-muted small">No images saved.</span>{% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -176,7 +176,7 @@
             <div class="small fw-600">{{ item.product.name if item.product else 'Product' }}</div>
             <div class="small text-muted">× {{ item.quantity }}</div>
           </div>
-          <div class="small fw-600">ETB {{ "%.0f"|format((item.product.price if item.product else 0) * item.quantity) }}</div>
+          <div class="small fw-600">ETB {{ "%.0f"|format((item.product.current_price() if item.product else 0) * item.quantity) }}</div>
         </div>
         {% endfor %}
         <hr/>

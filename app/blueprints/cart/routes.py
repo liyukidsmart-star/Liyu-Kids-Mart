@@ -23,7 +23,7 @@ def _ensure_session():
 
 
 def _calc_totals(items, coupon=None):
-    subtotal = sum((i.product.price if i.product else 0) * i.quantity for i in items)
+    subtotal = sum((i.product.current_price() if i.product else 0) * i.quantity for i in items)
     delivery_fee = 0 if subtotal >= FREE_DELIVERY_THRESHOLD else DELIVERY_FEE
     discount = 0
     if coupon and coupon.is_active:
@@ -208,11 +208,11 @@ def checkout():
                     order_id=order.id,
                     product_id=item.product_id,
                     quantity=item.quantity,
-                    unit_price=item.product.price,
-                    total_price=item.product.price * item.quantity,
+                    unit_price=item.product.current_price(),
+                    total_price=item.product.current_price() * item.quantity,
                     product_snapshot=json.dumps({
                         'name': item.product.name,
-                        'price': float(item.product.price),
+                        'price': float(item.product.current_price()),
                         'image': item.product.primary_image(),
                     }),
                 )

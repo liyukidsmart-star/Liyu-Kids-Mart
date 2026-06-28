@@ -29,6 +29,7 @@ def create_app(config_name='development'):
         pass
 
     # Register blueprints
+    from app.models import marketing as _marketing  # noqa: F401
     from app.blueprints.main import main_bp
     from app.blueprints.auth import auth_bp
     from app.blueprints.shop import shop_bp

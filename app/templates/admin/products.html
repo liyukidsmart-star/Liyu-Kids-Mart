@@ -22,7 +22,7 @@
             <div class="fw-600">{{ product.name }}</div>
             <div class="x-small text-muted">{{ product.slug }}</div>
           </td>
-          <td>ETB {{ "{:,.0f}".format(product.price) }}</td>
+          <td>ETB {{ "{:,.0f}".format(product.current_price()) }}</td>
           <td>
             <span class="badge {% if product.stock_qty == 0 %}bg-danger{% elif product.stock_qty < 5 %}bg-warning{% else %}bg-success{% endif %}">
               {{ product.stock_qty }}
@@ -33,6 +33,7 @@
             <span class="badge {% if product.is_active %}bg-success{% else %}bg-secondary{% endif %}">
               {{ 'Active' if product.is_active else 'Hidden' }}
             </span>
+            {% if product.compare_at_price() %}<span class="badge bg-danger ms-1">Discount</span>{% endif %}
             {% if product.is_featured %}<span class="badge bg-warning ms-1">Featured</span>{% endif %}
           </td>
           <td>

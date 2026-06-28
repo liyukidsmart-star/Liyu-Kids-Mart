@@ -174,8 +174,8 @@ class AIService:
         if product.tags:
             tags = product.tags if isinstance(product.tags, str) else ", ".join(product.tags)
             parts.append(f"Tags: {tags}")
-        if product.price:
-            parts.append(f"Price: {product.price} ETB")
+        if product.current_price():
+            parts.append(f"Price: {product.current_price()} ETB")
         return ". ".join(parts) + "."
 
     def summarize_for_bot(self, response: str, max_length: int = 4096) -> str:
@@ -271,7 +271,7 @@ class AIService:
             return {
                 "id": product.id,
                 "name": product.name,
-                "price": float(product.price) if product.price else None,
+                "price": float(product.current_price()) if product.current_price() else None,
                 "description": (product.description or "")[:200],
                 "age_min_months": product.age_min_months,
                 "age_max_months": product.age_max_months,

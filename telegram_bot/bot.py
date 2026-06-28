@@ -144,7 +144,7 @@ async def category_products(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         text = f"📦 *{cat_name}* (Page {page+1})\n\nSelect a product to view details:"
         kb = []
         for p in products:
-            kb.append([InlineKeyboardButton(f"▪️ {p.name} - ETB {p.price:,.0f}", callback_data=f"prod_{p.id}")])
+            kb.append([InlineKeyboardButton(f"▪️ {p.name} - ETB {p.current_price():,.0f}", callback_data=f"prod_{p.id}")])
             
         nav_row = []
         if page > 0:
@@ -175,7 +175,7 @@ async def product_detail(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         
     text = (
         f"🧸 *{product.name}*\n\n"
-        f"💰 *Price:* ETB {product.price:,.0f}\n"
+        f"💰 *Price:* ETB {product.current_price():,.0f}\n"
         f"👶 *Age:* {product.age_label()}\n\n"
         f"📝 {product.short_description or 'No description available.'}\n\n"
     )
@@ -233,10 +233,10 @@ async def cart_view(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         kb = []
         for i, item in enumerate(items, 1):
             prod = item.product
-            line_total = prod.price * item.quantity
+            line_total = prod.current_price() * item.quantity
             subtotal += line_total
             text += f"*{i}. {prod.name}*\n"
-            text += f"   {item.quantity} x ETB {prod.price:,.0f} = *ETB {line_total:,.0f}*\n\n"
+            text += f"   {item.quantity} x ETB {prod.current_price():,.0f} = *ETB {line_total:,.0f}*\n\n"
             
             # Plus / Minus buttons
             kb.append([

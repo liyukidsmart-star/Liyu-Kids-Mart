@@ -1,0 +1,133 @@
+{% extends 'admin/base_admin.html' %}
+{% block title %}Product Discounts - Admin{% endblock %}
+{% block page_title %}Product Discounts{% endblock %}
+{% block content %}
+<div class="row g-4">
+  <div class="col-lg-5">
+    <div class="admin-card h-100">
+      <div class="admin-card-header"><h5>{{ 'Edit Discount' if discount else 'Create Discount' }}</h5></div>
+      <form method="POST" action="{{ url_for('admin.edit_discount', discount_id=discount.id) if discount else url_for('admin.discounts') }}" class="p-3">
+        <div class="mb-3">
+          <label class="form-label fw-600">Scope</label>
+          <select name="scope" class="form-select" id="discountScope" onchange="toggleDiscountScope()">
+            <option value="global" {% if discount and discount.scope == 'global' %}selected{% endif %}>All products</option>
+            <option value="product" {% if not discount or discount.scope == 'product' %}selected{% endif %}>Specific product</option>
+          </select>
+        </div>
+        <div class="mb-3" id="productSelectWrap">
+          <label class="form-label fw-600">Product</label>
+          <select name="product_id" class="form-select">
+            <option value="">Select product</option>
+            {% for product in products %}
+            <option value="{{ product.id }}" {% if discount and discount.product_id == product.id %}selected{% endif %}>{{ product.name }} - ETB {{ '{:,.0f}'.format(product.current_price()) }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-600">Title / Label</label>
+          <input type="text" name="title" class="form-control" value="{{ discount.title if discount else '' }}" placeholder="Weekend sale, clearance, back to school..."/>
+        </div>
+        <div class="row g-2">
+          <div class="col-md-6 mb-3">
+            <label class="form-label fw-600">Discount Type</label>
+            <select name="discount_type" class="form-select">
+              <option value="percentage" {% if not discount or discount.discount_type.value == 'percentage' %}selected{% endif %}>Percentage</option>
+              <option value="fixed" {% if discount and discount.discount_type.value == 'fixed' %}selected{% endif %}>Fixed amount</option>
+            </select>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label fw-600">Value</label>
+            <input type="number" name="discount_value" class="form-control" step="0.01" min="0" value="{{ discount.discount_value if discount else '' }}" required/>
+          </div>
+        </div>
+        <div class="row g-2">
+          <div class="col-md-6 mb-3">
+            <label class="form-label fw-600">Starts At</label>
+            <input type="datetime-local" name="starts_at" class="form-control" value="{{ discount.starts_at.astimezone(configured_tz).strftime('%Y-%m-%dT%H:%M') if discount and discount.starts_at else '' }}"/>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label fw-600">Ends At</label>
+            <input type="datetime-local" name="ends_at" class="form-control" value="{{ discount.ends_at.astimezone(configured_tz).strftime('%Y-%m-%dT%H:%M') if discount and discount.ends_at else '' }}"/>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-600">Priority</label>
+          <input type="number" name="priority" class="form-control" value="{{ discount.priority if discount else 100 }}"/>
+          <div class="form-text">Lower numbers win when more than one discount matches.</div>
+        </div>
+        {% if discount %}
+        <div class="form-check mb-3">
+          <input class="form-check-input" type="checkbox" name="is_active" id="isActive" {% if discount.is_active %}checked{% endif %}/>
+          <label class="form-check-label" for="isActive">Active</label>
+        </div>
+        {% endif %}
+        <button type="submit" class="btn admin-btn-green w-100">{{ 'Update Discount' if discount else 'Save Discount' }}</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="col-lg-7">
+    <div class="admin-card h-100">
+      <div class="admin-card-header"><h5>Active & Recent Discounts</h5></div>
+      <div class="table-responsive">
+        <table class="table admin-table align-middle">
+          <thead>
+            <tr>
+              <th>Scope</th>
+              <th>Title</th>
+              <th>Value</th>
+              <th>Window</th>
+              <th>Status</th>
+              <th class="text-end">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for discount in discounts %}
+            <tr>
+              <td>
+                <span class="badge bg-{{ 'warning text-dark' if discount.scope == 'global' else 'info text-dark' }}">{{ discount.scope|title }}</span>
+                {% if discount.product %}<div class="small text-muted mt-1">{{ discount.product.name }}</div>{% endif %}
+              </td>
+              <td>{{ discount.title or 'Untitled discount' }}</td>
+              <td>
+                {% if discount.discount_type.value == 'percentage' %}
+                  {{ discount.discount_value|round(0) }}%
+                {% else %}
+                  ETB {{ '{:,.0f}'.format(discount.discount_value) }}
+                {% endif %}
+              </td>
+              <td class="small text-muted">
+                {{ discount.starts_at.strftime('%b %d, %Y %H:%M') if discount.starts_at else 'Now' }}
+                <br/>
+                {{ discount.ends_at.strftime('%b %d, %Y %H:%M') if discount.ends_at else 'No end' }}
+              </td>
+              <td><span class="badge bg-{{ 'success' if discount.is_active else 'secondary' }}">{{ 'Active' if discount.is_active else 'Inactive' }}</span></td>
+              <td class="text-end">
+                <a href="{{ url_for('admin.edit_discount', discount_id=discount.id) }}" class="btn btn-sm admin-btn-outline me-1">Edit</a>
+                <form method="POST" action="{{ url_for('admin.toggle_discount', discount_id=discount.id) }}" class="d-inline">
+                  <button class="btn btn-sm admin-btn-outline me-1" type="submit">{{ 'Disable' if discount.is_active else 'Enable' }}</button>
+                </form>
+                <form method="POST" action="{{ url_for('admin.delete_discount', discount_id=discount.id) }}" class="d-inline" onsubmit="return confirm('Delete this discount?')">
+                  <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+            {% if not discounts %}
+            <tr><td colspan="6" class="text-center text-muted py-4">No discounts created yet.</td></tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function toggleDiscountScope() {
+  const scope = document.getElementById('discountScope').value;
+  document.getElementById('productSelectWrap').style.display = scope === 'product' ? 'block' : 'none';
+}
+toggleDiscountScope();
+</script>
+{% endblock %}

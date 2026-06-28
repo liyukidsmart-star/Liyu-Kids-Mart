@@ -1,50 +1,87 @@
 from flask import render_template, request, jsonify, abort
+from datetime import datetime, timezone
 from flask_login import login_required, current_user
-from sqlalchemy import or_, func
+from sqlalchemy import or_
 from app.blueprints.shop import shop_bp
 from app.extensions import db
 from app.models.product import Product, Category
 from app.models.order import Wishlist
-from app.utils import paginate_query
 
 
 def _get_categories():
     return Category.query.filter_by(is_active=True, parent_id=None).order_by(Category.sort_order).all()
 
 
-def _build_product_query(request_args):
-    q = Product.query.filter_by(is_active=True)
-    sort = request_args.get('sort', 'newest')
-    if sort == 'price_asc':
-        q = q.order_by(Product.price.asc())
-    elif sort == 'price_desc':
-        q = q.order_by(Product.price.desc())
-    elif sort == 'bestselling':
-        q = q.order_by(Product.sales_count.desc())
-    else:
-        q = q.order_by(Product.created_at.desc())
-
-    if request_args.get('featured'):
-        q = q.filter_by(is_featured=True)
-    if request_args.get('new_arrival'):
-        q = q.filter_by(is_new_arrival=True)
+def _product_matches(product, request_args):
+    if not product.is_active:
+        return False
+    if request_args.get('featured') and not product.is_featured:
+        return False
+    if request_args.get('new_arrival') and not product.is_new_arrival:
+        return False
     age = request_args.get('age')
     if age:
         parts = age.split('-')
         if len(parts) == 2:
             age_min = int(parts[0]) * 12
             age_max = int(parts[1]) * 12
-            q = q.filter(Product.age_min_months <= age_max, Product.age_max_months >= age_min)
-    return q, sort
+            if not (product.age_min_months <= age_max and product.age_max_months >= age_min):
+                return False
+    return True
+
+
+def _sort_products(products, sort):
+    if sort == 'price_asc':
+        return sorted(products, key=lambda p: (float(p.current_price()), p.id))
+    if sort == 'price_desc':
+        return sorted(products, key=lambda p: (float(p.current_price()), p.id), reverse=True)
+    if sort == 'bestselling':
+        return sorted(products, key=lambda p: ((p.sales_count or 0), p.id), reverse=True)
+    return sorted(products, key=lambda p: p.created_at or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
+
+
+def _filter_and_sort_products(request_args, category_id=None):
+    sort = request_args.get('sort', 'newest')
+    products = Product.query.filter_by(is_active=True).all()
+    if category_id:
+        products = [p for p in products if p.category_id == category_id]
+    products = [p for p in products if _product_matches(p, request_args)]
+    products = _sort_products(products, sort)
+    return products, sort
+
+
+
+class _Pagination:
+    def __init__(self, items, page, pages, total):
+        self.items = items
+        self.page = page
+        self.pages = pages
+        self.total = total
+        self.has_prev = page > 1
+        self.has_next = page < pages
+        self.prev_num = max(1, page - 1)
+        self.next_num = min(pages, page + 1)
+
+    def iter_pages(self):
+        return range(1, self.pages + 1)
+
+
+def _paginate(items, page, per_page):
+    total = len(items)
+    start = max(0, (page - 1) * per_page)
+    end = start + per_page
+    pages = max(1, (total + per_page - 1) // per_page) if per_page else 1
+    return items[start:end], total, pages
 
 
 @shop_bp.route('/')
 def listing():
-    q, sort = _build_product_query(request.args)
-    pagination = q.paginate(page=request.args.get('page', 1, int), per_page=20, error_out=False)
+    page = request.args.get('page', 1, type=int)
+    products, sort = _filter_and_sort_products(request.args)
+    page_items, total, pages = _paginate(products, page, 20)
     return render_template('shop/listing.html',
-                           products=pagination.items,
-                           pagination=pagination,
+                           products=page_items,
+                           pagination=_Pagination(page_items, page, pages, total),
                            categories=_get_categories(),
                            page_title='Shop All Products',
                            current_category=None,
@@ -54,15 +91,12 @@ def listing():
 @shop_bp.route('/category/<slug>')
 def category(slug):
     cat = Category.query.filter_by(slug=slug).first_or_404()
-    q = Product.query.filter_by(is_active=True, category_id=cat.id)
-    sort = request.args.get('sort', 'newest')
-    q = q.order_by(Product.created_at.desc() if sort == 'newest' else
-                   (Product.price.asc() if sort == 'price_asc' else
-                    (Product.price.desc() if sort == 'price_desc' else Product.sales_count.desc())))
-    pagination = q.paginate(page=request.args.get('page', 1, int), per_page=20, error_out=False)
+    page = request.args.get('page', 1, type=int)
+    products, sort = _filter_and_sort_products(request.args, category_id=cat.id)
+    page_items, total, pages = _paginate(products, page, 20)
     return render_template('shop/listing.html',
-                           products=pagination.items,
-                           pagination=pagination,
+                           products=page_items,
+                           pagination=_Pagination(page_items, page, pages, total),
                            categories=_get_categories(),
                            page_title=f'{cat.icon or ""} {cat.name}',
                            current_category=slug,
@@ -80,7 +114,6 @@ def detail(slug):
         in_wishlist = Wishlist.query.filter_by(
             user_id=current_user.id, product_id=product.id).first() is not None
 
-    # Similar products: same category, exclude this one
     similar = (Product.query.filter_by(is_active=True, category_id=product.category_id)
                .filter(Product.id != product.id).limit(4).all())
 

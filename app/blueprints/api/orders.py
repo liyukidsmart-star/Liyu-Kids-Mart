@@ -56,7 +56,7 @@ def create_order():
     if not cart_items:
         return error_response('Cart is empty')
 
-    subtotal = sum(float(i.product.price) * i.quantity for i in cart_items if i.product)
+    subtotal = sum(float(i.product.current_price()) * i.quantity for i in cart_items if i.product)
     delivery_fee = 0 if subtotal >= 1000 else 50
     total = subtotal + delivery_fee
 
@@ -89,8 +89,8 @@ def create_order():
             continue
         oi = OrderItem(
             order_id=order.id, product_id=item.product_id,
-            quantity=item.quantity, unit_price=item.product.price,
-            total_price=float(item.product.price) * item.quantity,
+            quantity=item.quantity, unit_price=item.product.current_price(),
+            total_price=float(item.product.current_price()) * item.quantity,
             product_snapshot=json.dumps({'name': item.product.name, 'image': item.product.primary_image()})
         )
         db.session.add(oi)

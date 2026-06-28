@@ -83,12 +83,12 @@ def mini_app_checkout():
             qty = product.stock_qty
         if qty <= 0:
             continue
-        item_total = float(product.price) * qty
+        item_total = float(product.current_price()) * qty
         subtotal += item_total
         order_items.append({
             'product': product,
             'qty': qty,
-            'unit_price': float(product.price),
+            'unit_price': float(product.current_price()),
             'item_total': item_total
         })
 

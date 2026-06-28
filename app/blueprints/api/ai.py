@@ -220,7 +220,7 @@ def _build_gemini_prompt(user_message, history, cart_items, candidates):
 
     if cart_items:
         cart_lines = [
-            f"- {item.quantity}x {item.product.name} (ETB {float(item.product.price):,.0f})"
+            f"- {item.quantity}x {item.product.name} (ETB {float(item.product.current_price()):,.0f})"
             for item in cart_items
         ]
         parts.append('SYSTEM CONTEXT - CART:\n' + '\n'.join(cart_lines))
@@ -231,7 +231,7 @@ def _build_gemini_prompt(user_message, history, cart_items, candidates):
         product_lines = []
         for p in candidates:
             stock_note = f'In stock ({p.stock_qty} left)' if p.stock_qty > 0 else 'Out of stock'
-            product_lines.append(f'- {p.name} | ETB {float(p.price):,.0f} | Age: {p.age_label()} | {stock_note}')
+            product_lines.append(f'- {p.name} | ETB {float(p.current_price()):,.0f} | Age: {p.age_label()} | {stock_note}')
         parts.append('SYSTEM CONTEXT - PRODUCTS:\n' + '\n'.join(product_lines))
 
     parts.append('User message:\n' + user_message)
@@ -321,11 +321,11 @@ def ai_chat():
 
     cart_summary = None
     if show_checkout and cart_items:
-        subtotal = sum(float(item.product.price) * item.quantity for item in cart_items if item.product)
+        subtotal = sum(float(item.product.current_price()) * item.quantity for item in cart_items if item.product)
         delivery_fee = 0 if subtotal >= 1000 else 80
         cart_summary = {
             'items': [
-                {'name': i.product.name, 'price': float(i.product.price), 'qty': i.quantity}
+                {'name': i.product.name, 'price': float(i.product.current_price()), 'qty': i.quantity}
                 for i in cart_items if i.product
             ],
             'subtotal': subtotal,

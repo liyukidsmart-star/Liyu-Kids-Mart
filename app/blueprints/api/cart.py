@@ -43,7 +43,7 @@ def _cart_query(user, session_id):
 def get_cart():
     user, session_id = _resolve_user()
     items = _cart_query(user, session_id).all()
-    subtotal = sum(float(i.product.price) * i.quantity for i in items if i.product)
+    subtotal = sum(float(i.product.current_price()) * i.quantity for i in items if i.product)
     delivery_fee = 0 if subtotal >= 1000 else 50
     return success_response({
         'items': [i.to_dict() for i in items],

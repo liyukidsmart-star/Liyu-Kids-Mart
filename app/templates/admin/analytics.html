@@ -20,7 +20,7 @@
             <td class="fw-600 text-muted">{{ loop.index }}</td>
             <td>
               <div class="fw-600">{{ product.name }}</div>
-              <div class="x-small text-muted">ETB {{ "{:,.0f}".format(product.price) }}</div>
+              <div class="x-small text-muted">ETB {{ "{:,.0f}".format(product.current_price()) }}</div>
             </td>
             <td><span class="badge bg-success">{{ product.sales_count }}</span></td>
             <td class="text-muted">{{ product.view_count }}</td>

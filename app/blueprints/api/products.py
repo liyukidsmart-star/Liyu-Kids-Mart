@@ -1,8 +1,38 @@
+from math import ceil
+from datetime import datetime, timezone
 from flask import request
 from app.blueprints.api import api_bp
 from app.extensions import db
 from app.models.product import Product, Category
-from app.utils import success_response, error_response, paginate_query
+from app.utils import success_response, error_response
+
+
+def _filter_products(products, category_id=None, featured=None, new_arrival=None, min_price=0, max_price=99999):
+    filtered = []
+    for product in products:
+        if not product.is_active:
+            continue
+        if category_id and product.category_id != category_id:
+            continue
+        if featured is True and not product.is_featured:
+            continue
+        if new_arrival is True and not product.is_new_arrival:
+            continue
+        price = float(product.current_price())
+        if price < float(min_price) or price > float(max_price):
+            continue
+        filtered.append(product)
+    return filtered
+
+
+def _sort_products(products, sort):
+    if sort == 'price_asc':
+        return sorted(products, key=lambda p: (float(p.current_price()), -(p.sales_count or 0), p.id))
+    if sort == 'price_desc':
+        return sorted(products, key=lambda p: (float(p.current_price()), (p.sales_count or 0), -p.id), reverse=True)
+    if sort == 'bestselling':
+        return sorted(products, key=lambda p: ((p.sales_count or 0), (p.created_at or datetime.min.replace(tzinfo=timezone.utc))), reverse=True)
+    return sorted(products, key=lambda p: p.created_at or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
 
 
 @api_bp.route('/products')
@@ -15,30 +45,27 @@ def get_products():
     sort = request.args.get('sort', 'newest')
     min_price = request.args.get('min_price', 0, type=float)
     max_price = request.args.get('max_price', 99999, type=float)
-    telegram_id = request.args.get('telegram_id')
 
-    q = Product.query.filter_by(is_active=True)
-    if category_id:
-        q = q.filter_by(category_id=category_id)
-    if featured == 'True' or featured == 'true' or featured == '1':
-        q = q.filter_by(is_featured=True)
-    if new_arrival == 'True' or new_arrival == 'true' or new_arrival == '1':
-        q = q.filter_by(is_new_arrival=True)
-    q = q.filter(Product.price >= min_price, Product.price <= max_price)
-    if sort == 'price_asc':
-        q = q.order_by(Product.price.asc())
-    elif sort == 'price_desc':
-        q = q.order_by(Product.price.desc())
-    elif sort == 'bestselling':
-        q = q.order_by(Product.sales_count.desc())
-    else:
-        q = q.order_by(Product.created_at.desc())
+    all_products = Product.query.filter_by(is_active=True).all()
+    filtered = _filter_products(
+        all_products,
+        category_id=category_id,
+        featured=featured in ('True', 'true', '1'),
+        new_arrival=new_arrival in ('True', 'true', '1'),
+        min_price=min_price,
+        max_price=max_price,
+    )
+    sorted_products = _sort_products(filtered, sort)
+    total = len(sorted_products)
+    pages = max(1, ceil(total / per_page)) if per_page else 1
+    start = max(0, (page - 1) * per_page)
+    end = start + per_page
+    page_items = sorted_products[start:end]
 
-    pagination = paginate_query(q, page, per_page)
     return success_response({
-        'products': [p.to_dict() for p in pagination.items],
-        'total': pagination.total,
-        'pages': pagination.pages,
+        'products': [p.to_dict() for p in page_items],
+        'total': total,
+        'pages': pages,
         'page': page,
     })
 

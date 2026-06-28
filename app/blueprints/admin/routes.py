@@ -1,12 +1,19 @@
 import os
+import json
+import asyncio
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from flask import (render_template, redirect, url_for, flash, request,
                    jsonify, current_app)
+import httpx
 from flask_login import login_required, current_user
 from functools import wraps
 from app.blueprints.admin import admin_bp
 from app.extensions import db
 from app.models.product import Product, Category, ProductImage
 from app.models.order import Order, OrderStatus, Coupon, DiscountType
+from app.models.marketing import ProductDiscount, TelegramChannelPost, TelegramChannelPostImage
+from app.services.telegram_marketing import publish_channel_post
 from app.models.user import User, UserRole
 from app.models.delivery import Driver
 from app.models.ai_conversation import AIConversation
@@ -103,19 +110,10 @@ def _try_broadcast(product):
     """Fire-and-forget broadcast of a new product to all Telegram bot users."""
     try:
         from telegram_bot.broadcaster import broadcast_new_product
-        broadcast_new_product({
-            'name': product.name,
-            'name_am': product.name_am,
-            'slug': product.slug,
-            'short_description': product.short_description or '',
-            'short_description_am': product.short_description_am or '',
-            'description': product.description or '',
-            'description_am': product.description_am or '',
-            'price': float(product.price),
-            'compare_price': float(product.compare_price) if product.compare_price else None,
-            'age_label': product.age_label(),
-            'primary_image': product.primary_image(),
-        })
+        payload = product.to_dict(include_description=True)
+        payload['age_label'] = product.age_label()
+        payload['primary_image'] = product.primary_image()
+        broadcast_new_product(payload)
     except Exception as e:
         current_app.logger.warning(f'Broadcast failed: {e}')
 
@@ -451,6 +449,459 @@ def analytics():
 
 
 # ── COUPONS ──
+
+ADMIN_TZ = ZoneInfo("Africa/Addis_Ababa")
+
+
+def _admin_now_utc():
+    return datetime.now(timezone.utc)
+
+
+def _parse_admin_datetime(raw):
+    if not raw:
+        return None
+    try:
+        local_dt = datetime.strptime(raw, '%Y-%m-%dT%H:%M')
+    except Exception:
+        return None
+    return local_dt.replace(tzinfo=ADMIN_TZ).astimezone(timezone.utc)
+
+
+def _display_admin_datetime(value):
+    if not value:
+        return None
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(ADMIN_TZ)
+
+
+def _parse_message_ids(raw):
+    if not raw:
+        return []
+    try:
+        if raw.startswith('['):
+            data = json.loads(raw)
+            return [str(mid) for mid in data if mid]
+    except Exception:
+        pass
+    return [str(raw)]
+
+
+def _post_image_urls(post):
+    return [img.image_url for img in post.images.order_by(TelegramChannelPostImage.sort_order.asc()).all()]
+
+
+def _delete_telegram_post(post):
+    token = os.environ.get('TELEGRAM_BOT_TOKEN', '').strip()
+    chat_id = (post.channel_chat_id or os.environ.get('TELEGRAM_CHANNEL_CHAT_ID') or os.environ.get('TELEGRAM_MAIN_CHANNEL_ID') or os.environ.get('TELEGRAM_CHANNEL_ID') or '').strip()
+    message_ids = _parse_message_ids(post.sent_message_id)
+    if not token or not chat_id or not message_ids:
+        return True, 'Nothing to delete'
+
+    errors = []
+    for mid in message_ids:
+        try:
+            resp = httpx.post(
+                f'https://api.telegram.org/bot{token}/deleteMessage',
+                json={'chat_id': chat_id, 'message_id': int(mid)},
+                timeout=15,
+            )
+            data = resp.json()
+            if not data.get('ok'):
+                errors.append(data.get('description') or f'Could not delete message {mid}')
+        except Exception as exc:
+            errors.append(str(exc))
+    if errors:
+        return False, '; '.join(errors)
+    return True, 'Deleted from Telegram'
+
+
+def _save_post_images(post, image_urls):
+    for idx, img_url in enumerate(image_urls):
+        db.session.add(TelegramChannelPostImage(
+            post_id=post.id,
+            image_url=img_url,
+            sort_order=idx,
+        ))
+
+
+def _publish_post(post, product=None):
+    if post.post_type == 'product' and product is None and post.product:
+        product = post.product
+    image_urls = _post_image_urls(post)
+    if post.post_type == 'product' and not image_urls and product is not None:
+        image_urls = [product.primary_image()]
+
+    button_text = post.button_text or 'Open Mini App'
+    button_url = post.button_url or ''
+    result = asyncio.run(publish_channel_post(
+        post,
+        images=image_urls if image_urls else None,
+        product=product,
+        button_text=button_text,
+        button_url=button_url,
+    ))
+    if result.get('ok'):
+        post.status = 'sent'
+        post.sent_at = _admin_now_utc()
+        post.error_message = None
+        message_ids = result.get('message_ids')
+        if message_ids:
+            post.sent_message_id = json.dumps([mid for mid in message_ids if mid])
+        else:
+            post.sent_message_id = str(result.get('result', {}).get('message_id') or '')
+        db.session.commit()
+        return True, 'Channel post published successfully.'
+    post.status = 'failed'
+    post.error_message = result.get('error') or result.get('description') or 'Telegram returned an error'
+    db.session.commit()
+    return False, post.error_message
+
+
+def _process_due_channel_posts():
+    due_posts = TelegramChannelPost.query.filter_by(status='scheduled').order_by(TelegramChannelPost.scheduled_at.asc()).all()
+    processed = 0
+    for post in due_posts:
+        try:
+            if post.is_due():
+                ok, _msg = _publish_post(post)
+                if ok:
+                    processed += 1
+        except Exception as exc:
+            post.status = 'failed'
+            post.error_message = str(exc)
+            db.session.commit()
+    return processed
+
+
+@admin_bp.route('/channel-posts/process-due', methods=['GET', 'POST'])
+def process_due_channel_posts():
+    secret = (request.args.get('secret') or request.headers.get('X-Cron-Secret') or '').strip()
+    expected = os.environ.get('CHANNEL_POSTS_CRON_SECRET', '').strip()
+    if not expected or secret != expected:
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+    processed = _process_due_channel_posts()
+    return jsonify({'success': True, 'processed': processed})
+
+
+@admin_bp.route('/channel-posts', methods=['GET', 'POST'])
+@admin_required
+def channel_posts():
+    products = Product.query.filter_by(is_active=True).order_by(Product.created_at.desc()).limit(300).all()
+    processed = _process_due_channel_posts()
+    recent_posts = TelegramChannelPost.query.order_by(TelegramChannelPost.created_at.desc()).limit(25).all()
+
+    if request.method == 'POST':
+        def _safe_int(val, default=0):
+            try:
+                return int(val) if str(val).strip() else default
+            except Exception:
+                return default
+
+        post_type = request.form.get('post_type', 'announcement').strip() or 'announcement'
+        title = request.form.get('title', '').strip()
+        caption = request.form.get('caption', '').strip()
+        button_text = request.form.get('button_text', 'Open Mini App').strip() or 'Open Mini App'
+        button_url = request.form.get('button_url', '').strip()
+        scheduled_at = _parse_admin_datetime(request.form.get('scheduled_at', '').strip())
+        send_now = 'send_now' in request.form or not scheduled_at or scheduled_at <= _admin_now_utc()
+        status = 'sent' if send_now else 'scheduled'
+
+        post = TelegramChannelPost(
+            post_type=post_type,
+            title=title,
+            caption=caption,
+            button_text=button_text,
+            button_url=button_url,
+            status=status,
+            scheduled_at=scheduled_at,
+            channel_chat_id=os.environ.get('TELEGRAM_CHANNEL_CHAT_ID') or os.environ.get('TELEGRAM_MAIN_CHANNEL_ID') or os.environ.get('TELEGRAM_CHANNEL_ID') or '',
+        )
+
+        product = None
+        image_urls = []
+        try:
+            if post_type == 'product':
+                product_id = _safe_int(request.form.get('product_id'))
+                product = db.session.get(Product, product_id)
+                if not product:
+                    flash('Select a valid product for the channel post.', 'danger')
+                    return render_template('admin/channel_posts.html', products=products, recent_posts=recent_posts, processed=processed, configured_tz=ADMIN_TZ)
+                post.product_id = product.id
+                post.title = title or product.name
+                image_mode = request.form.get('product_image_mode', 'primary')
+                if image_mode == 'gallery':
+                    image_urls = product.all_images()
+                else:
+                    image_urls = [product.primary_image()]
+                if not caption:
+                    caption = product.short_description or product.description or ''
+                    post.caption = caption
+            else:
+                uploaded = request.files.getlist('images')
+                if uploaded:
+                    for img_file in uploaded:
+                        if img_file and img_file.filename and allowed_file(img_file.filename):
+                            img_url = _upload_to_telegram(img_file)
+                            if img_url:
+                                image_urls.append(img_url)
+                if not title:
+                    flash('Announcement title is required.', 'danger')
+                    return render_template('admin/channel_posts.html', products=products, recent_posts=recent_posts, processed=processed, configured_tz=ADMIN_TZ)
+
+            db.session.add(post)
+            db.session.flush()
+            if image_urls:
+                _save_post_images(post, image_urls)
+            db.session.commit()
+
+            if send_now:
+                ok, msg = _publish_post(post, product=product)
+                flash(msg, 'success' if ok else 'danger')
+            else:
+                flash(f'Post scheduled for {scheduled_at.astimezone(ADMIN_TZ).strftime("%b %d, %Y %H:%M")}.', 'success')
+            return redirect(url_for('admin.channel_posts'))
+        except Exception as exc:
+            db.session.rollback()
+            current_app.logger.warning(f'Channel post failed: {exc}')
+            flash(f'Could not save channel post: {exc}', 'danger')
+            return render_template('admin/channel_posts.html', products=products, recent_posts=recent_posts, processed=processed, configured_tz=ADMIN_TZ)
+
+    return render_template('admin/channel_posts.html', products=products, recent_posts=recent_posts, processed=processed, configured_tz=ADMIN_TZ)
+
+
+@admin_bp.route('/channel-posts/<int:post_id>/edit', methods=['GET', 'POST'])
+@admin_required
+def edit_channel_post(post_id):
+    post = db.session.get(TelegramChannelPost, post_id)
+    if not post:
+        flash('Channel post not found.', 'danger')
+        return redirect(url_for('admin.channel_posts'))
+    products = Product.query.filter_by(is_active=True).order_by(Product.created_at.desc()).limit(300).all()
+
+    if request.method == 'POST':
+        def _safe_int(val, default=0):
+            try:
+                return int(val) if str(val).strip() else default
+            except Exception:
+                return default
+
+        post.post_type = request.form.get('post_type', post.post_type).strip() or post.post_type
+        post.title = request.form.get('title', post.title or '').strip()
+        post.caption = request.form.get('caption', post.caption or '').strip()
+        post.button_text = request.form.get('button_text', post.button_text or 'Open Mini App').strip() or 'Open Mini App'
+        post.button_url = request.form.get('button_url', post.button_url or '').strip()
+        post.scheduled_at = _parse_admin_datetime(request.form.get('scheduled_at', '').strip())
+        republish_now = 'republish_now' in request.form
+        schedule_later = post.scheduled_at and post.scheduled_at > _admin_now_utc() and not republish_now
+
+        try:
+            if post.post_type == 'product':
+                product_id = _safe_int(request.form.get('product_id'))
+                product = db.session.get(Product, product_id)
+                if not product:
+                    flash('Select a valid product.', 'danger')
+                    return render_template('admin/channel_post_edit.html', post=post, products=products, configured_tz=ADMIN_TZ)
+                post.product_id = product.id
+                image_mode = request.form.get('product_image_mode', 'primary')
+                if request.files.getlist('images'):
+                    post.images.delete()
+                    db.session.flush()
+                if post.images.count() == 0:
+                    image_urls = product.all_images() if image_mode == 'gallery' else [product.primary_image()]
+                    _save_post_images(post, image_urls)
+                if not post.caption:
+                    post.caption = product.short_description or product.description or ''
+            else:
+                uploaded = request.files.getlist('images')
+                if uploaded:
+                    post.images.delete()
+                    db.session.flush()
+                    image_urls = []
+                    for img_file in uploaded:
+                        if img_file and img_file.filename and allowed_file(img_file.filename):
+                            img_url = _upload_to_telegram(img_file)
+                            if img_url:
+                                image_urls.append(img_url)
+                    _save_post_images(post, image_urls)
+                if not post.title:
+                    flash('Announcement title is required.', 'danger')
+                    return render_template('admin/channel_post_edit.html', post=post, products=products, configured_tz=ADMIN_TZ)
+
+            if schedule_later:
+                post.status = 'scheduled'
+                post.error_message = None
+                db.session.commit()
+                flash('Post updated and kept scheduled.', 'success')
+                return redirect(url_for('admin.channel_posts'))
+
+            if post.status == 'sent' and not republish_now:
+                db.session.commit()
+                flash('Post details were updated in the admin portal. Check the republish box to push a replacement to Telegram.', 'success')
+                return redirect(url_for('admin.channel_posts'))
+
+            if post.status == 'sent' and republish_now:
+                _delete_telegram_post(post)
+
+            db.session.commit()
+            ok, msg = _publish_post(post, product=post.product if post.post_type == 'product' else None)
+            flash(msg, 'success' if ok else 'danger')
+            return redirect(url_for('admin.channel_posts'))
+        except Exception as exc:
+            db.session.rollback()
+            flash(f'Could not update post: {exc}', 'danger')
+            return render_template('admin/channel_post_edit.html', post=post, products=products, configured_tz=ADMIN_TZ)
+
+    return render_template('admin/channel_post_edit.html', post=post, products=products, configured_tz=ADMIN_TZ)
+
+
+@admin_bp.route('/channel-posts/<int:post_id>/delete', methods=['POST'])
+@admin_required
+def delete_channel_post(post_id):
+    post = db.session.get(TelegramChannelPost, post_id)
+    if not post:
+        flash('Channel post not found.', 'danger')
+        return redirect(url_for('admin.channel_posts'))
+    if post.status == 'sent':
+        ok, msg = _delete_telegram_post(post)
+        if not ok:
+            flash(f'Telegram delete had issues: {msg}', 'warning')
+    db.session.delete(post)
+    db.session.commit()
+    flash('Channel post deleted.', 'success')
+    return redirect(url_for('admin.channel_posts'))
+
+
+@admin_bp.route('/channel-posts/<int:post_id>/send-now', methods=['POST'])
+@admin_required
+def send_channel_post_now(post_id):
+    post = db.session.get(TelegramChannelPost, post_id)
+    if not post:
+        flash('Channel post not found.', 'danger')
+        return redirect(url_for('admin.channel_posts'))
+    post.scheduled_at = None
+    post.status = 'draft'
+    db.session.commit()
+    ok, msg = _publish_post(post, product=post.product if post.post_type == 'product' else None)
+    flash(msg, 'success' if ok else 'danger')
+    return redirect(url_for('admin.channel_posts'))
+
+
+@admin_bp.route('/discounts', methods=['GET', 'POST'])
+@admin_required
+def discounts():
+    products = Product.query.filter_by(is_active=True).order_by(Product.name.asc()).all()
+    discounts_q = ProductDiscount.query.order_by(ProductDiscount.created_at.desc()).all()
+    if request.method == 'POST':
+        def _safe_int(val, default=0):
+            try:
+                return int(val) if str(val).strip() else default
+            except Exception:
+                return default
+
+        def _safe_float(val, default=0.0):
+            try:
+                return float(val) if str(val).strip() else default
+            except Exception:
+                return default
+
+        scope = request.form.get('scope', 'product').strip() or 'product'
+        product_id = _safe_int(request.form.get('product_id')) if scope == 'product' else None
+        if scope == 'product' and not product_id:
+            flash('Please select a product for the discount.', 'danger')
+            return render_template('admin/discounts.html', discounts=discounts_q, products=products, discount=None, edit_mode=False, configured_tz=ADMIN_TZ)
+
+        discount_type = request.form.get('discount_type', 'percentage').strip() or 'percentage'
+        value = _safe_float(request.form.get('discount_value'))
+        title = request.form.get('title', '').strip()
+        starts_at = _parse_admin_datetime(request.form.get('starts_at', '').strip())
+        ends_at = _parse_admin_datetime(request.form.get('ends_at', '').strip())
+        priority = _safe_int(request.form.get('priority'), 100)
+
+        existing = ProductDiscount.query.filter_by(scope=scope, product_id=product_id, is_active=True).all()
+        for row in existing:
+            row.is_active = False
+
+        discount = ProductDiscount(
+            product_id=product_id,
+            scope=scope,
+            title=title,
+            discount_type=DiscountType[discount_type],
+            discount_value=value,
+            starts_at=starts_at,
+            ends_at=ends_at,
+            priority=priority,
+            is_active=True,
+        )
+        db.session.add(discount)
+        db.session.commit()
+        flash('Discount saved successfully.', 'success')
+        return redirect(url_for('admin.discounts'))
+
+    return render_template('admin/discounts.html', discounts=discounts_q, products=products, discount=None, edit_mode=False, configured_tz=ADMIN_TZ)
+
+
+@admin_bp.route('/discounts/<int:discount_id>/edit', methods=['GET', 'POST'])
+@admin_required
+def edit_discount(discount_id):
+    discount = db.session.get(ProductDiscount, discount_id)
+    if not discount:
+        flash('Discount not found.', 'danger')
+        return redirect(url_for('admin.discounts'))
+    products = Product.query.filter_by(is_active=True).order_by(Product.name.asc()).all()
+    if request.method == 'POST':
+        def _safe_int(val, default=0):
+            try:
+                return int(val) if str(val).strip() else default
+            except Exception:
+                return default
+
+        def _safe_float(val, default=0.0):
+            try:
+                return float(val) if str(val).strip() else default
+            except Exception:
+                return default
+
+        discount.scope = request.form.get('scope', discount.scope).strip() or discount.scope
+        discount.product_id = _safe_int(request.form.get('product_id')) if discount.scope == 'product' else None
+        if discount.scope == 'product' and not discount.product_id:
+            flash('Please select a product for the discount.', 'danger')
+            return render_template('admin/discounts.html', discounts=ProductDiscount.query.order_by(ProductDiscount.created_at.desc()).all(), products=products, discount=discount, edit_mode=True, configured_tz=ADMIN_TZ)
+        discount.title = request.form.get('title', '').strip()
+        discount.discount_type = DiscountType[request.form.get('discount_type', discount.discount_type.value)]
+        discount.discount_value = _safe_float(request.form.get('discount_value'), float(discount.discount_value))
+        discount.starts_at = _parse_admin_datetime(request.form.get('starts_at', '').strip())
+        discount.ends_at = _parse_admin_datetime(request.form.get('ends_at', '').strip())
+        discount.priority = _safe_int(request.form.get('priority'), discount.priority)
+        discount.is_active = 'is_active' in request.form
+        db.session.commit()
+        flash('Discount updated.', 'success')
+        return redirect(url_for('admin.discounts'))
+    return render_template('admin/discounts.html', discounts=ProductDiscount.query.order_by(ProductDiscount.created_at.desc()).all(), products=products, discount=discount, edit_mode=True, configured_tz=ADMIN_TZ)
+
+
+@admin_bp.route('/discounts/<int:discount_id>/toggle', methods=['POST'])
+@admin_required
+def toggle_discount(discount_id):
+    discount = db.session.get(ProductDiscount, discount_id)
+    if discount:
+        discount.is_active = not discount.is_active
+        db.session.commit()
+        flash('Discount updated.', 'success')
+    return redirect(url_for('admin.discounts'))
+
+
+@admin_bp.route('/discounts/<int:discount_id>/delete', methods=['POST'])
+@admin_required
+def delete_discount(discount_id):
+    discount = db.session.get(ProductDiscount, discount_id)
+    if discount:
+        db.session.delete(discount)
+        db.session.commit()
+        flash('Discount removed.', 'success')
+    return redirect(url_for('admin.discounts'))
+
+
 @admin_bp.route('/coupons', methods=['GET', 'POST'])
 @admin_required
 def coupons():

@@ -42,6 +42,12 @@
       <i class="fas fa-users"></i><span>Customers</span>
     </a>
     <div class="sidebar-section">MARKETING</div>
+    <a href="{{ url_for('admin.channel_posts') }}" class="sidebar-link {% if request.endpoint == 'admin.channel_posts' %}active{% endif %}">
+      <i class="fab fa-telegram"></i><span>Channel Posts</span>
+    </a>
+    <a href="{{ url_for('admin.discounts') }}" class="sidebar-link {% if request.endpoint == 'admin.discounts' %}active{% endif %}">
+      <i class="fas fa-tags"></i><span>Discounts</span>
+    </a>
     <a href="{{ url_for('admin.coupons') }}" class="sidebar-link {% if request.endpoint == 'admin.coupons' %}active{% endif %}">
       <i class="fas fa-ticket-alt"></i><span>Coupons</span>
     </a>

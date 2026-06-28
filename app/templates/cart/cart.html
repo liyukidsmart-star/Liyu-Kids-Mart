@@ -17,7 +17,7 @@
             <a href="{{ url_for('shop.detail', slug=item.product.slug) if item.product else '#' }}" class="cart-item-name">
               {{ item.product.name if item.product else 'Product' }}
             </a>
-            <div class="cart-item-price">ETB {{ "%.0f"|format(item.product.price if item.product else 0) }}</div>
+            <div class="cart-item-price">ETB {{ "%.0f"|format(item.product.current_price() if item.product else 0) }}</div>
           </div>
           <div class="cart-item-qty">
             <div class="qty-stepper-sm">
@@ -26,7 +26,7 @@
               <button onclick="updateQty({{ item.id }}, {{ item.quantity + 1 }})">+</button>
             </div>
           </div>
-          <div class="cart-item-total">ETB {{ "%.0f"|format((item.product.price if item.product else 0) * item.quantity) }}</div>
+          <div class="cart-item-total">ETB {{ "%.0f"|format((item.product.current_price() if item.product else 0) * item.quantity) }}</div>
           <button class="cart-item-remove" onclick="removeCartItem({{ item.id }}, this)" title="Remove">
             <i class="fas fa-times"></i>
           </button>

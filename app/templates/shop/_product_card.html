@@ -4,7 +4,7 @@
       <img src="{{ product.primary_image() }}" alt="{{ product.name }}" class="product-img" loading="lazy"
            onerror="this.src='/static/images/placeholder.png'"/>
       {% if product.is_new_arrival %}<span class="product-badge badge-new">New</span>{% endif %}
-      {% if product.compare_price and product.compare_price > product.price %}
+      {% if product.compare_at_price() %}
       <span class="product-badge badge-sale">Sale</span>{% endif %}
       {% if product.sales_count > 20 %}<span class="product-badge badge-hot">🔥 Hot</span>{% endif %}
       <div class="product-overlay">
@@ -28,9 +28,9 @@
     </div>
     {% endif %}
     <div class="product-price-row">
-      <span class="product-price">ETB {{ "%.0f"|format(product.price) }}</span>
-      {% if product.compare_price and product.compare_price > product.price %}
-      <span class="product-compare">ETB {{ "%.0f"|format(product.compare_price) }}</span>
+      <span class="product-price">ETB {{ "%.0f"|format(product.current_price()) }}</span>
+      {% if product.compare_at_price() %}
+      <span class="product-compare">ETB {{ "%.0f"|format(product.compare_at_price()) }}</span>
       {% endif %}
     </div>
     {% if product.stock_qty == 0 %}

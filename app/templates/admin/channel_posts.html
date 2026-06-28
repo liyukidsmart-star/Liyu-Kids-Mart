@@ -1,0 +1,147 @@
+{% extends 'admin/base_admin.html' %}
+{% block title %}Telegram Channel Posts - Admin{% endblock %}
+{% block page_title %}Telegram Channel Posts{% endblock %}
+{% block content %}
+{% if processed %}
+<div class="alert alert-info">Automatically published {{ processed }} scheduled post{{ 's' if processed != 1 else '' }} while loading this page.</div>
+{% endif %}
+<div class="row g-4">
+  <div class="col-lg-6">
+    <div class="admin-card h-100">
+      <div class="admin-card-header"><h5>Announcement Post</h5></div>
+      <form method="POST" enctype="multipart/form-data" class="p-3">
+        <input type="hidden" name="post_type" value="announcement"/>
+        <div class="mb-3">
+          <label class="form-label fw-600">Title *</label>
+          <input type="text" name="title" class="form-control" placeholder="Big weekend sale, new arrival, store update..." required/>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-600">Caption</label>
+          <textarea name="caption" class="form-control" rows="5" maxlength="1000" placeholder="Keep this under Telegram's photo caption limit if you are attaching an image."></textarea>
+          <div class="form-text">If you upload multiple photos, Telegram will send them as an album and the button will appear in a follow-up message.</div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-600">Images</label>
+          <input type="file" name="images" class="form-control" accept="image/*" multiple/>
+        </div>
+        <div class="row g-2">
+          <div class="col-md-6 mb-3">
+            <label class="form-label fw-600">Button Text</label>
+            <input type="text" name="button_text" class="form-control" value="Open Mini App"/>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label fw-600">Button URL</label>
+            <input type="url" name="button_url" class="form-control" placeholder="https://..."/>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-600">Schedule For</label>
+          <input type="datetime-local" name="scheduled_at" class="form-control"/>
+          <div class="form-text">Leave blank to publish immediately.</div>
+        </div>
+        <button type="submit" class="btn admin-btn-green w-100">Publish Announcement</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="admin-card h-100">
+      <div class="admin-card-header"><h5>Product Post</h5></div>
+      <form method="POST" class="p-3">
+        <input type="hidden" name="post_type" value="product"/>
+        <div class="mb-3">
+          <label class="form-label fw-600">Product *</label>
+          <select name="product_id" class="form-select" required>
+            <option value="">Select a product</option>
+            {% for product in products %}
+            <option value="{{ product.id }}">{{ product.name }} - ETB {{ '{:,.0f}'.format(product.current_price()) }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-600">Image Mode</label>
+          <div class="d-flex flex-wrap gap-2">
+            <label class="form-check form-check-inline">
+              <input class="form-check-input" type="radio" name="product_image_mode" value="primary" checked/>
+              <span class="form-check-label">Primary image only</span>
+            </label>
+            <label class="form-check form-check-inline">
+              <input class="form-check-input" type="radio" name="product_image_mode" value="gallery"/>
+              <span class="form-check-label">Send gallery</span>
+            </label>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-600">Custom Caption</label>
+          <textarea name="caption" class="form-control" rows="5" placeholder="Optional extra note below the product caption."></textarea>
+        </div>
+        <div class="row g-2">
+          <div class="col-md-6 mb-3">
+            <label class="form-label fw-600">Button Text</label>
+            <input type="text" name="button_text" class="form-control" value="Open Mini App"/>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label fw-600">Mini App URL Override</label>
+            <input type="url" name="button_url" class="form-control" placeholder="Optional"/>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-600">Schedule For</label>
+          <input type="datetime-local" name="scheduled_at" class="form-control"/>
+          <div class="form-text">Leave blank to publish immediately.</div>
+        </div>
+        <div class="alert alert-info small">
+          The product caption will auto-fill from the product details, price, and any active discount.
+        </div>
+        <button type="submit" class="btn admin-btn-green w-100">Publish Product Post</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="admin-card mt-4">
+  <div class="admin-card-header">
+    <h5>Recent Posts</h5>
+  </div>
+  <div class="table-responsive">
+    <table class="table admin-table align-middle">
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Title / Product</th>
+          <th>Status</th>
+          <th>Scheduled / Posted</th>
+          <th>Error</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for post in recent_posts %}
+        <tr>
+          <td><span class="badge bg-{{ 'primary' if post.post_type == 'product' else 'warning' }} text-dark">{{ post.post_type|title }}</span></td>
+          <td>
+            <div class="fw-600">{{ post.title or (post.product.name if post.product else 'Untitled') }}</div>
+            {% if post.product %}<div class="small text-muted">{{ post.product.name }} - ETB {{ '{:,.0f}'.format(post.product.current_price()) }}</div>{% endif %}
+          </td>
+          <td><span class="badge bg-{{ 'success' if post.status == 'sent' else 'secondary' if post.status == 'draft' else 'warning' if post.status == 'scheduled' else 'danger' if post.status == 'failed' else 'info' }}">{{ post.status|title }}</span></td>
+          <td class="small">{{ post.scheduled_at.astimezone(configured_tz).strftime('%b %d, %Y %H:%M') if post.scheduled_at else post.sent_at.astimezone(configured_tz).strftime('%b %d, %Y %H:%M') if post.sent_at else post.created_at.astimezone(configured_tz).strftime('%b %d, %Y %H:%M') if post.created_at else '?' }}</td>
+          <td class="small text-danger">{{ post.error_message or '?' }}</td>
+          <td class="text-end">
+            <a href="{{ url_for('admin.edit_channel_post', post_id=post.id) }}" class="btn btn-sm admin-btn-outline me-1">Edit</a>
+            <form method="POST" action="{{ url_for('admin.send_channel_post_now', post_id=post.id) }}" class="d-inline">
+              <button class="btn btn-sm btn-outline-success me-1" type="submit">Send Now</button>
+            </form>
+            <form method="POST" action="{{ url_for('admin.delete_channel_post', post_id=post.id) }}" class="d-inline" onsubmit="return confirm('Delete this post?')">
+              <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+        {% if not recent_posts %}
+        <tr><td colspan="6" class="text-center text-muted py-4">No channel posts yet.</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

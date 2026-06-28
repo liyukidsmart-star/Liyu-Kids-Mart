@@ -19,8 +19,8 @@
           <img src="{{ product.primary_image() }}" alt="{{ product.name }}" class="main-product-img" id="mainProductImg"
                onerror="this.src='/static/images/placeholder.png'"/>
           {% if product.is_new_arrival %}<span class="gallery-badge badge-new">New</span>{% endif %}
-          {% if product.compare_price and product.compare_price > product.price %}
-          <span class="gallery-badge badge-sale">{{ ((1 - product.price / product.compare_price) * 100)|int }}% OFF</span>
+          {% if product.compare_at_price() %}
+          <span class="gallery-badge badge-sale">{{ ((1 - product.current_price() / product.compare_at_price()) * 100)|int }}% OFF</span>
           {% endif %}
         </div>
         {% if product.all_images()|length > 1 %}
@@ -58,10 +58,10 @@
 
         <!-- Price -->
         <div class="detail-price-block mb-3">
-          <span class="detail-price">ETB {{ "%.0f"|format(product.price) }}</span>
-          {% if product.compare_price and product.compare_price > product.price %}
-          <span class="detail-compare">ETB {{ "%.0f"|format(product.compare_price) }}</span>
-          <span class="detail-save-badge">Save ETB {{ "%.0f"|format(product.compare_price - product.price) }}</span>
+          <span class="detail-price">ETB {{ "%.0f"|format(product.current_price()) }}</span>
+          {% if product.compare_at_price() %}
+          <span class="detail-compare">ETB {{ "%.0f"|format(product.compare_at_price()) }}</span>
+          <span class="detail-save-badge">Save ETB {{ "%.0f"|format(product.compare_at_price() - product.current_price()) }}</span>
           {% endif %}
         </div>
 
