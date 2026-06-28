@@ -57,6 +57,16 @@ def _absolute_url(url: str) -> str:
     return url
 
 
+def _telegram_image_input(url: str) -> str:
+    if not url:
+        return ''
+    if url.startswith('/media/'):
+        return url.split('/media/', 1)[-1]
+    if url.startswith('/static/'):
+        return f"{DEFAULT_APP_URL.rstrip('/')}{url}"
+    return url
+
+
 def _button_markup(button_text: str, button_url: str) -> dict:
     return {
         'inline_keyboard': [[{
@@ -130,7 +140,7 @@ def _send_photo(client: httpx.AsyncClient, chat_id, photo_url: str, caption: str
         f"https://api.telegram.org/bot{_token()}/sendPhoto",
         json={
             'chat_id': chat_id,
-            'photo': _absolute_url(photo_url),
+            'photo': _telegram_image_input(photo_url),
             'caption': _truncate(caption, 1024),
             'parse_mode': 'HTML',
             'reply_markup': reply_markup,
@@ -162,7 +172,7 @@ async def publish_channel_post(post, *, images: Optional[Iterable[str]] = None, 
         reply_markup = _button_markup(button_text or getattr(post, 'button_text', '') or 'Open Mini App', _mini_app_url())
 
     image_urls = [img for img in (images or []) if img]
-    image_urls = [_absolute_url(url) for url in image_urls]
+    image_urls = [_telegram_image_input(url) for url in image_urls]
 
     async with httpx.AsyncClient() as client:
         try:
