@@ -13,7 +13,7 @@ from app.extensions import db
 from app.models.product import Product, Category, ProductImage
 from app.models.order import Order, OrderStatus, Coupon, DiscountType
 from app.models.marketing import ProductDiscount, TelegramChannelPost, TelegramChannelPostImage
-from app.services.telegram_marketing import publish_channel_post, _telegram_mini_app_link
+from app.services.telegram_marketing import publish_channel_post, _telegram_mini_app_link, channel_button_link_mode
 from app.models.user import User, UserRole
 from app.models.delivery import Driver
 from app.models.ai_conversation import AIConversation
@@ -582,6 +582,12 @@ def _publish_post(post, product=None):
         else:
             post.sent_message_id = str(result.get('result', {}).get('message_id') or '')
         db.session.commit()
+        if channel_button_link_mode() == 'https':
+            return True, (
+                'Channel post published. Buttons open your mini app via HTTPS '
+                '(works in channels). For native Telegram mini app links, enable '
+                'Configure Mini App in @BotFather and add TELEGRAM_MINI_APP_SHORT_NAME in Vercel.'
+            )
         return True, 'Channel post published successfully.'
     post.status = 'failed'
     post.error_message = result.get('error') or result.get('description') or 'Telegram returned an error'

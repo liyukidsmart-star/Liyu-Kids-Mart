@@ -49,6 +49,61 @@ def _bot_username() -> str:
     username = _config_value('TELEGRAM_BOT_USERNAME', 'Liyu_Kids_Mart_Bot') or 'Liyu_Kids_Mart_Bot'
     return username.lstrip('@')
 
+
+@lru_cache(maxsize=1)
+def _bot_has_main_web_app() -> bool:
+    token = _token()
+    if not token:
+        return False
+    try:
+        resp = httpx.get(f'https://api.telegram.org/bot{token}/getMe', timeout=10)
+        data = resp.json()
+        return bool((data.get('result') or {}).get('has_main_web_app'))
+    except Exception:
+        logger.warning('Could not read has_main_web_app from getMe', exc_info=True)
+        return False
+
+
+def _mini_app_short_name() -> str:
+    return _config_value('TELEGRAM_MINI_APP_SHORT_NAME').strip().lstrip('/')
+
+
+def _can_use_tme_mini_app_links() -> bool:
+    return bool(_mini_app_short_name()) or _bot_has_main_web_app()
+
+
+def _clear_bot_profile_cache() -> None:
+    _bot_username.cache_clear()
+    _bot_has_main_web_app.cache_clear()
+
+
+def ensure_bot_main_mini_app() -> bool:
+    """Try to register MINI_APP_URL as the bot menu web app (needed for t.me?startapp= links)."""
+    token = _token()
+    mini_url = _absolute_url(_mini_app_url())
+    if not token or not mini_url.startswith('https://'):
+        return False
+    try:
+        resp = httpx.post(
+            f'https://api.telegram.org/bot{token}/setChatMenuButton',
+            json={
+                'menu_button': {
+                    'type': 'web_app',
+                    'text': 'Open Mini App',
+                    'web_app': {'url': mini_url},
+                }
+            },
+            timeout=15,
+        )
+        data = resp.json()
+        if data.get('ok'):
+            _clear_bot_profile_cache()
+            return _bot_has_main_web_app()
+        logger.warning('setChatMenuButton failed: %s', data.get('description'))
+    except Exception:
+        logger.warning('Could not configure Telegram menu button web app', exc_info=True)
+    return False
+
 def _mini_app_url() -> str:
     return _config_value('MINI_APP_URL', DEFAULT_MINI_APP_URL) or DEFAULT_MINI_APP_URL
 
@@ -79,19 +134,28 @@ def _encode_startapp(*, tab: str = '', query: str = '', startapp: str = '') -> s
 
 
 def _telegram_mini_app_link(*, tab: str = '', query: str = '', startapp: str = '') -> str:
-    """Direct-link URL for opening the mini app from channels (web_app buttons do not work there)."""
+    """Build a channel-safe mini app link.
+
+    t.me startapp links only work when BotFather has a Main Mini App or /newapp short name.
+    Otherwise fall back to the HTTPS mini app URL (works as a normal url button in channels).
+    """
     username = _bot_username()
-    app_short = _config_value('TELEGRAM_MINI_APP_SHORT_NAME').strip().lstrip('/')
+    app_short = _mini_app_short_name()
     payload = _encode_startapp(tab=tab, query=query, startapp=startapp)
 
     if app_short:
         base = f'https://t.me/{username}/{app_short}'
-    else:
-        base = f'https://t.me/{username}'
+        return f'{base}?startapp={quote_plus(payload)}' if payload else base
 
-    if payload:
-        return f'{base}?startapp={quote_plus(payload)}'
-    return base
+    if _bot_has_main_web_app():
+        base = f'https://t.me/{username}'
+        return f'{base}?startapp={quote_plus(payload)}' if payload else f'{base}?startapp=home'
+
+    return _mini_app_web_url(tab=tab, query=query, startapp=startapp or payload)
+
+
+def channel_button_link_mode() -> str:
+    return 'tme' if _can_use_tme_mini_app_links() else 'https'
 
 
 def _channel_id(override: Optional[str] = None) -> str:
@@ -133,7 +197,12 @@ def _telegram_image_input(url: str) -> str:
 
 def _channel_button(text: str, *, tab: str = '', query: str = '', startapp: str = '', url: str = '') -> dict:
     """Inline keyboard button safe for Telegram channels (url link, not web_app)."""
-    link = url if url.startswith('https://t.me/') else _telegram_mini_app_link(tab=tab, query=query, startapp=startapp)
+    if url.startswith('https://t.me/') and _can_use_tme_mini_app_links():
+        link = url
+    elif url.startswith('https://') and not url.startswith('https://t.me/'):
+        link = url
+    else:
+        link = _telegram_mini_app_link(tab=tab, query=query, startapp=startapp)
     return {'text': text, 'url': link}
 
 
@@ -266,6 +335,8 @@ async def publish_channel_post(post, *, images: Optional[Iterable[str]] = None, 
     if not channel_id:
         return {'ok': False, 'error': 'Telegram channel chat ID is not configured.'}
 
+    ensure_bot_main_mini_app()
+
     caption = ''
     if getattr(post, 'post_type', 'announcement') == 'product' and product is not None:
         caption = _build_product_caption(product, getattr(post, 'caption', '') or '')
@@ -279,6 +350,10 @@ async def publish_channel_post(post, *, images: Optional[Iterable[str]] = None, 
             button_url or _telegram_mini_app_link(tab='home'),
             tab='home',
         )
+
+    link_mode = channel_button_link_mode()
+    sample_url = (reply_markup.get('inline_keyboard') or [[{}]])[0][0].get('url', '')
+    logger.info('Publishing channel post with %s mini app links: %s', link_mode, sample_url)
 
     image_urls = [img for img in (images or []) if img]
     image_urls = [_telegram_image_input(url) for url in image_urls]

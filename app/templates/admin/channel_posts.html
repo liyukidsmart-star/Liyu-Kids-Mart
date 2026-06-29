@@ -5,6 +5,13 @@
 {% if processed %}
 <div class="alert alert-info">Automatically published {{ processed }} scheduled post{{ 's' if processed != 1 else '' }} while loading this page.</div>
 {% endif %}
+<div class="alert alert-warning small mb-4">
+  <strong>Channel mini app buttons:</strong> If buttons show <code>BOT_INVALID</code>, open <strong>@BotFather</strong> →
+  <code>/mybots</code> → your bot → <strong>Bot Settings</strong> → <strong>Configure Mini App</strong> →
+  <strong>Enable Mini App</strong> and set URL to your <code>MINI_APP_URL</code>.
+  After creating the app, copy its short name into Vercel as <code>TELEGRAM_MINI_APP_SHORT_NAME</code>.
+  Until then, posts automatically use HTTPS button links that still open the store.
+</div>
 <div class="row g-4">
   <div class="col-lg-6">
     <div class="admin-card h-100">
