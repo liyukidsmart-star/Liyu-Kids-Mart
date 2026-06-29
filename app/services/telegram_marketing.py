@@ -1,6 +1,7 @@
 import html
 import logging
 import os
+from functools import lru_cache
 from typing import Iterable, Optional
 from urllib.parse import quote_plus
 
@@ -29,10 +30,24 @@ def _token() -> str:
     return _config_value('TELEGRAM_BOT_TOKEN')
 
 
-def _bot_username() -> str:
-    # Use the known live bot handle so channel buttons never point at a stale name.
-    return 'Liyu_Kids_Mart_Bot'
 
+@lru_cache(maxsize=1)
+def _bot_username() -> str:
+    # Resolve the live bot username from the token first so channel deep links
+    # stay correct even if the environment variable is stale or missing.
+    token = _token()
+    if token:
+        try:
+            resp = httpx.get(f'https://api.telegram.org/bot{token}/getMe', timeout=10)
+            data = resp.json()
+            username = ((data.get('result') or {}).get('username') or '').strip()
+            if username:
+                return username.lstrip('@')
+        except Exception:
+            logger.warning('Could not resolve Telegram bot username from getMe; falling back to TELEGRAM_BOT_USERNAME')
+
+    username = _config_value('TELEGRAM_BOT_USERNAME', 'Liyu_Kids_Mart_Bot') or 'Liyu_Kids_Mart_Bot'
+    return username.lstrip('@')
 
 def _mini_app_url() -> str:
     return _config_value('MINI_APP_URL', DEFAULT_MINI_APP_URL) or DEFAULT_MINI_APP_URL

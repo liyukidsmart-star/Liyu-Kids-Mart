@@ -13,7 +13,7 @@ from app.extensions import db
 from app.models.product import Product, Category, ProductImage
 from app.models.order import Order, OrderStatus, Coupon, DiscountType
 from app.models.marketing import ProductDiscount, TelegramChannelPost, TelegramChannelPostImage
-from app.services.telegram_marketing import publish_channel_post
+from app.services.telegram_marketing import publish_channel_post, _telegram_mini_app_link
 from app.models.user import User, UserRole
 from app.models.delivery import Driver
 from app.models.ai_conversation import AIConversation
@@ -469,12 +469,9 @@ def _configured_mini_app_url():
     return current_app.config.get('MINI_APP_URL') or os.environ.get('MINI_APP_URL', '').strip() or 'http://localhost:5000/telegram/mini-app'
 
 
-def _configured_telegram_mini_app_link(startapp: str = ''):
-    # Force the live bot handle so admin-published channel posts always open the mini app.
-    username = 'Liyu_Kids_Mart_Bot'
-    base = f'https://t.me/{username}?startapp'
-    return f'{base}={startapp}' if startapp else base
 
+def _configured_telegram_mini_app_link(startapp: str = ''):
+    return _telegram_mini_app_link(startapp)
 
 def _configured_channel_id():
     return (
