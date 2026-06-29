@@ -3,7 +3,7 @@ import logging
 import os
 from functools import lru_cache
 from typing import Iterable, Optional
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus, urlencode
 
 import httpx
 from flask import current_app, has_app_context
@@ -12,10 +12,10 @@ from app.models.product import ProductImage
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_MINI_APP_URL = os.getenv('MINI_APP_URL', 'http://localhost:5000/telegram/mini-app')
+DEFAULT_MINI_APP_URL = os.getenv('MINI_APP_URL', 'http://localhost:5000/mini-app')
 DEFAULT_APP_URL = os.getenv('APP_URL', 'http://localhost:5000')
-ASK_LIYU_LABEL = '??? ????'
-BUY_NOW_LABEL = '??? ???'
+ASK_LIYU_LABEL = 'ልዩን ይጠይቱ'
+BUY_NOW_LABEL = 'አሁን ይግዙ'
 
 
 def _config_value(name: str, default: str = '') -> str:
@@ -51,6 +51,21 @@ def _bot_username() -> str:
 
 def _mini_app_url() -> str:
     return _config_value('MINI_APP_URL', DEFAULT_MINI_APP_URL) or DEFAULT_MINI_APP_URL
+
+
+def _mini_app_web_url(*, tab: str = '', query: str = '', startapp: str = '') -> str:
+    base = _absolute_url(_mini_app_url())
+    params = {}
+    if tab:
+        params['tab'] = tab.strip()
+    if query:
+        params['query'] = query.strip()
+    if startapp:
+        params['startapp'] = startapp.strip()
+    if not params:
+        return base
+    sep = '&' if '?' in base else '?'
+    return f"{base}{sep}{urlencode(params)}"
 
 
 def _telegram_mini_app_link(startapp: str = '') -> str:
@@ -102,19 +117,20 @@ def _button_markup(button_text: str, button_url: str) -> dict:
     return {
         'inline_keyboard': [[{
             'text': button_text,
-            'url': button_url,
+            'web_app': {'url': button_url},
         }]]
     }
 
 
 def _product_reply_markup(product) -> dict:
     product_id = getattr(product, 'id', None)
-    ask_url = _telegram_mini_app_link(f'product:{product_id}') if product_id else _telegram_mini_app_link()
-    buy_url = _telegram_mini_app_link()
+    product_name = getattr(product, 'name_am', None) or getattr(product, 'name', '') or ''
+    ask_url = _mini_app_web_url(tab='ai', query=product_name or (f'product:{product_id}' if product_id else ''))
+    buy_url = _mini_app_web_url(tab='shop')
     return {
         'inline_keyboard': [[
-            {'text': ASK_LIYU_LABEL, 'url': ask_url},
-            {'text': BUY_NOW_LABEL, 'url': buy_url},
+            {'text': ASK_LIYU_LABEL, 'web_app': {'url': ask_url}},
+            {'text': BUY_NOW_LABEL, 'web_app': {'url': buy_url}},
         ]]
     }
 
@@ -138,16 +154,16 @@ def _build_product_caption(product, custom_caption: str = '') -> str:
     custom_caption = _escape(custom_caption.strip())
 
     parts = [
-        'NEW ITEM ARRIVED!',
+        '\U0001f31f \u12a0\u12f2\u1235 \u12a5\u1273 \u1305\u1265\u1277\u120d\u127d\u12cd\u12d8\u12cd\u1295! \U0001f31f',
         '',
-        f'Product: {name}',
+        f'\U0001f9f8 {name}',
     ]
     if age_label:
-        parts.append(f'Age: {age_label}')
+        parts.append(f'\U0001f476 \u1208\u12d5\u12f5\u121c: {age_label}')
     if compare_price and float(compare_price) > current_price:
-        parts.append(f'Price: {current_price:,.0f} ETB <s>{float(compare_price):,.0f} ETB</s>')
+        parts.append(f'\U0001f4b0 \u12cb\u130b: {current_price:,.0f} \u1265\u122d <s>{float(compare_price):,.0f} \u1265\u122d</s>')
     else:
-        parts.append(f'Price: {current_price:,.0f} ETB')
+        parts.append(f'\U0001f4b0 \u12cb\u130b: {current_price:,.0f} \u1265\u122d')
     if description:
         parts.extend(['', description])
     if custom_caption:
@@ -155,13 +171,13 @@ def _build_product_caption(product, custom_caption: str = '') -> str:
 
     parts.extend([
         '',
-        '----------------------',
-        'Address: Bole Bulbula, 93 Mazoriya, Addis Ababa',
-        'Phone: 0947967117',
+        '\u2501' * 22,
+        '\U0001f4cd \u12a0\u12f5\u122d\u12eb\u123b: Bole Bulbula, 93 Mazoriya, Addis Ababa',
+        '\U0001f4de \u1235\u120d\u12ad: 0947967117',
         '',
-        'Need more info? Use Ask Liyu or Buy Now.',
+        '\U0001f4ac \u1270\u1308\u121b\u122a \u1218\u1228\u1303 \u12ed\u134d\u120d\u130b\u120b\u120d? \u120d\u12e9\u1295 \u12ed\u1320\u12ed\u1271 \u12e8\u1290\u12cd \u12ed\u130d\u12d9!',
     ])
-    return '\n'.join(parts).strip()
+    return '\\n'.join(parts).strip()
 
 
 def _build_announcement_caption(title: str, caption: str) -> str:
@@ -230,7 +246,7 @@ async def publish_channel_post(post, *, images: Optional[Iterable[str]] = None, 
         reply_markup = _product_reply_markup(product)
     else:
         caption = _build_announcement_caption(getattr(post, 'title', '') or '', getattr(post, 'caption', '') or '')
-        reply_markup = _button_markup(button_text or getattr(post, 'button_text', '') or 'Open Mini App', button_url or _telegram_mini_app_link())
+        reply_markup = _button_markup(button_text or getattr(post, 'button_text', '') or 'Open Mini App', button_url or _mini_app_web_url())
 
     image_urls = [img for img in (images or []) if img]
     image_urls = [_telegram_image_input(url) for url in image_urls]
@@ -312,7 +328,7 @@ async def publish_channel_post(post, *, images: Optional[Iterable[str]] = None, 
             return {'ok': False, 'error': str(exc)}
 
 
-def build_product_post_payload(product, *, caption: str = '', title: str = '', button_text: str = '??? ???') -> dict:
+def build_product_post_payload(product, *, caption: str = '', title: str = '', button_text: str = 'Open Mini App') -> dict:
     images = []
     try:
         images = [img.image_url for img in product.images.order_by(ProductImage.sort_order.asc()).all()]
@@ -323,7 +339,7 @@ def build_product_post_payload(product, *, caption: str = '', title: str = '', b
         'title': title or product.name,
         'caption': caption or '',
         'button_text': button_text,
-        'button_url': _telegram_mini_app_link(f'product:{product.id}'),
+        'button_url': _mini_app_web_url(tab='shop'),
         'product_id': product.id,
         'images': images,
     }
@@ -335,5 +351,5 @@ def build_announcement_payload(title: str, caption: str, *, button_text: str = '
         'title': title,
         'caption': caption,
         'button_text': button_text,
-        'button_url': button_url or _telegram_mini_app_link(),
+        'button_url': button_url or _mini_app_web_url(),
     }
