@@ -12,6 +12,9 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_MINI_APP_URL = os.getenv('MINI_APP_URL', 'http://localhost:5000/telegram/mini-app')
 DEFAULT_APP_URL = os.getenv('APP_URL', 'http://localhost:5000')
+ASK_LIYU_LABEL = 'ልዩን ይጠይቁ'
+BUY_NOW_LABEL = 'አሁን ይግዙ'
+
 
 
 def _config_value(name: str, default: str = '') -> str:
@@ -22,12 +25,15 @@ def _config_value(name: str, default: str = '') -> str:
     return os.getenv(name, default).strip()
 
 
+
 def _token() -> str:
     return _config_value('TELEGRAM_BOT_TOKEN')
 
 
+
 def _mini_app_url() -> str:
     return _config_value('MINI_APP_URL', DEFAULT_MINI_APP_URL) or DEFAULT_MINI_APP_URL
+
 
 
 def _channel_id(override: Optional[str] = None) -> str:
@@ -40,11 +46,13 @@ def _channel_id(override: Optional[str] = None) -> str:
     )
 
 
+
 def _truncate(text: str, limit: int) -> str:
     text = (text or '').strip()
     if len(text) <= limit:
         return text
     return text[: max(0, limit - 1)].rstrip() + '?'
+
 
 
 def _absolute_url(url: str) -> str:
@@ -57,6 +65,7 @@ def _absolute_url(url: str) -> str:
     return url
 
 
+
 def _telegram_image_input(url: str) -> str:
     if not url:
         return ''
@@ -65,6 +74,7 @@ def _telegram_image_input(url: str) -> str:
     if url.startswith('/static/'):
         return f"{DEFAULT_APP_URL.rstrip('/')}{url}"
     return url
+
 
 
 def _button_markup(button_text: str, button_url: str) -> dict:
@@ -76,20 +86,24 @@ def _button_markup(button_text: str, button_url: str) -> dict:
     }
 
 
+
 def _product_reply_markup(product, button_text: str = '') -> dict:
     slug = getattr(product, 'slug', '') or ''
     ask_url = f"{_mini_app_url()}?tab=liyu&query={slug}"
     buy_url = _mini_app_url()
+    buy_label = button_text.strip() if button_text else BUY_NOW_LABEL
     return {
         'inline_keyboard': [[
-            {'text': '??? ????', 'url': ask_url},
-            {'text': '??? ???', 'url': buy_url},
+            {'text': ASK_LIYU_LABEL, 'url': ask_url},
+            {'text': buy_label, 'url': buy_url},
         ]]
     }
 
 
+
 def _escape(text: str) -> str:
     return html.escape(text or '')
+
 
 
 def _build_product_caption(product, custom_caption: str = '') -> str:
@@ -107,20 +121,29 @@ def _build_product_caption(product, custom_caption: str = '') -> str:
     custom_caption = _escape(custom_caption.strip())
 
     parts = [
-        '?? ??? ?? ????! ??',
+        '🌟 አዲስ እታ ገብቷል! 🌟',
         '',
-        f'?? {name}',
+        f'🧸 {name}',
     ]
     if age_label:
-        parts.append(f'?? ????: {age_label}')
+        parts.append(f'👶 ለዕድሜ: {age_label}')
     if compare_price and float(compare_price) > current_price:
-        parts.append(f'?? ??: {current_price:,.0f} ??  ~~{float(compare_price):,.0f} ??~~')
+        parts.append(f'💰 ዋጋ: {current_price:,.0f} ብር  <s>{float(compare_price):,.0f} ብር</s>')
     else:
-        parts.append(f'?? ??: {current_price:,.0f} ??')
+        parts.append(f'💰 ዋጋ: {current_price:,.0f} ብር')
     if description:
         parts.extend(['', description])
     if custom_caption:
         parts.extend(['', custom_caption])
+
+    parts.extend([
+        '',
+        '━' * 30,
+        '📍 አድራስ: Bole Bulbula, 93 Mazoriya, Addis Ababa',
+        '📞 ስልክ: 0947967117',
+        '',
+        '💬 ተገማሪ መረጃ ይፈልጋሉ? ልይውን ይተቀያር!',
+    ])
     return '\n'.join(parts).strip()
 
 
@@ -160,7 +183,6 @@ async def publish_channel_post(post, *, images: Optional[Iterable[str]] = None, 
 
     reply_markup = _button_markup(button_text, button_url or _mini_app_url())
     caption = ''
-    media: List[dict] = []
 
     if getattr(post, 'post_type', 'announcement') == 'product' and product is not None:
         caption = _build_product_caption(product, getattr(post, 'caption', '') or '')
@@ -246,7 +268,8 @@ async def publish_channel_post(post, *, images: Optional[Iterable[str]] = None, 
             return {'ok': False, 'error': str(exc)}
 
 
-def build_product_post_payload(product, *, caption: str = '', title: str = '', button_text: str = '??? ????') -> dict:
+
+def build_product_post_payload(product, *, caption: str = '', title: str = '', button_text: str = 'አሁን ይግዙ') -> dict:
     images = []
     try:
         images = [img.image_url for img in product.images.order_by(ProductImage.sort_order.asc()).all()]
@@ -261,6 +284,7 @@ def build_product_post_payload(product, *, caption: str = '', title: str = '', b
         'product_id': product.id,
         'images': images,
     }
+
 
 
 def build_announcement_payload(title: str, caption: str, *, button_text: str = 'Open Mini App', button_url: str = '') -> dict:

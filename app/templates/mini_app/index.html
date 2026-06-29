@@ -7,6 +7,8 @@
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet"/>
+<link rel="preconnect" href="https://api.telegram.org" crossorigin/>
+<link rel="dns-prefetch" href="https://api.telegram.org"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <style>
@@ -616,7 +618,7 @@ function pcard(p,v='grid'){
   const pj=esc(JSON.stringify(p));
   if(v==='h') return `
     <div class="hcard" onclick="openSheet(this.dataset.p)" data-p="${pj}">
-      <img src="${p.primary_image}" alt="${n}" onerror="this.src='/static/images/placeholder.png'"/>
+      <img src="${p.primary_image}" alt="${n}" loading="lazy" decoding="async" onerror="this.src='/static/images/placeholder.png'"/>
       <div class="hcard-body">
         <div class="hcard-name">${n}</div>
         <div class="hcard-price">ETB ${Math.round(p.price).toLocaleString()}</div>
@@ -630,7 +632,7 @@ function pcard(p,v='grid'){
       <button class="pwish${w?' on':''}" onclick="event.stopPropagation();toggleWish(${p.id},this)">
         <i class="fas fa-heart"></i></button>
       <img src="${p.primary_image}" alt="${n}" class="pcard-img"
-           onerror="this.src='/static/images/placeholder.png'"/>
+           loading="lazy" decoding="async" onerror="this.src='/static/images/placeholder.png'"/>
       <div class="pcard-body">
         <div class="age-bdg">${p.age_label||''}</div>
         <div class="pcard-name">${n}</div>
@@ -888,7 +890,7 @@ function aiAppend(role,text,products=[]){
       const tellMsg = amharicChat ? `\u12ed\u1205\u1295 ${esc(n)} \u1260\u12dd\u1295\u1262\u120c \u12cd\u1235\u1325 \u1328\u121d\u122d\u1201` : `I added ${esc(n)} to my cart.`;
       return `
       <div class="ai-pc" onclick="openSheet(this.dataset.p)" data-p="${esc(JSON.stringify(p))}">
-        <img src="${p.primary_image}" alt="${n}" onerror="this.src='/static/images/placeholder.png'"/>
+        <img src="${p.primary_image}" alt="${n}" loading="lazy" decoding="async" onerror="this.src='/static/images/placeholder.png'"/>
         <div class="ai-pc-inf">
           <div class="ai-pc-name">${n}</div>
           ${desc ? `<div class="ai-pc-desc">${desc}</div>` : ''}
@@ -979,7 +981,7 @@ function renderCart(){
   body.innerHTML=`<div class="cscroll">
     ${cart.map((item,idx)=>`
       <div class="ci">
-        <img src="${item.img}" alt="${item.name}" onerror="this.src='/static/images/placeholder.png'"/>
+        <img src="${item.img}" alt="${item.name}" loading="lazy" decoding="async" onerror="this.src='/static/images/placeholder.png'"/>
         <div class="ci-inf">
           <div class="ci-name">${item.name}</div>
           <div class="ci-price">ETB ${Math.round(item.price).toLocaleString()}</div>

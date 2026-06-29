@@ -25,11 +25,10 @@ def _upload_to_telegram(file_obj):
     """Upload an image to Telegram via sendPhoto to a dedicated media channel.
 
     Returns a /media/<file_id> URL.  The proxy endpoint in main/routes.py
-    resolves this at request time into a 302 redirect → Telegram CDN.
-    Image bytes never pass through our server — zero egress cost.
+    resolves this at request time into a cached 302 redirect to Telegram CDN.
+    Image bytes never pass through our server, so there is zero egress cost.
 
-    Falls back to Supabase if TELEGRAM_BOT_TOKEN or TELEGRAM_MEDIA_CHAT_ID
-    is not configured.
+    Falls back to Supabase if Telegram upload is unavailable.
     """
     import httpx
     token = os.environ.get('TELEGRAM_BOT_TOKEN', '').strip()
@@ -37,8 +36,7 @@ def _upload_to_telegram(file_obj):
 
     if not token or not chat_id:
         current_app.logger.warning(
-            'TELEGRAM_BOT_TOKEN or TELEGRAM_MEDIA_CHAT_ID not set — '
-            'falling back to Supabase'
+            'TELEGRAM_MEDIA_CHAT_ID is not set - using Supabase fallback for product images'
         )
         return _upload_file_to_supabase(file_obj)
 
@@ -61,17 +59,15 @@ def _upload_to_telegram(file_obj):
         if not data.get('ok'):
             raise ValueError(f"Telegram API error: {data.get('description')}")
 
-        # Pick the largest photo variant (best quality)
         photos = data['result']['photo']
         best = max(photos, key=lambda p: p.get('file_size', 0))
         file_id = best['file_id']
 
-        # Return our proxy URL — clean, no token exposed
         app_url = os.environ.get('APP_URL', '').rstrip('/')
         return f'{app_url}/media/{file_id}'
 
     except Exception as e:
-        current_app.logger.warning(f'Telegram upload failed: {e} — falling back to Supabase')
+        current_app.logger.warning(f'Telegram upload failed: {e} - falling back to Supabase')
         file_obj.seek(0)
         return _upload_file_to_supabase(file_obj)
 
@@ -210,22 +206,28 @@ def create_product():
         images = request.files.getlist('images')
         upload_folder = current_app.config.get('UPLOAD_FOLDER', 'static/uploads')
         try:
+            skipped_images = 0
             for i, img_file in enumerate(images):
                 if img_file and img_file.filename and allowed_file(img_file.filename):
                     # 1st choice: Telegram media channel (free, unlimited, zero egress cost)
                     img_url = _upload_to_telegram(img_file)
 
                     if not img_url:
-                        # Last-resort fallback: local disk (dev only)
-                        try:
-                            os.makedirs(upload_folder, exist_ok=True)
-                            ext = img_file.filename.rsplit('.', 1)[1].lower()
-                            fname = f'product_{product.id}_{i}.{ext}'
-                            img_file.seek(0)
-                            img_file.save(os.path.join(upload_folder, fname))
-                            img_url = f'/static/uploads/{fname}'
-                        except OSError:
-                            current_app.logger.error('All upload methods failed for image %s', i)
+                        allow_local = current_app.debug or os.environ.get('ALLOW_LOCAL_IMAGE_FALLBACK', '').strip().lower() in ('1', 'true', 'yes')
+                        if allow_local:
+                            try:
+                                os.makedirs(upload_folder, exist_ok=True)
+                                ext = img_file.filename.rsplit('.', 1)[1].lower()
+                                fname = f'product_{product.id}_{i}.{ext}'
+                                img_file.seek(0)
+                                img_file.save(os.path.join(upload_folder, fname))
+                                img_url = f'/static/uploads/{fname}'
+                            except OSError:
+                                current_app.logger.error('All upload methods failed for image %s', i)
+                                continue
+                        else:
+                            current_app.logger.warning('Skipping image %s because Telegram/Supabase upload failed and local fallback is disabled.', i)
+                            skipped_images += 1
                             continue
 
                     img = ProductImage(
@@ -236,6 +238,8 @@ def create_product():
                     )
                     db.session.add(img)
             db.session.commit()
+            if skipped_images:
+                flash(f'Skipped {skipped_images} image(s) because Telegram media storage is not configured.', 'warning')
         except Exception as e:
             db.session.rollback()
             current_app.logger.error(f'Image upload block failed: {e}')
@@ -288,22 +292,28 @@ def edit_product(product_id):
 
         try:
             existing_count = product.images.count()
+            skipped_images = 0
             for i, img_file in enumerate(images):
                 if img_file and img_file.filename and allowed_file(img_file.filename):
                     # 1st choice: Telegram media channel (free, unlimited, zero egress cost)
                     img_url = _upload_to_telegram(img_file)
 
                     if not img_url:
-                        # Last-resort fallback: local disk (dev only)
-                        try:
-                            os.makedirs(upload_folder, exist_ok=True)
-                            ext = img_file.filename.rsplit('.', 1)[1].lower()
-                            fname = f'product_{product.id}_{existing_count + i}.{ext}'
-                            img_file.seek(0)
-                            img_file.save(os.path.join(upload_folder, fname))
-                            img_url = f'/static/uploads/{fname}'
-                        except OSError:
-                            current_app.logger.error('All upload methods failed for image %s', i)
+                        allow_local = current_app.debug or os.environ.get('ALLOW_LOCAL_IMAGE_FALLBACK', '').strip().lower() in ('1', 'true', 'yes')
+                        if allow_local:
+                            try:
+                                os.makedirs(upload_folder, exist_ok=True)
+                                ext = img_file.filename.rsplit('.', 1)[1].lower()
+                                fname = f'product_{product.id}_{existing_count + i}.{ext}'
+                                img_file.seek(0)
+                                img_file.save(os.path.join(upload_folder, fname))
+                                img_url = f'/static/uploads/{fname}'
+                            except OSError:
+                                current_app.logger.error('All upload methods failed for image %s', i)
+                                continue
+                        else:
+                            current_app.logger.warning('Skipping image %s because Telegram/Supabase upload failed and local fallback is disabled.', i)
+                            skipped_images += 1
                             continue
 
                     img = ProductImage(
@@ -314,6 +324,8 @@ def edit_product(product_id):
                     )
                     db.session.add(img)
             db.session.commit()
+            if skipped_images:
+                flash(f'Skipped {skipped_images} image(s) because Telegram media storage is not configured.', 'warning')
         except Exception as e:
             db.session.rollback()
             current_app.logger.error(f'Image upload block failed: {e}')
@@ -454,7 +466,7 @@ ADMIN_TZ = ZoneInfo("Africa/Addis_Ababa")
 
 
 def _configured_mini_app_url():
-    return current_app.config.get('MINI_APP_URL') or os.environ.get('MINI_APP_URL', '').strip() or 'http://localhost:5000/mini-app'
+    return current_app.config.get('MINI_APP_URL') or os.environ.get('MINI_APP_URL', '').strip() or 'http://localhost:5000/telegram/mini-app'
 
 
 def _configured_channel_id():
