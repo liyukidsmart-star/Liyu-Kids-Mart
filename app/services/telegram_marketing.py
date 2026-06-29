@@ -13,10 +13,8 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_MINI_APP_URL = os.getenv('MINI_APP_URL', 'http://localhost:5000/telegram/mini-app')
 DEFAULT_APP_URL = os.getenv('APP_URL', 'http://localhost:5000')
-BOT_USERNAME_CACHE = None
-
-ASK_LIYU_LABEL = 'ልዩን ይጠይቁ'
-BUY_NOW_LABEL = 'አሁን ይግዙ'
+ASK_LIYU_LABEL = '??? ????'
+BUY_NOW_LABEL = '??? ???'
 
 
 def _config_value(name: str, default: str = '') -> str:
@@ -32,25 +30,10 @@ def _token() -> str:
 
 
 def _bot_username() -> str:
-    global BOT_USERNAME_CACHE
-    if BOT_USERNAME_CACHE:
-        return BOT_USERNAME_CACHE
-
-    token = _token()
-    if token:
-        try:
-            resp = httpx.get(f'https://api.telegram.org/bot{token}/getMe', timeout=10)
-            data = resp.json()
-            username = ((data.get('result') or {}).get('username') or '').strip()
-            if username:
-                BOT_USERNAME_CACHE = username.lstrip('@')
-                return BOT_USERNAME_CACHE
-        except Exception:
-            pass
-
+    # Keep the real bot handle as the fallback so channel buttons keep working
+    # even if the environment variable is missing or stale.
     username = _config_value('TELEGRAM_BOT_USERNAME', 'Liyu_Kids_Mart_Bot') or 'Liyu_Kids_Mart_Bot'
-    BOT_USERNAME_CACHE = username.lstrip('@')
-    return BOT_USERNAME_CACHE
+    return username.lstrip('@')
 
 
 def _mini_app_url() -> str:
@@ -142,16 +125,16 @@ def _build_product_caption(product, custom_caption: str = '') -> str:
     custom_caption = _escape(custom_caption.strip())
 
     parts = [
-        '?? <b>??? ?? ????!</b> ??',
+        'NEW ITEM ARRIVED!',
         '',
-        f'?? <b>{name}</b>',
+        f'Product: {name}',
     ]
     if age_label:
-        parts.append(f'?? <b>????:</b> {age_label}')
+        parts.append(f'Age: {age_label}')
     if compare_price and float(compare_price) > current_price:
-        parts.append(f'?? <b>??:</b> {current_price:,.0f} ?? <s>{float(compare_price):,.0f} ??</s>')
+        parts.append(f'Price: {current_price:,.0f} ETB <s>{float(compare_price):,.0f} ETB</s>')
     else:
-        parts.append(f'?? <b>??:</b> {current_price:,.0f} ??')
+        parts.append(f'Price: {current_price:,.0f} ETB')
     if description:
         parts.extend(['', description])
     if custom_caption:
@@ -159,11 +142,11 @@ def _build_product_caption(product, custom_caption: str = '') -> str:
 
     parts.extend([
         '',
-        '??????????????????????',
-        '?? <b>????:</b> Bole Bulbula, 93 Mazoriya, Addis Ababa',
-        '?? <b>???:</b> 0947967117',
+        '----------------------',
+        'Address: Bole Bulbula, 93 Mazoriya, Addis Ababa',
+        'Phone: 0947967117',
         '',
-        '?? ???? ??? ?????? ልዩን ይጠይቁ ??? አሁን ይግዙ!',
+        'Need more info? Use Ask Liyu or Buy Now.',
     ])
     return '\n'.join(parts).strip()
 
