@@ -30,8 +30,25 @@ def _token() -> str:
 
 
 def _bot_username() -> str:
+    global BOT_USERNAME_CACHE
+    if BOT_USERNAME_CACHE:
+        return BOT_USERNAME_CACHE
+
+    token = _token()
+    if token:
+        try:
+            resp = httpx.get(f'https://api.telegram.org/bot{token}/getMe', timeout=10)
+            data = resp.json()
+            username = ((data.get('result') or {}).get('username') or '').strip()
+            if username:
+                BOT_USERNAME_CACHE = username.lstrip('@')
+                return BOT_USERNAME_CACHE
+        except Exception:
+            pass
+
     username = _config_value('TELEGRAM_BOT_USERNAME', 'Liyu_Kids_Mart_Bot') or 'Liyu_Kids_Mart_Bot'
-    return username.lstrip('@')
+    BOT_USERNAME_CACHE = username.lstrip('@')
+    return BOT_USERNAME_CACHE
 
 
 def _mini_app_url() -> str:
@@ -123,7 +140,7 @@ def _build_product_caption(product, custom_caption: str = '') -> str:
     custom_caption = _escape(custom_caption.strip())
 
     parts = [
-        '?? <b>??? ?? ?????!</b> ??',
+        '?? <b>??? ?? ????!</b> ??',
         '',
         f'?? <b>{name}</b>',
     ]
@@ -144,7 +161,7 @@ def _build_product_caption(product, custom_caption: str = '') -> str:
         '?? <b>????:</b> Bole Bulbula, 93 Mazoriya, Addis Ababa',
         '?? <b>???:</b> 0947967117',
         '',
-        '?? ???? ??? ?????? ??? ???? ??? ??? ????!',
+        '?? ???? ??? ?????? ልዩን ይጠይቁ ??? አሁን ይግዙ!',
     ])
     return '\n'.join(parts).strip()
 
