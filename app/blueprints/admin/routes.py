@@ -470,7 +470,8 @@ def _configured_mini_app_url():
 
 
 def _configured_telegram_mini_app_link(startapp: str = ''):
-    username = (current_app.config.get('TELEGRAM_BOT_USERNAME') or os.environ.get('TELEGRAM_BOT_USERNAME', 'Liyu_Kids_Mart_Bot') or 'Liyu_Kids_Mart_Bot').strip().lstrip('@')
+    # Force the live bot handle so admin-published channel posts always open the mini app.
+    username = 'Liyu_Kids_Mart_Bot'
     base = f'https://t.me/{username}?startapp'
     return f'{base}={startapp}' if startapp else base
 

@@ -30,10 +30,8 @@ def _token() -> str:
 
 
 def _bot_username() -> str:
-    # Keep the real bot handle as the fallback so channel buttons keep working
-    # even if the environment variable is missing or stale.
-    username = _config_value('TELEGRAM_BOT_USERNAME', 'Liyu_Kids_Mart_Bot') or 'Liyu_Kids_Mart_Bot'
-    return username.lstrip('@')
+    # Use the known live bot handle so channel buttons never point at a stale name.
+    return 'Liyu_Kids_Mart_Bot'
 
 
 def _mini_app_url() -> str:
