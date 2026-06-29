@@ -523,6 +523,7 @@ ul{list-style:none}
 const tg = window.Telegram?.WebApp;
 if(tg){tg.ready();tg.expand();}
 const TGU = tg?.initDataUnsafe?.user||null;
+const TG_START_PARAM = (tg?.initDataUnsafe?.start_param || new URLSearchParams(window.location.search).get('startapp') || '').trim();
 
 /* ── State ────────────────────────────────────── */
 let JWT=null, TGID=TGU?.id?String(TGU.id):null;
@@ -766,6 +767,7 @@ async function init(){
   await auth();
   await Promise.all([loadHomeCats(),loadHomeSections()]);
   loadShop(true);
+  await openStartParamTarget();
 }
 
 /* ── i18n ─────────────────────────────────────── */

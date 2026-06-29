@@ -469,6 +469,12 @@ def _configured_mini_app_url():
     return current_app.config.get('MINI_APP_URL') or os.environ.get('MINI_APP_URL', '').strip() or 'http://localhost:5000/telegram/mini-app'
 
 
+def _configured_telegram_mini_app_link(startapp: str = ''):
+    username = (current_app.config.get('TELEGRAM_BOT_USERNAME') or os.environ.get('TELEGRAM_BOT_USERNAME', 'LiyuKidsBot') or 'LiyuKidsBot').strip().lstrip('@')
+    base = f'https://t.me/{username}?startapp'
+    return f'{base}={startapp}' if startapp else base
+
+
 def _configured_channel_id():
     return (
         current_app.config.get('TELEGRAM_CHANNEL_CHAT_ID')
@@ -560,7 +566,7 @@ def _publish_post(post, product=None):
         image_urls = [product.primary_image()]
 
     button_text = post.button_text or 'Open Mini App'
-    button_url = post.button_url or _configured_mini_app_url()
+    button_url = post.button_url or _configured_telegram_mini_app_link()
     result = asyncio.run(publish_channel_post(
         post,
         images=image_urls if image_urls else None,
@@ -638,7 +644,7 @@ def channel_posts():
             title=title,
             caption=caption,
             button_text=button_text,
-            button_url=_configured_mini_app_url(),
+            button_url=_configured_telegram_mini_app_link(),
             status=status,
             scheduled_at=scheduled_at,
             channel_chat_id=_configured_channel_id(),
@@ -716,7 +722,7 @@ def edit_channel_post(post_id):
         post.title = request.form.get('title', post.title or '').strip()
         post.caption = request.form.get('caption', post.caption or '').strip()
         post.button_text = request.form.get('button_text', post.button_text or 'Open Mini App').strip() or 'Open Mini App'
-        post.button_url = _configured_mini_app_url()
+        post.button_url = _configured_telegram_mini_app_link()
         post.scheduled_at = _parse_admin_datetime(request.form.get('scheduled_at', '').strip())
         republish_now = 'republish_now' in request.form
         schedule_later = post.scheduled_at and post.scheduled_at > _admin_now_utc() and not republish_now

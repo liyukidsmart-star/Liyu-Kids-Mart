@@ -1,7 +1,8 @@
 import html
 import logging
 import os
-from typing import Iterable, List, Optional
+from typing import Iterable, Optional
+from urllib.parse import quote_plus
 
 import httpx
 from flask import current_app, has_app_context
@@ -12,9 +13,8 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_MINI_APP_URL = os.getenv('MINI_APP_URL', 'http://localhost:5000/telegram/mini-app')
 DEFAULT_APP_URL = os.getenv('APP_URL', 'http://localhost:5000')
-ASK_LIYU_LABEL = 'ልዩን ይጠይቁ'
-BUY_NOW_LABEL = 'አሁን ይግዙ'
-
+ASK_LIYU_LABEL = '??? ????'
+BUY_NOW_LABEL = '??? ???'
 
 
 def _config_value(name: str, default: str = '') -> str:
@@ -25,15 +25,25 @@ def _config_value(name: str, default: str = '') -> str:
     return os.getenv(name, default).strip()
 
 
-
 def _token() -> str:
     return _config_value('TELEGRAM_BOT_TOKEN')
 
+
+def _bot_username() -> str:
+    username = _config_value('TELEGRAM_BOT_USERNAME', 'LiyuKidsBot') or 'LiyuKidsBot'
+    return username.lstrip('@')
 
 
 def _mini_app_url() -> str:
     return _config_value('MINI_APP_URL', DEFAULT_MINI_APP_URL) or DEFAULT_MINI_APP_URL
 
+
+def _telegram_mini_app_link(startapp: str = '') -> str:
+    username = _bot_username()
+    base = f'https://t.me/{username}?startapp'
+    if startapp:
+        return f'{base}={quote_plus(startapp)}'
+    return base
 
 
 def _channel_id(override: Optional[str] = None) -> str:
@@ -46,13 +56,11 @@ def _channel_id(override: Optional[str] = None) -> str:
     )
 
 
-
 def _truncate(text: str, limit: int) -> str:
     text = (text or '').strip()
     if len(text) <= limit:
         return text
     return text[: max(0, limit - 1)].rstrip() + '?'
-
 
 
 def _absolute_url(url: str) -> str:
@@ -65,7 +73,6 @@ def _absolute_url(url: str) -> str:
     return url
 
 
-
 def _telegram_image_input(url: str) -> str:
     if not url:
         return ''
@@ -74,7 +81,6 @@ def _telegram_image_input(url: str) -> str:
     if url.startswith('/static/'):
         return f"{DEFAULT_APP_URL.rstrip('/')}{url}"
     return url
-
 
 
 def _button_markup(button_text: str, button_url: str) -> dict:
@@ -86,11 +92,10 @@ def _button_markup(button_text: str, button_url: str) -> dict:
     }
 
 
-
 def _product_reply_markup(product, button_text: str = '') -> dict:
-    slug = getattr(product, 'slug', '') or ''
-    ask_url = f"{_mini_app_url()}?tab=liyu&query={slug}"
-    buy_url = _mini_app_url()
+    product_id = getattr(product, 'id', None)
+    ask_url = _telegram_mini_app_link(f'product:{product_id}') if product_id else _telegram_mini_app_link()
+    buy_url = _telegram_mini_app_link()
     buy_label = button_text.strip() if button_text else BUY_NOW_LABEL
     return {
         'inline_keyboard': [[
@@ -100,10 +105,8 @@ def _product_reply_markup(product, button_text: str = '') -> dict:
     }
 
 
-
 def _escape(text: str) -> str:
     return html.escape(text or '')
-
 
 
 def _build_product_caption(product, custom_caption: str = '') -> str:
@@ -121,16 +124,16 @@ def _build_product_caption(product, custom_caption: str = '') -> str:
     custom_caption = _escape(custom_caption.strip())
 
     parts = [
-        '🌟 አዲስ እታ ገብቷል! 🌟',
+        '?? ??? ?? ????! ??',
         '',
-        f'🧸 {name}',
+        f'?? {name}',
     ]
     if age_label:
-        parts.append(f'👶 ለዕድሜ: {age_label}')
+        parts.append(f'?? ????: {age_label}')
     if compare_price and float(compare_price) > current_price:
-        parts.append(f'💰 ዋጋ: {current_price:,.0f} ብር  <s>{float(compare_price):,.0f} ብር</s>')
+        parts.append(f'?? ??: {current_price:,.0f} ??  <s>{float(compare_price):,.0f} ??</s>')
     else:
-        parts.append(f'💰 ዋጋ: {current_price:,.0f} ብር')
+        parts.append(f'?? ??: {current_price:,.0f} ??')
     if description:
         parts.extend(['', description])
     if custom_caption:
@@ -138,13 +141,13 @@ def _build_product_caption(product, custom_caption: str = '') -> str:
 
     parts.extend([
         '',
-        '━' * 30,
-        '📍 አድራስ: Bole Bulbula, 93 Mazoriya, Addis Ababa',
-        '📞 ስልክ: 0947967117',
+        '??????????????????????',
+        '?? ????: Bole Bulbula, 93 Mazoriya, Addis Ababa',
+        '?? ???: 0947967117',
         '',
-        '💬 ተገማሪ መረጃ ይፈልጋሉ? ልይውን ይተቀያር!',
+        '?? ???? ??? ?????? ??? ?????!',
     ])
-    return '\n'.join(parts).strip()
+    return '\\n'.join(parts).strip()
 
 
 def _build_announcement_caption(title: str, caption: str) -> str:
@@ -155,7 +158,7 @@ def _build_announcement_caption(title: str, caption: str) -> str:
         parts.append(f"<b>{title}</b>")
     if caption:
         parts.append(caption)
-    return '\n\n'.join(parts).strip()
+    return '\\n\\n'.join(parts).strip()
 
 
 def _send_photo(client: httpx.AsyncClient, chat_id, photo_url: str, caption: str, reply_markup: dict) -> dict:
@@ -172,6 +175,26 @@ def _send_photo(client: httpx.AsyncClient, chat_id, photo_url: str, caption: str
     )
 
 
+def _looks_like_media_fetch_error(data: dict) -> bool:
+    description = (data.get('description') or '').lower()
+    return 'wrong type of the web page content' in description or 'failed to get http url content' in description or 'unsupported url protocol' in description
+
+
+async def _send_text_fallback(client: httpx.AsyncClient, token: str, channel_id: str, caption: str, reply_markup: dict) -> dict:
+    resp = await client.post(
+        f"https://api.telegram.org/bot{token}/sendMessage",
+        json={
+            'chat_id': channel_id,
+            'text': _truncate(caption or 'Open the mini app using the button below.', 4096),
+            'parse_mode': 'HTML',
+            'reply_markup': reply_markup,
+            'disable_web_page_preview': False,
+        },
+        timeout=20,
+    )
+    return resp.json()
+
+
 async def publish_channel_post(post, *, images: Optional[Iterable[str]] = None, product=None, button_text: str = 'Open Mini App', button_url: str = '') -> dict:
     """Publish an admin-composed post to the configured Telegram channel."""
     token = _token()
@@ -181,7 +204,7 @@ async def publish_channel_post(post, *, images: Optional[Iterable[str]] = None, 
     if not channel_id:
         return {'ok': False, 'error': 'Telegram channel chat ID is not configured.'}
 
-    reply_markup = _button_markup(button_text, button_url or _mini_app_url())
+    reply_markup = _button_markup(button_text, button_url or _telegram_mini_app_link())
     caption = ''
 
     if getattr(post, 'post_type', 'announcement') == 'product' and product is not None:
@@ -191,7 +214,7 @@ async def publish_channel_post(post, *, images: Optional[Iterable[str]] = None, 
         reply_markup = _product_reply_markup(product, getattr(post, 'button_text', '') or button_text)
     else:
         caption = _build_announcement_caption(getattr(post, 'title', '') or '', getattr(post, 'caption', '') or '')
-        reply_markup = _button_markup(button_text or getattr(post, 'button_text', '') or 'Open Mini App', _mini_app_url())
+        reply_markup = _button_markup(button_text or getattr(post, 'button_text', '') or 'Open Mini App', _telegram_mini_app_link())
 
     image_urls = [img for img in (images or []) if img]
     image_urls = [_telegram_image_input(url) for url in image_urls]
@@ -214,7 +237,10 @@ async def publish_channel_post(post, *, images: Optional[Iterable[str]] = None, 
 
             if len(image_urls) == 1:
                 resp = await _send_photo(client, channel_id, image_urls[0], caption, reply_markup)
-                return resp.json()
+                data = resp.json()
+                if data.get('ok') or not _looks_like_media_fetch_error(data):
+                    return data
+                return await _send_text_fallback(client, token, channel_id, caption, reply_markup)
 
             media = []
             for idx, url in enumerate(image_urls[:10]):
@@ -234,6 +260,8 @@ async def publish_channel_post(post, *, images: Optional[Iterable[str]] = None, 
             )
             media_data = media_resp.json()
             if not media_data.get('ok'):
+                if _looks_like_media_fetch_error(media_data):
+                    return await _send_text_fallback(client, token, channel_id, caption, reply_markup)
                 return media_data
 
             message_ids = []
@@ -268,8 +296,7 @@ async def publish_channel_post(post, *, images: Optional[Iterable[str]] = None, 
             return {'ok': False, 'error': str(exc)}
 
 
-
-def build_product_post_payload(product, *, caption: str = '', title: str = '', button_text: str = 'አሁን ይግዙ') -> dict:
+def build_product_post_payload(product, *, caption: str = '', title: str = '', button_text: str = '??? ???') -> dict:
     images = []
     try:
         images = [img.image_url for img in product.images.order_by(ProductImage.sort_order.asc()).all()]
@@ -280,11 +307,10 @@ def build_product_post_payload(product, *, caption: str = '', title: str = '', b
         'title': title or product.name,
         'caption': caption or '',
         'button_text': button_text,
-        'button_url': _mini_app_url(),
+        'button_url': _telegram_mini_app_link(),
         'product_id': product.id,
         'images': images,
     }
-
 
 
 def build_announcement_payload(title: str, caption: str, *, button_text: str = 'Open Mini App', button_url: str = '') -> dict:
@@ -293,5 +319,5 @@ def build_announcement_payload(title: str, caption: str, *, button_text: str = '
         'title': title,
         'caption': caption,
         'button_text': button_text,
-        'button_url': _mini_app_url(),
+        'button_url': button_url or _telegram_mini_app_link(),
     }

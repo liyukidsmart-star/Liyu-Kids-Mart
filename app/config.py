@@ -28,6 +28,7 @@ class Config:
 
     GROK_API_KEY = os.getenv('GROK_API_KEY', '')
     TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '')
+    TELEGRAM_BOT_USERNAME = os.getenv('TELEGRAM_BOT_USERNAME', 'LiyuKidsBot')
     TELEGRAM_WEBHOOK_URL = os.getenv('TELEGRAM_WEBHOOK_URL', '')
     ADMIN_TELEGRAM_CHAT_ID = os.getenv('ADMIN_TELEGRAM_CHAT_ID', '')
     TELEGRAM_MEDIA_CHAT_ID = os.getenv('TELEGRAM_MEDIA_CHAT_ID', '')
