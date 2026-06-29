@@ -13,8 +13,8 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_MINI_APP_URL = os.getenv('MINI_APP_URL', 'http://localhost:5000/telegram/mini-app')
 DEFAULT_APP_URL = os.getenv('APP_URL', 'http://localhost:5000')
-ASK_LIYU_LABEL = '??? ????'
-BUY_NOW_LABEL = '??? ???'
+ASK_LIYU_LABEL = 'ልዩን ይጠይቁ'
+BUY_NOW_LABEL = 'አሁን ይግዙ'
 
 
 def _config_value(name: str, default: str = '') -> str:
@@ -30,7 +30,7 @@ def _token() -> str:
 
 
 def _bot_username() -> str:
-    username = _config_value('TELEGRAM_BOT_USERNAME', 'LiyuKidsBot') or 'LiyuKidsBot'
+    username = _config_value('TELEGRAM_BOT_USERNAME', 'Liyu_Kids_Mart_Bot') or 'Liyu_Kids_Mart_Bot'
     return username.lstrip('@')
 
 
@@ -92,15 +92,14 @@ def _button_markup(button_text: str, button_url: str) -> dict:
     }
 
 
-def _product_reply_markup(product, button_text: str = '') -> dict:
+def _product_reply_markup(product) -> dict:
     product_id = getattr(product, 'id', None)
     ask_url = _telegram_mini_app_link(f'product:{product_id}') if product_id else _telegram_mini_app_link()
     buy_url = _telegram_mini_app_link()
-    buy_label = button_text.strip() if button_text else BUY_NOW_LABEL
     return {
         'inline_keyboard': [[
             {'text': ASK_LIYU_LABEL, 'url': ask_url},
-            {'text': buy_label, 'url': buy_url},
+            {'text': BUY_NOW_LABEL, 'url': buy_url},
         ]]
     }
 
@@ -124,16 +123,16 @@ def _build_product_caption(product, custom_caption: str = '') -> str:
     custom_caption = _escape(custom_caption.strip())
 
     parts = [
-        '?? ??? ?? ????! ??',
+        '?? <b>??? ?? ?????!</b> ??',
         '',
-        f'?? {name}',
+        f'?? <b>{name}</b>',
     ]
     if age_label:
-        parts.append(f'?? ????: {age_label}')
+        parts.append(f'?? <b>????:</b> {age_label}')
     if compare_price and float(compare_price) > current_price:
-        parts.append(f'?? ??: {current_price:,.0f} ??  <s>{float(compare_price):,.0f} ??</s>')
+        parts.append(f'?? <b>??:</b> {current_price:,.0f} ?? <s>{float(compare_price):,.0f} ??</s>')
     else:
-        parts.append(f'?? ??: {current_price:,.0f} ??')
+        parts.append(f'?? <b>??:</b> {current_price:,.0f} ??')
     if description:
         parts.extend(['', description])
     if custom_caption:
@@ -142,12 +141,12 @@ def _build_product_caption(product, custom_caption: str = '') -> str:
     parts.extend([
         '',
         '??????????????????????',
-        '?? ????: Bole Bulbula, 93 Mazoriya, Addis Ababa',
-        '?? ???: 0947967117',
+        '?? <b>????:</b> Bole Bulbula, 93 Mazoriya, Addis Ababa',
+        '?? <b>???:</b> 0947967117',
         '',
-        '?? ???? ??? ?????? ??? ?????!',
+        '?? ???? ??? ?????? ??? ???? ??? ??? ????!',
     ])
-    return '\\n'.join(parts).strip()
+    return '\n'.join(parts).strip()
 
 
 def _build_announcement_caption(title: str, caption: str) -> str:
@@ -155,10 +154,10 @@ def _build_announcement_caption(title: str, caption: str) -> str:
     caption = _escape(caption)
     parts = []
     if title:
-        parts.append(f"<b>{title}</b>")
+        parts.append(f'<b>{title}</b>')
     if caption:
         parts.append(caption)
-    return '\\n\\n'.join(parts).strip()
+    return '\n\n'.join(parts).strip()
 
 
 def _send_photo(client: httpx.AsyncClient, chat_id, photo_url: str, caption: str, reply_markup: dict) -> dict:
@@ -177,7 +176,11 @@ def _send_photo(client: httpx.AsyncClient, chat_id, photo_url: str, caption: str
 
 def _looks_like_media_fetch_error(data: dict) -> bool:
     description = (data.get('description') or '').lower()
-    return 'wrong type of the web page content' in description or 'failed to get http url content' in description or 'unsupported url protocol' in description
+    return (
+        'wrong type of the web page content' in description
+        or 'failed to get http url content' in description
+        or 'unsupported url protocol' in description
+    )
 
 
 async def _send_text_fallback(client: httpx.AsyncClient, token: str, channel_id: str, caption: str, reply_markup: dict) -> dict:
@@ -204,17 +207,15 @@ async def publish_channel_post(post, *, images: Optional[Iterable[str]] = None, 
     if not channel_id:
         return {'ok': False, 'error': 'Telegram channel chat ID is not configured.'}
 
-    reply_markup = _button_markup(button_text, button_url or _telegram_mini_app_link())
     caption = ''
-
     if getattr(post, 'post_type', 'announcement') == 'product' and product is not None:
         caption = _build_product_caption(product, getattr(post, 'caption', '') or '')
         if images is None:
             images = [getattr(product, 'primary_image', lambda: '')()]
-        reply_markup = _product_reply_markup(product, getattr(post, 'button_text', '') or button_text)
+        reply_markup = _product_reply_markup(product)
     else:
         caption = _build_announcement_caption(getattr(post, 'title', '') or '', getattr(post, 'caption', '') or '')
-        reply_markup = _button_markup(button_text or getattr(post, 'button_text', '') or 'Open Mini App', _telegram_mini_app_link())
+        reply_markup = _button_markup(button_text or getattr(post, 'button_text', '') or 'Open Mini App', button_url or _telegram_mini_app_link())
 
     image_urls = [img for img in (images or []) if img]
     image_urls = [_telegram_image_input(url) for url in image_urls]
@@ -307,7 +308,7 @@ def build_product_post_payload(product, *, caption: str = '', title: str = '', b
         'title': title or product.name,
         'caption': caption or '',
         'button_text': button_text,
-        'button_url': _telegram_mini_app_link(),
+        'button_url': _telegram_mini_app_link(f'product:{product.id}'),
         'product_id': product.id,
         'images': images,
     }

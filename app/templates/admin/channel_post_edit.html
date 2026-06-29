@@ -38,8 +38,9 @@
     </div>
     {% endif %}
     <div class="mb-3">
-      <label class="form-label fw-600">Caption</label>
+      <label class="form-label fw-600">Optional Note</label>
       <textarea name="caption" class="form-control" rows="5">{{ post.caption or '' }}</textarea>
+      <div class="form-text">Leave this empty if you want the product post to use the auto-generated product text only.</div>
     </div>
     {% if post.post_type == 'announcement' %}
     <div class="mb-3">
@@ -52,11 +53,11 @@
     <div class="mb-3">
       <label class="form-label fw-600">Button Text</label>
       <input type="text" name="button_text" class="form-control" value="{{ post.button_text or 'Open Mini App' }}"/>
-      <div class="form-text">The mini app URL is pulled automatically from your Vercel environment.</div>
+      <div class="form-text">The mini app link is pulled automatically from your Telegram bot username in Vercel.</div>
       <div class="form-text">Main-channel posts use <code>TELEGRAM_MAIN_CHANNEL_ID</code>. Image storage uses <code>TELEGRAM_MEDIA_CHAT_ID</code>.</div>
     </div>
     {% else %}
-    <div class="alert alert-info small">Product posts automatically use the two-button layout: <strong>ልይዉን ይጠይቁ</strong> and <strong>አሁን ይግዙ</strong>.</div>
+    <div class="alert alert-info small">Product posts automatically use the two-button layout: <strong>ልዩን ይጠይቁ</strong> and <strong>አሁን ይግዙ</strong>.</div>
     {% endif %}
     <div class="mb-3">
       <label class="form-label fw-600">Schedule For</label>

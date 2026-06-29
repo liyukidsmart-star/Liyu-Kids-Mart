@@ -470,7 +470,7 @@ def _configured_mini_app_url():
 
 
 def _configured_telegram_mini_app_link(startapp: str = ''):
-    username = (current_app.config.get('TELEGRAM_BOT_USERNAME') or os.environ.get('TELEGRAM_BOT_USERNAME', 'LiyuKidsBot') or 'LiyuKidsBot').strip().lstrip('@')
+    username = (current_app.config.get('TELEGRAM_BOT_USERNAME') or os.environ.get('TELEGRAM_BOT_USERNAME', 'Liyu_Kids_Mart_Bot') or 'Liyu_Kids_Mart_Bot').strip().lstrip('@')
     base = f'https://t.me/{username}?startapp'
     return f'{base}={startapp}' if startapp else base
 
@@ -667,8 +667,7 @@ def channel_posts():
                 else:
                     image_urls = [product.primary_image()]
                 if not caption:
-                    caption = product.short_description_am or product.short_description or product.description_am or product.description or ''
-                    post.caption = caption
+                    post.caption = ''
             else:
                 uploaded = request.files.getlist('images')
                 if uploaded:
@@ -743,7 +742,7 @@ def edit_channel_post(post_id):
                     image_urls = product.all_images() if image_mode == 'gallery' else [product.primary_image()]
                     _save_post_images(post, image_urls)
                 if not post.caption:
-                    post.caption = product.short_description_am or product.short_description or product.description_am or product.description or ''
+                    post.caption = ''
             else:
                 uploaded = request.files.getlist('images')
                 if uploaded:
