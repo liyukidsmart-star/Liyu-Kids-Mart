@@ -581,9 +581,14 @@ function _resolveStartTab(raw){
 
 async function openStartParamTarget(){
   const params=new URLSearchParams(window.location.search);
-  const raw=params.get('tab')||params.get('startapp')||TG_START_PARAM;
+  let raw=params.get('tab')||params.get('startapp')||TG_START_PARAM;
+  let query=(params.get('query')||'').trim();
+  if(!query && raw.includes('__')){
+    const splitAt=raw.indexOf('__');
+    query=decodeURIComponent(raw.slice(splitAt+2).replace(/\+/g,' '));
+    raw=raw.slice(0,splitAt);
+  }
   const target=_resolveStartTab(raw);
-  const query=(params.get('query')||'').trim();
   if(target==='tab-ai' && query){
     const inp=document.getElementById('aiInp');
     if(inp) inp.value=query;

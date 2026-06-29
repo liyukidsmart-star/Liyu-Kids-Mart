@@ -37,6 +37,7 @@ class Config:
 
     APP_URL = os.getenv('APP_URL', 'http://localhost:5000')
     MINI_APP_URL = os.getenv('MINI_APP_URL', 'http://localhost:5000/mini-app')
+    TELEGRAM_MINI_APP_SHORT_NAME = os.getenv('TELEGRAM_MINI_APP_SHORT_NAME', '')
 
     WTF_CSRF_ENABLED = False  # Disable for API compatibility; re-enable per-form if needed
 

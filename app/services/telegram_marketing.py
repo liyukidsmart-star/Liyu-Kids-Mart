@@ -68,11 +68,29 @@ def _mini_app_web_url(*, tab: str = '', query: str = '', startapp: str = '') -> 
     return f"{base}{sep}{urlencode(params)}"
 
 
-def _telegram_mini_app_link(startapp: str = '') -> str:
-    username = _bot_username()
-    base = f'https://t.me/{username}?startapp'
+def _encode_startapp(*, tab: str = '', query: str = '', startapp: str = '') -> str:
     if startapp:
-        return f'{base}={quote_plus(startapp)}'
+        return startapp.strip()[:512]
+    tab = (tab or '').strip()
+    query = (query or '').strip()
+    if tab and query:
+        return f'{tab}__{quote_plus(query)}'[:512]
+    return (tab or 'home')[:512]
+
+
+def _telegram_mini_app_link(*, tab: str = '', query: str = '', startapp: str = '') -> str:
+    """Direct-link URL for opening the mini app from channels (web_app buttons do not work there)."""
+    username = _bot_username()
+    app_short = _config_value('TELEGRAM_MINI_APP_SHORT_NAME').strip().lstrip('/')
+    payload = _encode_startapp(tab=tab, query=query, startapp=startapp)
+
+    if app_short:
+        base = f'https://t.me/{username}/{app_short}'
+    else:
+        base = f'https://t.me/{username}'
+
+    if payload:
+        return f'{base}?startapp={quote_plus(payload)}'
     return base
 
 
@@ -113,24 +131,30 @@ def _telegram_image_input(url: str) -> str:
     return url
 
 
-def _button_markup(button_text: str, button_url: str) -> dict:
+def _channel_button(text: str, *, tab: str = '', query: str = '', startapp: str = '', url: str = '') -> dict:
+    """Inline keyboard button safe for Telegram channels (url link, not web_app)."""
+    link = url if url.startswith('https://t.me/') else _telegram_mini_app_link(tab=tab, query=query, startapp=startapp)
+    return {'text': text, 'url': link}
+
+
+def _button_markup(button_text: str, button_url: str = '', *, tab: str = 'home') -> dict:
     return {
-        'inline_keyboard': [[{
-            'text': button_text,
-            'web_app': {'url': button_url},
-        }]]
+        'inline_keyboard': [[_channel_button(
+            button_text,
+            tab=tab,
+            url=button_url,
+        )]]
     }
 
 
 def _product_reply_markup(product) -> dict:
     product_id = getattr(product, 'id', None)
     product_name = getattr(product, 'name_am', None) or getattr(product, 'name', '') or ''
-    ask_url = _mini_app_web_url(tab='ai', query=product_name or (f'product:{product_id}' if product_id else ''))
-    buy_url = _mini_app_web_url(tab='shop')
+    query = product_name or (f'product:{product_id}' if product_id else '')
     return {
         'inline_keyboard': [[
-            {'text': ASK_LIYU_LABEL, 'web_app': {'url': ask_url}},
-            {'text': BUY_NOW_LABEL, 'web_app': {'url': buy_url}},
+            _channel_button(f'💬 {ASK_LIYU_LABEL}', tab='ai', query=query),
+            _channel_button(f'🛒 {BUY_NOW_LABEL}', tab='shop'),
         ]]
     }
 
@@ -154,16 +178,20 @@ def _build_product_caption(product, custom_caption: str = '') -> str:
     custom_caption = _escape(custom_caption.strip())
 
     parts = [
-        '\U0001f31f \u12a0\u12f2\u1235 \u12a5\u1273 \u1305\u1265\u1277\u120d\u127d\u12cd\u12d8\u12cd\u1295! \U0001f31f',
+        '✨ <b>አዲስ እታ ገብቷል!</b> ✨',
         '',
-        f'\U0001f9f8 {name}',
+        f'🧸 <b>{name}</b>',
     ]
     if age_label:
-        parts.append(f'\U0001f476 \u1208\u12d5\u12f5\u121c: {age_label}')
+        parts.append(f'👶 <b>ለዕድሜ:</b> {age_label}')
     if compare_price and float(compare_price) > current_price:
-        parts.append(f'\U0001f4b0 \u12cb\u130b: {current_price:,.0f} \u1265\u122d <s>{float(compare_price):,.0f} \u1265\u122d</s>')
+        discount_pct = round((1 - current_price / float(compare_price)) * 100)
+        parts.append(
+            f'💰 <b>ዋጋ:</b> {current_price:,.0f} ብር '
+            f'<s>{float(compare_price):,.0f} ብር</s> · 🎉 {discount_pct}% ቅናሽ!'
+        )
     else:
-        parts.append(f'\U0001f4b0 \u12cb\u130b: {current_price:,.0f} \u1265\u122d')
+        parts.append(f'💰 <b>ዋጋ:</b> {current_price:,.0f} ብር')
     if description:
         parts.extend(['', description])
     if custom_caption:
@@ -171,13 +199,13 @@ def _build_product_caption(product, custom_caption: str = '') -> str:
 
     parts.extend([
         '',
-        '\u2501' * 22,
-        '\U0001f4cd \u12a0\u12f5\u122d\u12eb\u123b: Bole Bulbula, 93 Mazoriya, Addis Ababa',
-        '\U0001f4de \u1235\u120d\u12ad: 0947967117',
+        '━━━━━━━━━━━━━━━━━━━━━━',
+        '📍 <b>አድራሻ:</b> Bole Bulbula, 93 Mazoriya, Addis Ababa',
+        '📞 <b>ስልክ:</b> 0947967117',
         '',
-        '\U0001f4ac \u1270\u1308\u121b\u122a \u1218\u1228\u1303 \u12ed\u134d\u120d\u130b\u120b\u120d? \u120d\u12e9\u1295 \u12ed\u1320\u12ed\u1271 \u12e8\u1290\u12cd \u12ed\u130d\u12d9!',
+        '👇 ከታች ያሉትን ቁልፎች ይጫኑ · ልዩን ይጠይቱ ወይም አሁን ይግዙ!',
     ])
-    return '\\n'.join(parts).strip()
+    return '\n'.join(parts).strip()
 
 
 def _build_announcement_caption(title: str, caption: str) -> str:
@@ -246,7 +274,11 @@ async def publish_channel_post(post, *, images: Optional[Iterable[str]] = None, 
         reply_markup = _product_reply_markup(product)
     else:
         caption = _build_announcement_caption(getattr(post, 'title', '') or '', getattr(post, 'caption', '') or '')
-        reply_markup = _button_markup(button_text or getattr(post, 'button_text', '') or 'Open Mini App', button_url or _mini_app_web_url())
+        reply_markup = _button_markup(
+            button_text or getattr(post, 'button_text', '') or '🌐 Open Mini App',
+            button_url or _telegram_mini_app_link(tab='home'),
+            tab='home',
+        )
 
     image_urls = [img for img in (images or []) if img]
     image_urls = [_telegram_image_input(url) for url in image_urls]
@@ -339,7 +371,7 @@ def build_product_post_payload(product, *, caption: str = '', title: str = '', b
         'title': title or product.name,
         'caption': caption or '',
         'button_text': button_text,
-        'button_url': _mini_app_web_url(tab='shop'),
+        'button_url': _telegram_mini_app_link(tab='shop'),
         'product_id': product.id,
         'images': images,
     }
@@ -351,5 +383,5 @@ def build_announcement_payload(title: str, caption: str, *, button_text: str = '
         'title': title,
         'caption': caption,
         'button_text': button_text,
-        'button_url': button_url or _mini_app_web_url(),
+        'button_url': button_url or _telegram_mini_app_link(tab='home'),
     }

@@ -13,7 +13,7 @@ from app.extensions import db
 from app.models.product import Product, Category, ProductImage
 from app.models.order import Order, OrderStatus, Coupon, DiscountType
 from app.models.marketing import ProductDiscount, TelegramChannelPost, TelegramChannelPostImage
-from app.services.telegram_marketing import publish_channel_post, _mini_app_web_url
+from app.services.telegram_marketing import publish_channel_post, _telegram_mini_app_link
 from app.models.user import User, UserRole
 from app.models.delivery import Driver
 from app.models.ai_conversation import AIConversation
@@ -470,8 +470,8 @@ def _configured_mini_app_url():
 
 
 
-def _configured_telegram_mini_app_link(startapp: str = ''):
-    return _mini_app_web_url(startapp=startapp)
+def _configured_telegram_mini_app_link(*, tab: str = 'home', query: str = '', startapp: str = ''):
+    return _telegram_mini_app_link(tab=tab, query=query, startapp=startapp)
 
 def _configured_channel_id():
     return (
@@ -563,8 +563,8 @@ def _publish_post(post, product=None):
     if post.post_type == 'product' and not image_urls and product is not None:
         image_urls = [product.primary_image()]
 
-    button_text = post.button_text or 'Open Mini App'
-    button_url = post.button_url or _configured_telegram_mini_app_link()
+    button_text = post.button_text or '🌐 Open Mini App'
+    button_url = post.button_url or _configured_telegram_mini_app_link(tab='home')
     result = asyncio.run(publish_channel_post(
         post,
         images=image_urls if image_urls else None,
@@ -642,7 +642,7 @@ def channel_posts():
             title=title,
             caption=caption,
             button_text=button_text,
-            button_url=_configured_telegram_mini_app_link(),
+            button_url=_configured_telegram_mini_app_link(tab='home'),
             status=status,
             scheduled_at=scheduled_at,
             channel_chat_id=_configured_channel_id(),
@@ -719,7 +719,7 @@ def edit_channel_post(post_id):
         post.title = request.form.get('title', post.title or '').strip()
         post.caption = request.form.get('caption', post.caption or '').strip()
         post.button_text = request.form.get('button_text', post.button_text or 'Open Mini App').strip() or 'Open Mini App'
-        post.button_url = _configured_telegram_mini_app_link()
+        post.button_url = _configured_telegram_mini_app_link(tab='home')
         post.scheduled_at = _parse_admin_datetime(request.form.get('scheduled_at', '').strip())
         republish_now = 'republish_now' in request.form
         schedule_later = post.scheduled_at and post.scheduled_at > _admin_now_utc() and not republish_now
