@@ -13,6 +13,8 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_MINI_APP_URL = os.getenv('MINI_APP_URL', 'http://localhost:5000/telegram/mini-app')
 DEFAULT_APP_URL = os.getenv('APP_URL', 'http://localhost:5000')
+BOT_USERNAME_CACHE = None
+
 ASK_LIYU_LABEL = 'ልዩን ይጠይቁ'
 BUY_NOW_LABEL = 'አሁን ይግዙ'
 
