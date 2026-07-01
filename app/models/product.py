@@ -1,9 +1,8 @@
-import csv
 from datetime import datetime, timezone
 from functools import lru_cache
-from pathlib import Path
 
 from flask import g, has_request_context
+from app.data.product_images_backfill import PRODUCT_IMAGE_CATALOG
 from app.extensions import db
 from app.services.image_delivery import rewrite_media_url
 
@@ -192,41 +191,9 @@ class ProductEmbedding(db.Model):
     product = db.relationship('Product', back_populates='embedding')
 
 
-def _product_image_csv_path() -> Path:
-    return Path(__file__).resolve().parents[2] / 'scripts' / 'data' / 'product_images_backfill.csv'
-
-
 @lru_cache(maxsize=1)
 def _catalog_image_lookup() -> dict[int, list[str]]:
-    lookup: dict[int, list[str]] = {}
-    csv_path = _product_image_csv_path()
-    if not csv_path.exists():
-        return lookup
-
-    try:
-        with csv_path.open('r', encoding='utf-8-sig', newline='') as handle:
-            reader = csv.DictReader(handle)
-            staged: dict[int, list[tuple[int, int, str]]] = {}
-            for row in reader:
-                try:
-                    product_id = int((row.get('product_id') or '').strip())
-                except ValueError:
-                    continue
-                image_url = rewrite_media_url((row.get('image_url') or '').strip())
-                if not image_url or image_url.endswith('/static/images/placeholder.png'):
-                    continue
-                try:
-                    sort_order = int((row.get('sort_order') or '0').strip() or 0)
-                except ValueError:
-                    sort_order = 0
-                is_primary = 1 if (row.get('is_primary') or '').strip().lower() in ('1', 'true', 'yes') else 0
-                staged.setdefault(product_id, []).append((is_primary, sort_order, image_url))
-            for product_id, items in staged.items():
-                lookup[product_id] = [url for _primary, _sort, url in sorted(items, key=lambda item: (-item[0], item[1], item[2]))]
-    except Exception:
-        return {}
-
-    return lookup
+    return {pid: [rewrite_media_url(url) for url in urls if url] for pid, urls in PRODUCT_IMAGE_CATALOG.items()}
 
 
 def _db_image_lookup(product_ids: list[int]) -> dict[int, list[str]]:
