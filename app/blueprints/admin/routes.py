@@ -14,6 +14,7 @@ from app.models.product import Product, Category, ProductImage
 from app.models.order import Order, OrderStatus, Coupon, DiscountType
 from app.models.marketing import ProductDiscount, TelegramChannelPost, TelegramChannelPostImage
 from app.services.telegram_marketing import publish_channel_post, _telegram_mini_app_link, channel_button_link_mode
+from app.services.image_delivery import media_url_for_file_id
 from app.models.user import User, UserRole
 from app.models.delivery import Driver
 from app.models.ai_conversation import AIConversation
@@ -63,8 +64,7 @@ def _upload_to_telegram(file_obj):
         best = max(photos, key=lambda p: p.get('file_size', 0))
         file_id = best['file_id']
 
-        app_url = os.environ.get('APP_URL', '').rstrip('/')
-        return f'{app_url}/media/{file_id}'
+        return media_url_for_file_id(file_id)
 
     except Exception as e:
         current_app.logger.warning(f'Telegram upload failed: {e} - falling back to Supabase')

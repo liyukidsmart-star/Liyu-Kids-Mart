@@ -1,0 +1,7 @@
+name = "liyu-kids-mart"
+main = "src/index.js"
+compatibility_date = "2026-07-01"
+workers_dev = true
+
+[vars]
+IMAGE_CDN_BASE_URL = "https://liyu-kids-mart.liyukidsmart.workers.dev"

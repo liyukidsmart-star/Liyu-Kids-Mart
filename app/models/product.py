@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from app.extensions import db
+from app.services.image_delivery import rewrite_media_url
 
 
 class Category(db.Model):
@@ -79,10 +80,10 @@ class Product(db.Model):
         img = self.images.filter_by(is_primary=True).first()
         if not img:
             img = self.images.first()
-        return img.image_url if img else '/static/images/placeholder.png'
+        return rewrite_media_url(img.image_url) if img else '/static/images/placeholder.png'
 
     def all_images(self):
-        return [i.image_url for i in self.images.order_by(ProductImage.sort_order.asc())]
+        return [rewrite_media_url(i.image_url) for i in self.images.order_by(ProductImage.sort_order.asc())]
 
     def avg_rating(self):
         approved = self.reviews.filter_by(approved=True).all()

@@ -6,6 +6,7 @@ from flask import abort, make_response, redirect, render_template
 from app.blueprints.main import main_bp
 from app.models.order import Order
 from app.models.product import Category, Product
+from app.services.image_delivery import image_cdn_base_url, media_url_for_file_id
 
 TELEGRAM_FILE_PATH_CACHE = {}
 
@@ -100,6 +101,10 @@ def _telegram_file_path(file_id):
 # and redirects browsers directly to Telegram's CDN.
 @main_bp.route('/media/<path:file_id>')
 def telegram_media(file_id):
+    cdn_base = image_cdn_base_url()
+    if cdn_base:
+        return redirect(media_url_for_file_id(file_id), code=302)
+
     token = os.getenv('TELEGRAM_BOT_TOKEN', '')
     if not token:
         abort(503, 'Media service not configured')
