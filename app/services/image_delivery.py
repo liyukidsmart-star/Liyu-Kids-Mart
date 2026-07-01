@@ -2,6 +2,8 @@ import os
 
 from flask import current_app, has_app_context
 
+DEFAULT_IMAGE_CDN_BASE_URL = 'https://liyu-kids-mart.liyukidsmart.workers.dev'
+
 
 def _config_value(name: str, default: str = '') -> str:
     if has_app_context():
@@ -21,6 +23,8 @@ def media_url_for_file_id(file_id: str, *, prefer_cdn: bool = True) -> str:
         return ''
 
     cdn_base = image_cdn_base_url() if prefer_cdn else ''
+    if prefer_cdn and not cdn_base:
+        cdn_base = DEFAULT_IMAGE_CDN_BASE_URL
     if cdn_base:
         return f'{cdn_base}/media/{file_id}'
 

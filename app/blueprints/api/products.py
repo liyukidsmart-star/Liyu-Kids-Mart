@@ -1,12 +1,14 @@
 from math import ceil
 from datetime import datetime, timezone
+
 from flask import request
 from sqlalchemy.orm import selectinload
+
 from app.blueprints.api import api_bp
 from app.extensions import db
-from app.models.product import Product, Category
+from app.models.product import Category, Product
 from app.models import marketing as _marketing  # noqa: F401 - ensure price helpers are attached
-from app.utils import success_response, error_response
+from app.utils import error_response, success_response
 
 
 def _filter_products(products, category_id=None, featured=None, new_arrival=None, min_price=0, max_price=99999):
@@ -27,13 +29,30 @@ def _filter_products(products, category_id=None, featured=None, new_arrival=None
     return filtered
 
 
-def _sort_products(products, sort):
-    if sort == 'price_asc':
+def _sort_products(products, sort, order=''):
+    sort = (sort or '').strip().lower()
+    order = (order or '').strip().lower()
+
+    if sort in ('price', 'price_asc') or (sort == 'asc' and order != 'desc'):
         return sorted(products, key=lambda p: (float(p.current_price()), -(p.sales_count or 0), p.id))
-    if sort == 'price_desc':
+
+    if sort in ('price_desc',) or (sort == 'price' and order == 'desc') or (sort == 'desc' and order != 'asc'):
         return sorted(products, key=lambda p: (float(p.current_price()), (p.sales_count or 0), -p.id), reverse=True)
-    if sort == 'bestselling':
-        return sorted(products, key=lambda p: ((p.sales_count or 0), (p.created_at or datetime.min.replace(tzinfo=timezone.utc))), reverse=True)
+
+    if sort in ('bestselling', 'sales_count', 'popular'):
+        if order == 'asc':
+            return sorted(products, key=lambda p: ((p.sales_count or 0), p.created_at or datetime.min.replace(tzinfo=timezone.utc)))
+        return sorted(
+            products,
+            key=lambda p: ((p.sales_count or 0), (p.created_at or datetime.min.replace(tzinfo=timezone.utc))),
+            reverse=True,
+        )
+
+    if sort in ('created_at', 'new', 'newest'):
+        if order == 'asc':
+            return sorted(products, key=lambda p: p.created_at or datetime.min.replace(tzinfo=timezone.utc))
+        return sorted(products, key=lambda p: p.created_at or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
+
     return sorted(products, key=lambda p: p.created_at or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
 
 
@@ -45,17 +64,14 @@ def get_products():
     featured = request.args.get('featured', '')
     new_arrival = request.args.get('new_arrival', '')
     sort = request.args.get('sort', 'newest')
+    order = request.args.get('order', '')
     min_price = request.args.get('min_price', 0, type=float)
     max_price = request.args.get('max_price', 99999, type=float)
     q_str = request.args.get('q', '').strip().lower()
 
     all_products = (
         Product.query.filter_by(is_active=True)
-        .options(
-            selectinload(Product.category),
-            selectinload(Product.images),
-            selectinload(Product.tags),
-        )
+        .options(selectinload(Product.category))
         .all()
     )
     filtered = _filter_products(
@@ -76,7 +92,7 @@ def get_products():
             or q_str in (p.short_description_am or '').lower()
             or q_str in (p.description_am or '').lower()
         ]
-    sorted_products = _sort_products(filtered, sort)
+    sorted_products = _sort_products(filtered, sort, order)
     total = len(sorted_products)
     pages = max(1, ceil(total / per_page)) if per_page else 1
     start = max(0, (page - 1) * per_page)

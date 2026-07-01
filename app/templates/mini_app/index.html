@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
@@ -736,7 +736,7 @@ async function loadHomeSections(){
     const [fr,nr,br]=await Promise.all([
       fetch('/api/v1/products?featured=true&per_page=8'),
       fetch('/api/v1/products?new_arrival=true&per_page=8'),
-      fetch('/api/v1/products?sort=sales_count&per_page=6')]);
+      fetch('/api/v1/products?sort=bestselling&per_page=6')]);
     const [fd,nd,bd]=await Promise.all([fr.json(),nr.json(),br.json()]);
     const fp=fd.data?.products||[], np=nd.data?.products||[], bp=bd.data?.products||[];
     document.getElementById('featRow').innerHTML=fp.length?fp.map(p=>pcard(p,'h')).join(''):'<div class="empty"><p>No featured products</p></div>';
@@ -799,7 +799,7 @@ async function loadShop(reset=false){
   if(ssort==='new')url+='&sort=created_at&order=desc';
   else if(ssort==='asc')url+='&sort=price&order=asc';
   else if(ssort==='desc')url+='&sort=price&order=desc';
-  else url+='&sort=sales_count&order=desc';
+  else url+='&sort=bestselling&order=desc';
   setShopLoading(true);
   try{
     const d=await(await fetch(url)).json();
