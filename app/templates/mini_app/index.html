@@ -142,9 +142,9 @@ ul{list-style:none}
 .sbtn.on{border-color:var(--g);color:var(--g);background:var(--gp)}
 
 /* LOAD MORE */
-.lmbtn{margin:12px auto 16px;display:flex;align-items:center;justify-content:center;gap:8px;background:var(--gp);color:var(--g);border-radius:100px;padding:10px 28px;font-size:.85rem;font-weight:700;border:1.5px solid var(--gl);transition:transform .18s var(--spr),opacity .18s var(--ease)}
+.lmbtn{margin:16px auto 24px;display:flex;align-items:center;justify-content:center;background:var(--gp);color:var(--g);border-radius:12px;padding:12px 32px;font-size:1rem;font-weight:800;border:1.5px solid var(--gl);transition:all .2s ease;box-shadow:0 4px 12px rgba(0,0,0,0.05);width:90%;max-width:300px;}
 .lmbtn:active{transform:scale(.97)}
-.lmbtn.loading{opacity:.75;pointer-events:none}
+.lmbtn.loading{background:var(--g);color:#fff;border-color:var(--g);pointer-events:none;box-shadow:0 4px 16px rgba(45,106,79,0.3);}
 
 /* AGE FILTER */
 .afilter{padding:14px 14px 0}
@@ -392,6 +392,11 @@ ul{list-style:none}
     <div class="hrow" id="newRow"><div class="ldr"><div class="spin"></div></div></div>
     <div class="shdr"><h2 data-i18n="c_best">🔥 Best Sellers</h2></div>
     <div class="pgrid" id="homeGrid"><div class="ldr" style="grid-column:span 2"><div class="spin"></div></div></div>
+    <div style="padding: 24px 16px; text-align: center;">
+      <button class="lmbtn" style="width: 100%; padding: 14px; font-size: 1.05rem; font-weight: 800; background: var(--g); color: #fff; border: none; box-shadow: 0 4px 14px rgba(45,106,79,0.3);" onclick="showTab('tab-shop')">
+        Browse All Toys in Store <i class="fas fa-arrow-right" style="margin-left: 6px;"></i>
+      </button>
+    </div>
     <div style="height:16px"></div>
   </div>
 </div>
@@ -720,7 +725,7 @@ function shAddCart(){if(!shProd)return;addCart(shProd.id,shProd.name,shProd.pric
 async function loadHomeCats(){
   try{
     const d=await(await fetch('/api/v1/categories')).json();
-    const cats=(d.data||[]).slice(0,8);
+    const cats=(d.data||[]);
     document.getElementById('homeCats').innerHTML=cats.length
       ?cats.map(c=>`<div class="cgitem" onclick="shopCat(${c.id});showTab('tab-shop')">
           <div class="cg-ico">${c.icon||'📦'}</div><div class="cg-name">${c.name}</div></div>`).join('')
@@ -765,8 +770,13 @@ function setShopLoading(on){
   const btn=document.getElementById('lmbtn');
   if(btn){
     btn.classList.toggle('loading', !!on);
-    if(on){ btn.innerHTML='<span class="spin" style="width:18px;height:18px;border-width:2px"></span> ' + tr('l_more'); }
-    else btn.innerHTML=tr('l_more');
+    if(on){ 
+      btn.style.opacity = '0.8';
+      btn.innerHTML='<span class="spin" style="width:20px;height:20px;border-width:3px;border-color:rgba(255,255,255,0.3);border-top-color:#fff;display:inline-block;margin-right:8px;"></span> Loading...'; 
+    } else {
+      btn.style.opacity = '1';
+      btn.innerHTML=tr('l_more');
+    }
   }
 }
 
