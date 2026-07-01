@@ -1,13 +1,16 @@
 from math import ceil
 from datetime import datetime, timezone
 
-from flask import request
+from flask import request, current_app
 from sqlalchemy.orm import selectinload
 
 from app.blueprints.api import api_bp
 from app.extensions import db
-from app.models.product import Category, Product, prime_product_image_lookup
+from app.models.product import Category, Product, ProductImage, prime_product_image_lookup
 from app.models import marketing as _marketing  # noqa: F401 - ensure price helpers are attached
+from app.models.marketing import TelegramChannelPost, TelegramChannelPostImage
+from app.data.product_images_backfill import PRODUCT_IMAGE_CATALOG
+from app.services.image_delivery import rewrite_media_url
 from app.utils import error_response, success_response
 
 
@@ -161,6 +164,61 @@ def product_recommendations(product_id):
     ).order_by(Product.sales_count.desc()).limit(6).all()
     prime_product_image_lookup(similar)
     return success_response({'products': [p.to_dict() for p in similar]})
+
+
+@api_bp.route('/products/repair-images', methods=['POST'])
+def repair_product_images():
+    """Repair missing or placeholder product thumbnails in the live database."""
+    confirm = (request.args.get('confirm') or '').strip().lower()
+    if confirm not in ('1', 'true', 'yes'):
+        return error_response('Confirmation required', 400)
+
+    products = Product.query.filter_by(is_active=True).all()
+    created = 0
+    updated = 0
+    skipped = 0
+
+    for product in products:
+        rows = product.images.order_by(ProductImage.sort_order.asc(), ProductImage.id.asc()).all()
+        real_rows = [row for row in rows if (rewrite_media_url(row.image_url) and 'placeholder.png' not in rewrite_media_url(row.image_url))]
+        if real_rows:
+            continue
+
+        candidates = []
+        posts = TelegramChannelPost.query.filter_by(product_id=product.id).order_by(TelegramChannelPost.created_at.desc()).all()
+        for post in posts:
+            for img in post.images.order_by(TelegramChannelPostImage.sort_order.asc()).all():
+                url = rewrite_media_url(img.image_url)
+                if url and 'placeholder.png' not in url and url not in candidates:
+                    candidates.append(url)
+
+        for url in PRODUCT_IMAGE_CATALOG.get(product.id, []):
+            if url and 'placeholder.png' not in url and url not in candidates:
+                candidates.append(url)
+
+        if not candidates:
+            skipped += 1
+            continue
+
+        if rows:
+            for idx, row in enumerate(rows):
+                new_url = candidates[min(idx, len(candidates) - 1)]
+                if row.image_url != new_url:
+                    row.image_url = new_url
+                    updated += 1
+        else:
+            for idx, url in enumerate(candidates):
+                db.session.add(ProductImage(
+                    product_id=product.id,
+                    image_url=url,
+                    is_primary=(idx == 0),
+                    sort_order=idx,
+                ))
+                created += 1
+
+    db.session.commit()
+    current_app.logger.warning('Product image repair finished: created=%s updated=%s skipped=%s', created, updated, skipped)
+    return success_response({'created': created, 'updated': updated, 'skipped': skipped})
 
 
 @api_bp.route('/categories')
