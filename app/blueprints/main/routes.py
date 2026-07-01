@@ -72,6 +72,7 @@ def track_order(order_number):
 
 
 def _telegram_file_path(file_id):
+    import time
     token = os.getenv('TELEGRAM_BOT_TOKEN', '').strip()
     if not token:
         return None
@@ -80,20 +81,31 @@ def _telegram_file_path(file_id):
     if cached:
         return cached
 
-    try:
-        resp = httpx.get(
-            f'https://api.telegram.org/bot{token}/getFile',
-            params={'file_id': file_id},
-            timeout=10,
-        )
-        data = resp.json()
-        if not data.get('ok'):
-            return None
-        file_path = data['result']['file_path']
-        TELEGRAM_FILE_PATH_CACHE[file_id] = file_path
-        return file_path
-    except Exception:
-        return None
+    for attempt in range(4):
+        try:
+            resp = httpx.get(
+                f'https://api.telegram.org/bot{token}/getFile',
+                params={'file_id': file_id},
+                timeout=10,
+            )
+            data = resp.json()
+
+            if resp.status_code == 429 or data.get('error_code') == 429:
+                retry_after = data.get('parameters', {}).get('retry_after', 1.0)
+                time.sleep(retry_after)
+                continue
+
+            if not data.get('ok'):
+                # Other error
+                return None
+                
+            file_path = data['result']['file_path']
+            TELEGRAM_FILE_PATH_CACHE[file_id] = file_path
+            return file_path
+        except Exception:
+            time.sleep(0.5 * (2 ** attempt))
+            
+    return None
 
 
 # TELEGRAM MEDIA PROXY

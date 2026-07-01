@@ -1,9 +1,5 @@
 import os
-
 from flask import current_app, has_app_context
-
-DEFAULT_IMAGE_CDN_BASE_URL = 'https://liyu-kids-mart.liyukidsmart.workers.dev'
-
 
 def _config_value(name: str, default: str = '') -> str:
     if has_app_context():
@@ -12,10 +8,8 @@ def _config_value(name: str, default: str = '') -> str:
             return str(value).strip()
     return os.getenv(name, default).strip()
 
-
 def image_cdn_base_url() -> str:
     return _config_value('IMAGE_CDN_BASE_URL', '').rstrip('/')
-
 
 def looks_like_telegram_file_id(value: str) -> bool:
     value = (value or '').strip()
@@ -26,15 +20,15 @@ def looks_like_telegram_file_id(value: str) -> bool:
     allowed = set('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-')
     return all(ch in allowed for ch in value)
 
-
 def media_url_for_file_id(file_id: str, *, prefer_cdn: bool = True) -> str:
     file_id = (file_id or '').strip()
     if not file_id:
         return ''
 
+    # Only use Cloudflare Worker if explicitly configured in IMAGE_CDN_BASE_URL.
+    # Otherwise, fallback to the local Flask proxy which works instantly
+    # and doesn't require configuring Cloudflare Secrets.
     cdn_base = image_cdn_base_url() if prefer_cdn else ''
-    if prefer_cdn and not cdn_base:
-        cdn_base = DEFAULT_IMAGE_CDN_BASE_URL
     if cdn_base:
         return f'{cdn_base}/media/{file_id}'
 
@@ -43,7 +37,6 @@ def media_url_for_file_id(file_id: str, *, prefer_cdn: bool = True) -> str:
         return f'{app_url}/media/{file_id}'
 
     return f'/media/{file_id}'
-
 
 def is_placeholder_url(url: str) -> bool:
     """Return True if the URL is a known placeholder / missing-image sentinel."""
@@ -55,7 +48,6 @@ def is_placeholder_url(url: str) -> bool:
         or stripped == '/static/images/placeholder.png'
         or 'placeholder' in stripped.lower().split('/')[-1]
     )
-
 
 def rewrite_media_url(url: str, *, prefer_cdn: bool = True) -> str:
     url = (url or '').strip()
