@@ -1,9 +1,11 @@
 from math import ceil
 from datetime import datetime, timezone
 from flask import request
+from sqlalchemy.orm import selectinload
 from app.blueprints.api import api_bp
 from app.extensions import db
 from app.models.product import Product, Category
+from app.models import marketing as _marketing  # noqa: F401 - ensure price helpers are attached
 from app.utils import success_response, error_response
 
 
@@ -45,8 +47,17 @@ def get_products():
     sort = request.args.get('sort', 'newest')
     min_price = request.args.get('min_price', 0, type=float)
     max_price = request.args.get('max_price', 99999, type=float)
+    q_str = request.args.get('q', '').strip().lower()
 
-    all_products = Product.query.filter_by(is_active=True).all()
+    all_products = (
+        Product.query.filter_by(is_active=True)
+        .options(
+            selectinload(Product.category),
+            selectinload(Product.images),
+            selectinload(Product.tags),
+        )
+        .all()
+    )
     filtered = _filter_products(
         all_products,
         category_id=category_id,
@@ -55,6 +66,16 @@ def get_products():
         min_price=min_price,
         max_price=max_price,
     )
+    if q_str:
+        filtered = [
+            p for p in filtered
+            if q_str in (p.name or '').lower()
+            or q_str in (p.short_description or '').lower()
+            or q_str in (p.description or '').lower()
+            or q_str in (p.name_am or '').lower()
+            or q_str in (p.short_description_am or '').lower()
+            or q_str in (p.description_am or '').lower()
+        ]
     sorted_products = _sort_products(filtered, sort)
     total = len(sorted_products)
     pages = max(1, ceil(total / per_page)) if per_page else 1

@@ -79,7 +79,9 @@ ul{list-style:none}
 
 /* PRODUCT GRID 2-col */
 .pgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px}
-.pcard{background:var(--sf);border-radius:var(--rm);overflow:hidden;border:1px solid var(--br);box-shadow:var(--ss);cursor:pointer;transition:transform .2s var(--spr);position:relative}
+.pcard{background:var(--sf);border-radius:var(--rm);overflow:hidden;border:1px solid var(--br);box-shadow:var(--ss);cursor:pointer;transition:transform .2s var(--spr),opacity .2s var(--ease);position:relative}
+.pcard.entering{animation:shopIn .28s var(--spr) both}
+@keyframes shopIn{from{opacity:0;transform:translateY(12px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
 .pcard:active{transform:scale(.97)}
 .pcard-img{width:100%;aspect-ratio:1;object-fit:cover;background:var(--be)}
 .pcard-body{padding:10px}
@@ -138,7 +140,9 @@ ul{list-style:none}
 .sbtn.on{border-color:var(--g);color:var(--g);background:var(--gp)}
 
 /* LOAD MORE */
-.lmbtn{margin:12px auto 16px;display:block;background:var(--gp);color:var(--g);border-radius:100px;padding:10px 28px;font-size:.85rem;font-weight:700;border:1.5px solid var(--gl)}
+.lmbtn{margin:12px auto 16px;display:flex;align-items:center;justify-content:center;gap:8px;background:var(--gp);color:var(--g);border-radius:100px;padding:10px 28px;font-size:.85rem;font-weight:700;border:1.5px solid var(--gl);transition:transform .18s var(--spr),opacity .18s var(--ease)}
+.lmbtn:active{transform:scale(.97)}
+.lmbtn.loading{opacity:.75;pointer-events:none}
 
 /* AGE FILTER */
 .afilter{padding:14px 14px 0}
@@ -410,6 +414,7 @@ ul{list-style:none}
   <div style="overflow-y:auto;flex:1">
     <div class="pgrid" id="shopGrid"><div class="ldr" style="grid-column:span 2"><div class="spin"></div></div></div>
     <button class="lmbtn" id="lmbtn" onclick="loadMore()" style="display:none" data-i18n="l_more">Load More</button>
+    <div id="shopSentinel" style="height:1px;width:100%;"></div>
   </div>
 </div>
 
@@ -531,7 +536,7 @@ let cart=JSON.parse(localStorage.getItem('lkm_c')||'[]');
 let wish=new Set(JSON.parse(localStorage.getItem('lkm_w')||'[]'));
 let aiSid=localStorage.getItem('lkm_s')||gid(); localStorage.setItem('lkm_s',aiSid);
 let shProd=null, shQty=1;
-let spg=1,scat=0,ssort='popular',sq='',sHasMore=false,sDbt=null,sAll=[];
+let spg=1,scat=0,ssort='popular',sq='',sHasMore=false,sDbt=null,sAll=[],sLoading=false,sObserver=null;
 
 function gid(){return Math.random().toString(36).slice(2)+Date.now().toString(36);}
 
@@ -562,7 +567,7 @@ function showTab(id){
   if(ni)ni.classList.add('on');
   if(id==='tab-cart')renderCart();
   if(id==='tab-orders')loadOrders();
-  if(id==='tab-shop'&&!sAll.length)loadShop(true);
+  if(id==='tab-shop'){setupShopObserver();if(!sAll.length)loadShop(true);}
   if(id==='tab-ai'&&!aiDone)aiWelcome();
 }
 
@@ -752,8 +757,39 @@ function ageFilter(btn,all=false){
     }).catch(()=>{});
 }
 
-/* ── Shop tab ─────────────────────────────────── */
+/* ?? Shop tab ??????????????????????????????????? */
+function setShopLoading(on){
+  sLoading=on;
+  const btn=document.getElementById('lmbtn');
+  if(btn){
+    btn.classList.toggle('loading', !!on);
+    if(on){ btn.innerHTML='<span class="spin" style="width:18px;height:18px;border-width:2px"></span> ' + tr('l_more'); }
+    else btn.innerHTML=tr('l_more');
+  }
+}
+
+function animateShopCards(nodes){
+  nodes.forEach((el, i) => {
+    el.classList.add('entering');
+    el.style.animationDelay = (i * 40) + 'ms';
+    setTimeout(() => el.classList.remove('entering'), 450);
+  });
+}
+
+function setupShopObserver(){
+  const sentinel = document.getElementById('shopSentinel');
+  if(!sentinel || sObserver) return;
+  sObserver = new IntersectionObserver(entries => {
+    const entry = entries[0];
+    if(entry && entry.isIntersecting && sHasMore && !sLoading){
+      loadMore();
+    }
+  }, { root: null, rootMargin: '320px 0px', threshold: 0.01 });
+  sObserver.observe(sentinel);
+}
+
 async function loadShop(reset=false){
+  if(sLoading) return;
   if(reset){spg=1;sAll=[];}
   const grid=document.getElementById('shopGrid');
   if(reset)grid.innerHTML='<div class="ldr" style="grid-column:span 2"><div class="spin"></div></div>';
@@ -764,17 +800,24 @@ async function loadShop(reset=false){
   else if(ssort==='asc')url+='&sort=price&order=asc';
   else if(ssort==='desc')url+='&sort=price&order=desc';
   else url+='&sort=sales_count&order=desc';
+  setShopLoading(true);
   try{
     const d=await(await fetch(url)).json();
     const ps=d.data?.products||[], tot=d.data?.total||0;
     sAll=[...sAll,...ps]; sHasMore=sAll.length<tot;
     if(reset)grid.innerHTML=sAll.length?sAll.map(p=>pcard(p)).join('')
-      :'<div class="empty" style="grid-column:span 2"><div class="ei">🧩</div><p>No products found</p></div>';
-    else ps.forEach(p=>grid.insertAdjacentHTML('beforeend',pcard(p)));
+      :'<div class="empty" style="grid-column:span 2"><div class="ei">??</div><p>No products found</p></div>';
+    else {
+      const before=grid.children.length;
+      ps.forEach(p=>grid.insertAdjacentHTML('beforeend',pcard(p)));
+      animateShopCards(Array.from(grid.children).slice(before));
+    }
     document.getElementById('lmbtn').style.display=sHasMore?'block':'none';
+    setupShopObserver();
   }catch{if(reset)grid.innerHTML='<div class="empty" style="grid-column:span 2"><p>Failed to load</p></div>';}
+  finally{setShopLoading(false);}
 }
-function loadMore(){spg++;loadShop(false);}
+function loadMore(){if(!sLoading&&sHasMore){spg++;loadShop(false);}}
 function shopCat(id,btn){
   scat=id;
   document.querySelectorAll('#shopCats .chip').forEach(b=>b.classList.remove('on'));
