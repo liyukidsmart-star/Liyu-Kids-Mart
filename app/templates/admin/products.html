@@ -1,6 +1,46 @@
 {% extends 'admin/base_admin.html' %}
 {% block title %}Products — Admin{% endblock %}
 {% block page_title %}Products{% endblock %}
+{% block extra_css %}
+<style>
+.admin-product-thumb-wrap {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f0f0f0;
+  flex-shrink: 0;
+}
+.admin-product-thumb {
+  width: 52px;
+  height: 52px;
+  object-fit: cover;
+  border-radius: 8px;
+  display: block;
+  transition: opacity 0.2s;
+}
+.admin-product-thumb.loading {
+  opacity: 0;
+}
+.admin-product-thumb.loaded {
+  opacity: 1;
+}
+.no-img-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 8px;
+  background: #fff3cd;
+  color: #856404;
+  font-size: 1.3rem;
+  border: 1px dashed #ffc107;
+  cursor: help;
+}
+</style>
+{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between mb-3">
   <form method="GET" class="d-flex gap-2">
@@ -16,8 +56,27 @@
       <thead><tr><th>Image</th><th>Name</th><th>Price</th><th>Stock</th><th>Category</th><th>Status</th><th>Actions</th></tr></thead>
       <tbody>
         {% for product in products %}
+        {% set img_url = product.primary_image() %}
+        {% set has_real_image = img_url and not img_url.endswith('placeholder.png') %}
         <tr>
-          <td><img src="{{ product.primary_image() }}" class="admin-product-thumb" onerror="this.src='/static/images/placeholder.png'"/></td>
+          <td>
+            <div class="admin-product-thumb-wrap">
+              {% if has_real_image %}
+              <img
+                src="{{ img_url }}"
+                class="admin-product-thumb loading"
+                alt="{{ product.name }}"
+                loading="lazy"
+                decoding="async"
+                onload="this.classList.remove('loading');this.classList.add('loaded')"
+                onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"
+              />
+              <div class="no-img-badge" style="display:none" title="Image failed to load — click Edit to re-upload">📷</div>
+              {% else %}
+              <div class="no-img-badge" title="No image uploaded yet — click Edit to add one">📷</div>
+              {% endif %}
+            </div>
+          </td>
           <td>
             <div class="fw-600">{{ product.name }}</div>
             <div class="x-small text-muted">{{ product.slug }}</div>
@@ -35,6 +94,7 @@
             </span>
             {% if product.compare_at_price() %}<span class="badge bg-danger ms-1">Discount</span>{% endif %}
             {% if product.is_featured %}<span class="badge bg-warning ms-1">Featured</span>{% endif %}
+            {% if not has_real_image %}<span class="badge bg-warning ms-1">No Image</span>{% endif %}
           </td>
           <td>
             <a href="{{ url_for('admin.edit_product', product_id=product.id) }}" class="btn btn-sm admin-btn-outline me-1"><i class="fas fa-edit"></i></a>

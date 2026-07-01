@@ -1,10 +1,9 @@
 from datetime import datetime, timezone
-from functools import lru_cache
 
 from flask import g, has_request_context
 from app.data.product_images_backfill import PRODUCT_IMAGE_CATALOG
 from app.extensions import db
-from app.services.image_delivery import rewrite_media_url
+from app.services.image_delivery import rewrite_media_url, is_placeholder_url
 
 
 class Category(db.Model):
@@ -191,9 +190,25 @@ class ProductEmbedding(db.Model):
     product = db.relationship('Product', back_populates='embedding')
 
 
-@lru_cache(maxsize=1)
+# Module-level catalog cache (populated once per process, cleared on image upload)
+_catalog_cache: dict[int, list[str]] | None = None
+
+
 def _catalog_image_lookup() -> dict[int, list[str]]:
-    return {pid: [rewrite_media_url(url) for url in urls if url] for pid, urls in PRODUCT_IMAGE_CATALOG.items()}
+    """Return the CDN-rewritten backfill catalog. Cached in-process."""
+    global _catalog_cache
+    if _catalog_cache is None:
+        _catalog_cache = {
+            pid: [u for u in (rewrite_media_url(raw) for raw in urls if raw) if u and not is_placeholder_url(u)]
+            for pid, urls in PRODUCT_IMAGE_CATALOG.items()
+        }
+    return _catalog_cache
+
+
+def bust_catalog_cache() -> None:
+    """Invalidate the in-process catalog cache (call after uploading new images)."""
+    global _catalog_cache
+    _catalog_cache = None
 
 
 def _db_image_lookup(product_ids: list[int]) -> dict[int, list[str]]:
@@ -209,8 +224,12 @@ def _db_image_lookup(product_ids: list[int]) -> dict[int, list[str]]:
 
     lookup: dict[int, list[str]] = {pid: [] for pid in ids}
     for row in rows:
-        url = rewrite_media_url(row.image_url)
-        if not url or url.endswith('/static/images/placeholder.png'):
+        raw_url = (row.image_url or '').strip()
+        # Skip placeholder/empty DB entries
+        if not raw_url or is_placeholder_url(raw_url):
+            continue
+        url = rewrite_media_url(raw_url)
+        if not url or is_placeholder_url(url):
             continue
         bucket = lookup.setdefault(row.product_id, [])
         if url not in bucket:
