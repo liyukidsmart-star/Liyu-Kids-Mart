@@ -177,6 +177,7 @@ def repair_product_images():
     created = 0
     updated = 0
     skipped = 0
+    skipped_ids = []
 
     for product in products:
         rows = product.images.order_by(ProductImage.sort_order.asc(), ProductImage.id.asc()).all()
@@ -198,6 +199,7 @@ def repair_product_images():
 
         if not candidates:
             skipped += 1
+            skipped_ids.append(product.id)
             continue
 
         if rows:
@@ -218,7 +220,7 @@ def repair_product_images():
 
     db.session.commit()
     current_app.logger.warning('Product image repair finished: created=%s updated=%s skipped=%s', created, updated, skipped)
-    return success_response({'created': created, 'updated': updated, 'skipped': skipped})
+    return success_response({'created': created, 'updated': updated, 'skipped': skipped, 'skipped_ids': skipped_ids})
 
 
 @api_bp.route('/categories')
