@@ -18,6 +18,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app import create_app
 from app.extensions import db
 from app.models.product import ProductImage
+from app.services.image_delivery import looks_like_telegram_file_id
 
 
 def _file_id_from_url(url: str) -> str:
@@ -26,6 +27,8 @@ def _file_id_from_url(url: str) -> str:
     url = url.strip()
     if '/media/' in url:
         return url.split('/media/', 1)[1].strip('/')
+    if looks_like_telegram_file_id(url):
+        return url
     return ''
 
 
@@ -45,11 +48,7 @@ def main():
 
     app = create_app(os.getenv('FLASK_ENV', 'production'))
     with app.app_context():
-        rows = (
-            db.session.query(ProductImage.image_url)
-            .filter(ProductImage.image_url.like('/media/%'))
-            .all()
-        )
+        rows = db.session.query(ProductImage.image_url).all()
 
     file_ids = []
     seen = set()
