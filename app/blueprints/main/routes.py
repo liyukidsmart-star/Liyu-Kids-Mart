@@ -5,7 +5,7 @@ from flask import abort, make_response, redirect, render_template
 
 from app.blueprints.main import main_bp
 from app.models.order import Order
-from app.models.product import Category, Product
+from app.models.product import Category, Product, prime_product_image_lookup
 from app.services.image_delivery import image_cdn_base_url, media_url_for_file_id
 
 TELEGRAM_FILE_PATH_CACHE = {}
@@ -18,6 +18,7 @@ def index():
         new_arrivals = Product.query.filter_by(is_active=True, is_new_arrival=True).limit(10).all()
         best_sellers = Product.query.filter_by(is_active=True).order_by(Product.sales_count.desc()).limit(8).all()
         categories = Category.query.filter_by(is_active=True, parent_id=None).order_by(Category.sort_order).all()
+        prime_product_image_lookup(list(featured) + list(new_arrivals) + list(best_sellers))
         return render_template(
             'main/index.html',
             featured=featured,

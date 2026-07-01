@@ -1,4 +1,9 @@
+import csv
 from datetime import datetime, timezone
+from functools import lru_cache
+from pathlib import Path
+
+from flask import g, has_request_context
 from app.extensions import db
 from app.services.image_delivery import rewrite_media_url
 
@@ -77,20 +82,9 @@ class Product(db.Model):
                                 cascade='all, delete-orphan')
 
     def _resolved_images(self):
-        resolved = []
-        for img in self.images.order_by(ProductImage.sort_order.asc()).all():
-            url = rewrite_media_url(img.image_url)
-            if not url or url.endswith('/static/images/placeholder.png'):
-                continue
-            resolved.append(url)
-        return resolved
+        return get_product_image_urls(self.id)
 
     def primary_image(self):
-        img = self.images.filter_by(is_primary=True).first()
-        if img:
-            resolved = rewrite_media_url(img.image_url)
-            if resolved and not resolved.endswith('/static/images/placeholder.png'):
-                return resolved
         for url in self._resolved_images():
             return url
         return '/static/images/placeholder.png'
@@ -196,3 +190,103 @@ class ProductEmbedding(db.Model):
                            onupdate=lambda: datetime.now(timezone.utc))
 
     product = db.relationship('Product', back_populates='embedding')
+
+
+def _product_image_csv_path() -> Path:
+    return Path(__file__).resolve().parents[2] / 'scripts' / 'data' / 'product_images_backfill.csv'
+
+
+@lru_cache(maxsize=1)
+def _catalog_image_lookup() -> dict[int, list[str]]:
+    lookup: dict[int, list[str]] = {}
+    csv_path = _product_image_csv_path()
+    if not csv_path.exists():
+        return lookup
+
+    try:
+        with csv_path.open('r', encoding='utf-8-sig', newline='') as handle:
+            reader = csv.DictReader(handle)
+            staged: dict[int, list[tuple[int, int, str]]] = {}
+            for row in reader:
+                try:
+                    product_id = int((row.get('product_id') or '').strip())
+                except ValueError:
+                    continue
+                image_url = rewrite_media_url((row.get('image_url') or '').strip())
+                if not image_url or image_url.endswith('/static/images/placeholder.png'):
+                    continue
+                try:
+                    sort_order = int((row.get('sort_order') or '0').strip() or 0)
+                except ValueError:
+                    sort_order = 0
+                is_primary = 1 if (row.get('is_primary') or '').strip().lower() in ('1', 'true', 'yes') else 0
+                staged.setdefault(product_id, []).append((is_primary, sort_order, image_url))
+            for product_id, items in staged.items():
+                lookup[product_id] = [url for _primary, _sort, url in sorted(items, key=lambda item: (-item[0], item[1], item[2]))]
+    except Exception:
+        return {}
+
+    return lookup
+
+
+def _db_image_lookup(product_ids: list[int]) -> dict[int, list[str]]:
+    ids = [int(pid) for pid in product_ids if pid]
+    if not ids:
+        return {}
+
+    rows = (
+        ProductImage.query.filter(ProductImage.product_id.in_(ids))
+        .order_by(ProductImage.product_id.asc(), ProductImage.is_primary.desc(), ProductImage.sort_order.asc(), ProductImage.id.asc())
+        .all()
+    )
+
+    lookup: dict[int, list[str]] = {pid: [] for pid in ids}
+    for row in rows:
+        url = rewrite_media_url(row.image_url)
+        if not url or url.endswith('/static/images/placeholder.png'):
+            continue
+        bucket = lookup.setdefault(row.product_id, [])
+        if url not in bucket:
+            bucket.append(url)
+
+    return lookup
+
+
+def prime_product_image_lookup(products_or_ids) -> dict[int, list[str]]:
+    product_ids: list[int] = []
+    for item in products_or_ids or []:
+        if isinstance(item, int):
+            product_ids.append(item)
+        else:
+            product_id = getattr(item, 'id', None)
+            if product_id:
+                product_ids.append(product_id)
+
+    lookup = _db_image_lookup(product_ids)
+    catalog_lookup = _catalog_image_lookup()
+    for product_id in product_ids:
+        images = lookup.setdefault(product_id, [])
+        if not images:
+            for url in catalog_lookup.get(product_id, []):
+                if url not in images:
+                    images.append(url)
+
+    if has_request_context():
+        g.product_image_lookup = lookup
+    return lookup
+
+
+def get_product_image_urls(product_id: int) -> list[str]:
+    if has_request_context():
+        cached_lookup = getattr(g, 'product_image_lookup', None)
+        if cached_lookup and product_id in cached_lookup:
+            cached_urls = [url for url in cached_lookup[product_id] if url]
+            if cached_urls:
+                return cached_urls
+
+    lookup = _db_image_lookup([product_id])
+    urls = lookup.get(product_id, [])
+    if urls:
+        return urls
+
+    return _catalog_image_lookup().get(product_id, [])

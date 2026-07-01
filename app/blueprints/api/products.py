@@ -6,7 +6,7 @@ from sqlalchemy.orm import selectinload
 
 from app.blueprints.api import api_bp
 from app.extensions import db
-from app.models.product import Category, Product
+from app.models.product import Category, Product, prime_product_image_lookup
 from app.models import marketing as _marketing  # noqa: F401 - ensure price helpers are attached
 from app.utils import error_response, success_response
 
@@ -98,6 +98,7 @@ def get_products():
     start = max(0, (page - 1) * per_page)
     end = start + per_page
     page_items = sorted_products[start:end]
+    prime_product_image_lookup(page_items)
 
     return success_response({
         'products': [p.to_dict() for p in page_items],
@@ -121,12 +122,14 @@ def search_products():
             Product.description.ilike(f'%{q_str}%'),
         )
     ).order_by(Product.sales_count.desc()).limit(limit).all()
+    prime_product_image_lookup(results)
     return success_response({'products': [p.to_dict() for p in results]})
 
 
 @api_bp.route('/products/featured')
 def featured_products():
     products = Product.query.filter_by(is_featured=True, is_active=True).limit(8).all()
+    prime_product_image_lookup(products)
     return success_response({'products': [p.to_dict() for p in products]})
 
 
@@ -134,6 +137,7 @@ def featured_products():
 def trending_products():
     products = Product.query.filter_by(is_active=True).order_by(
         Product.sales_count.desc()).limit(8).all()
+    prime_product_image_lookup(products)
     return success_response({'products': [p.to_dict() for p in products]})
 
 
@@ -155,6 +159,7 @@ def product_recommendations(product_id):
         Product.id != product.id,
         Product.is_active == True
     ).order_by(Product.sales_count.desc()).limit(6).all()
+    prime_product_image_lookup(similar)
     return success_response({'products': [p.to_dict() for p in similar]})
 
 

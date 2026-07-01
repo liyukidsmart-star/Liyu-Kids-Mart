@@ -10,7 +10,7 @@ from flask_login import login_required, current_user
 from functools import wraps
 from app.blueprints.admin import admin_bp
 from app.extensions import db
-from app.models.product import Product, Category, ProductImage
+from app.models.product import Product, Category, ProductImage, prime_product_image_lookup
 from app.models.order import Order, OrderStatus, Coupon, DiscountType
 from app.models.marketing import ProductDiscount, TelegramChannelPost, TelegramChannelPostImage
 from app.services.telegram_marketing import publish_channel_post, _telegram_mini_app_link, channel_button_link_mode
@@ -158,6 +158,7 @@ def products():
         query = query.filter(Product.name.ilike(f'%{q}%'))
     pagination = query.order_by(Product.created_at.desc()).paginate(
         page=request.args.get('page', 1, int), per_page=20, error_out=False)
+    prime_product_image_lookup(pagination.items)
     return render_template('admin/products.html', products=pagination.items,
                            pagination=pagination, q=q)
 
