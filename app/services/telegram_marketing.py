@@ -1,6 +1,7 @@
 import html
 import logging
 import os
+import json
 from functools import lru_cache
 from typing import Iterable, Optional
 from urllib.parse import quote_plus, urlencode
@@ -288,7 +289,27 @@ def _build_announcement_caption(title: str, caption: str) -> str:
     return '\n\n'.join(parts).strip()
 
 
-def _send_photo(client: httpx.AsyncClient, chat_id, photo_url: str, caption: str, reply_markup: dict) -> dict:
+def _send_photo(client: httpx.AsyncClient, chat_id, photo_url: str, caption: str, reply_markup: dict):
+    if photo_url.startswith('/static/'):
+        local_path = os.path.join(current_app.root_path, photo_url.lstrip('/'))
+        if os.path.exists(local_path):
+            with open(local_path, 'rb') as f:
+                file_bytes = f.read()
+            filename = os.path.basename(local_path)
+            data_payload = {
+                'chat_id': chat_id,
+                'caption': _truncate(caption, 1024),
+                'parse_mode': 'HTML',
+            }
+            if reply_markup:
+                data_payload['reply_markup'] = json.dumps(reply_markup)
+            return client.post(
+                f"https://api.telegram.org/bot{_token()}/sendPhoto",
+                data=data_payload,
+                files={'photo': (filename, file_bytes)},
+                timeout=30,
+            )
+
     return client.post(
         f"https://api.telegram.org/bot{_token()}/sendPhoto",
         json={
@@ -382,21 +403,46 @@ async def publish_channel_post(post, *, images: Optional[Iterable[str]] = None, 
                 return await _send_text_fallback(client, token, channel_id, caption, reply_markup)
 
             media = []
+            files = {}
             for idx, url in enumerate(image_urls[:10]):
                 item = {
                     'type': 'photo',
-                    'media': url,
                 }
+                
+                if url.startswith('/static/'):
+                    local_path = os.path.join(current_app.root_path, url.lstrip('/'))
+                    if os.path.exists(local_path):
+                        with open(local_path, 'rb') as f:
+                            file_bytes = f.read()
+                        filename = os.path.basename(local_path)
+                        attach_name = f"photo{idx}"
+                        item['media'] = f"attach://{attach_name}"
+                        files[attach_name] = (filename, file_bytes)
+                    else:
+                        item['media'] = _telegram_image_input(url)
+                else:
+                    item['media'] = _telegram_image_input(url)
+
                 if idx == 0:
                     item['caption'] = _truncate(caption, 1024)
                     item['parse_mode'] = 'HTML'
                 media.append(item)
 
-            media_resp = await client.post(
-                f"https://api.telegram.org/bot{token}/sendMediaGroup",
-                json={'chat_id': channel_id, 'media': media},
-                timeout=30,
-            )
+            if files:
+                data_payload = {'chat_id': channel_id, 'media': json.dumps(media)}
+                media_resp = await client.post(
+                    f"https://api.telegram.org/bot{token}/sendMediaGroup",
+                    data=data_payload,
+                    files=files,
+                    timeout=30,
+                )
+            else:
+                media_resp = await client.post(
+                    f"https://api.telegram.org/bot{token}/sendMediaGroup",
+                    json={'chat_id': channel_id, 'media': media},
+                    timeout=30,
+                )
+            
             media_data = media_resp.json()
             if not media_data.get('ok'):
                 if _looks_like_media_fetch_error(media_data):

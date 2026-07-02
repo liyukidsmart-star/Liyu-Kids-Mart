@@ -686,9 +686,22 @@ def channel_posts():
             else:
                 uploaded = request.files.getlist('images')
                 if uploaded:
+                    upload_folder = current_app.config.get('UPLOAD_FOLDER', 'static/uploads')
+                    allow_local = current_app.debug or os.environ.get('ALLOW_LOCAL_IMAGE_FALLBACK', '').strip().lower() in ('1', 'true', 'yes')
                     for img_file in uploaded:
                         if img_file and img_file.filename and allowed_file(img_file.filename):
                             img_url = _upload_to_telegram(img_file)
+                            if not img_url and allow_local:
+                                try:
+                                    os.makedirs(upload_folder, exist_ok=True)
+                                    ext = img_file.filename.rsplit('.', 1)[-1].lower()
+                                    import uuid
+                                    fname = f'announcement_{uuid.uuid4().hex[:8]}.{ext}'
+                                    img_file.seek(0)
+                                    img_file.save(os.path.join(upload_folder, fname))
+                                    img_url = f'/static/uploads/{fname}'
+                                except OSError as e:
+                                    current_app.logger.error('Local upload failed for announcement image: %s', e)
                             if img_url:
                                 image_urls.append(img_url)
                 if not title:
