@@ -453,23 +453,9 @@ def get_customer_loyalty_profile(user) -> dict:
         .all()
     )
 
-    # Spending threshold context (for non-loyal / new customers)
+    # Spending thresholds (for non-loyal / new customers based on cart subtotal)
     thresholds = _get_active_thresholds()
-    spending_threshold_ctx = {}
-    for t in reversed(thresholds):
-        if spending < float(t.min_amount):
-            needed = round(float(t.min_amount) - spending, 2)
-            disc_amt = round(spending * float(t.discount_percentage) / 100, 2)
-            pct = round(min(spending / float(t.min_amount) * 100, 100), 1)
-            spending_threshold_ctx = {
-                'min_amount': float(t.min_amount),
-                'discount_percentage': float(t.discount_percentage),
-                'amount_needed': needed,
-                'discount_amount': disc_amt,
-                'progress_pct': pct,
-                'label': t.label,
-            }
-            break
+    spending_thresholds_ctx = [t.to_dict() for t in thresholds]
 
     return {
         'user_id': user.id,
@@ -490,7 +476,7 @@ def get_customer_loyalty_profile(user) -> dict:
         'last_purchase_date': user.last_purchase_date.isoformat() if user.last_purchase_date else None,
         'referral_code': user.referral_code,
         'progress': progress,
-        'spending_threshold': spending_threshold_ctx or None,
+        'spending_thresholds': spending_thresholds_ctx,
         'unlocked_achievements': unlocked,
         'locked_achievements': locked,
         'recent_transactions': [t.to_dict() for t in recent_txns],

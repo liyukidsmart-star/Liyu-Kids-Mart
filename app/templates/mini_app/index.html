@@ -685,7 +685,15 @@ function api(url,method='GET',body=null){
 function showTab(id){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
   document.querySelectorAll('.ni').forEach(n=>n.classList.remove('on'));
-  document.getElementById(id)?.classList.add('on');
+  const tab = document.getElementById(id);
+  if (tab) {
+    tab.classList.add('on');
+    const bar = document.getElementById('globalLoyaltyBar');
+    const hdr = tab.querySelector('.hdr, .ai-hdr, .me-hdr');
+    if (bar && hdr && bar.parentNode !== tab) {
+      hdr.insertAdjacentElement('afterend', bar);
+    }
+  }
   const ni=document.getElementById('ni-'+id.replace('tab-',''));
   if(ni)ni.classList.add('on');
   if(id==='tab-cart')renderCart();
@@ -1232,7 +1240,7 @@ function aiClear(){
 /* ── Cart rendering ───────────────────────────── */
 function sub(){return cart.reduce((s,i)=>s+(i.price*i.qty),0);}
 let ckDeliveryFee=80; // will be updated by map
-function delfee(){return sub()>=1000?0:ckDeliveryFee;}
+function delfee(){return ckDeliveryFee;}
 function total(){return sub()+delfee();}
 
 function renderCart(){
@@ -1248,8 +1256,6 @@ function renderCart(){
   const st=sub(), df=delfee();
   const d = calcClientDiscount();
   const tot = st - d.total + df;
-  const prog=Math.min(100,(st/1000)*100);
-  const rem=Math.max(0,1000-st);
   
   // Build discount rows HTML
   let discRows = '';
@@ -1283,17 +1289,10 @@ function renderCart(){
           </div>
         </div>
       </div>`).join('')}
-    <div class="dbar">
-      <div class="dbar-lbl">🚚 ${tr("c_fd_prog")}</div>
-      <div class="dbar-trk"><div class="dbar-fill" style="width:${prog}%"></div></div>
-      <div class="dbar-msg${df===0?' free':''}">
-        ${df===0?'🎉 You qualify for FREE delivery!':'Add ETB '+Math.round(rem).toLocaleString()+' more for free delivery'}
-      </div>
-    </div>
     <div class="csum">
       <div class="csum-row"><span>Subtotal (${cart.reduce((s,i)=>s+i.qty,0)} items)</span><span>ETB ${Math.round(st).toLocaleString()}</span></div>
       ${discRows}
-      <div class="csum-row"><span>${tr("c_df")}</span><span>${df===0?'<span style="color:var(--g);font-weight:700">FREE</span>':'ETB '+df}</span></div>
+      <div class="csum-row"><span>${tr("c_df")}</span><span>ETB ${df}</span></div>
       <div class="csum-row tot"><span>Total</span><span>ETB ${Math.round(tot).toLocaleString()}</span></div>
       ${savingsBanner}
     </div>
@@ -1438,6 +1437,7 @@ function switchMeTab(tabId){
   document.querySelectorAll('.me-section').forEach(sec => sec.classList.remove('on'));
   document.getElementById('stab-'+tabId).classList.add('on');
   document.getElementById('me-sec-'+tabId).classList.add('on');
+  updateGlobalLoyaltyBar();
 }
 
 /* ── Cart Popup & Discount Calculation ─────────── */
@@ -1455,13 +1455,21 @@ function calcClientDiscount() {
   }
 
   // 2. Spending threshold (only if better than loyalty, and only for non-loyal)
-  const thresh = loyaltyProfile?.spending_threshold;
-  if (thresh && st >= thresh.min_amount) {
-    const potential = Math.round(st * thresh.discount_percentage / 100);
+  const thresholds = loyaltyProfile?.spending_thresholds || [];
+  let bestThresh = null;
+  // Thresholds are ordered ascending by min_amount, so reverse to find highest applicable
+  for (let i = thresholds.length - 1; i >= 0; i--) {
+    if (st >= thresholds[i].min_amount) {
+      bestThresh = thresholds[i];
+      break;
+    }
+  }
+  if (bestThresh) {
+    const potential = Math.round(st * bestThresh.discount_percentage / 100);
     if (potential > loyaltyDiscAmt) {
       threshDiscAmt = potential;
       loyaltyDiscAmt = 0; // take best, not both
-      threshLabel = 'Large Purchase Discount (' + thresh.discount_percentage + '%)';
+      threshLabel = 'Large Purchase Discount (' + bestThresh.discount_percentage + '%)';
     }
   }
 
@@ -1476,58 +1484,39 @@ function calcClientDiscount() {
   return { loyaltyDiscAmt, loyaltyLabel, threshDiscAmt, threshLabel, incentiveDiscAmt, incentiveLabel, total };
 }
 
-let _cartPopupTimeout = null;
-async function showCartPopup(id, name, price, img) {
-  const popup = document.getElementById('cartPopup');
-  const card = document.getElementById('cartPopupCard');
+let _rewardToastTimeout = null;
+function showRewardToast(msg) {
+  const toastEl = document.getElementById('topRewardToast');
+  if(!toastEl) return;
+  document.getElementById('topRewardText').textContent = msg;
+  toastEl.style.transform = 'translateX(-50%) translateY(0)';
   
-  document.getElementById('popupImg').src = img || '/static/images/placeholder.png';
-  document.getElementById('popupName').textContent = name;
-  document.getElementById('popupPrice').textContent = 'ETB ' + Math.round(price).toLocaleString();
-  
-  const st = sub();
-  await fetchLoyaltyCartContext(st); // ensure context is loaded
-  
-  // Update Discount Badge
-  const d = calcClientDiscount();
-  const dbg = document.getElementById('popupDiscountBadge');
-  const dtext = document.getElementById('popupDiscountText');
-  
-  if (d.total > 0) {
-    dbg.style.display = 'block';
-    dtext.textContent = `You saved ETB ${d.total.toLocaleString()} so far!`;
-  } else {
-    dbg.style.display = 'none';
-  }
-  
-  // Progress bar (Next free delivery or cart incentive)
-  const incBox = document.getElementById('popupIncentiveBar');
+  clearTimeout(_rewardToastTimeout);
+  _rewardToastTimeout = setTimeout(() => {
+    toastEl.style.transform = 'translateX(-50%) translateY(-150%)';
+  }, 4000);
+}
+
+function updateGlobalLoyaltyBar() {
+  const barBox = document.getElementById('globalLoyaltyBar');
+  if(!barBox) return;
   const inc = _loyIncentiveCache;
   const nextInc = inc?.next_incentive;
   
-  if (nextInc && inc.amount_needed > 0) {
-    incBox.style.display = 'block';
-    document.getElementById('popupIncText').textContent = `Add ETB ${inc.amount_needed.toLocaleString()} more — save ETB ${nextInc.discount_offered.toLocaleString()}!`;
-    document.getElementById('popupIncBar').style.width = inc.progress_pct + '%';
-  } else if (st < 1000) {
-    incBox.style.display = 'block';
-    document.getElementById('popupIncText').textContent = `Add ETB ${(1000 - st).toLocaleString()} for Free Delivery`;
-    document.getElementById('popupIncBar').style.width = Math.min(100, (st/1000)*100) + '%';
-  } else {
-    incBox.style.display = 'none';
+  // If no incentives configured, or already hit max, hide
+  if (!nextInc || !inc.amount_needed) {
+    barBox.style.display = 'none';
+    return;
   }
   
-  popup.style.display = 'flex';
-  setTimeout(() => card.style.transform = 'translateY(0)', 10);
+  barBox.style.display = 'block';
+  barBox.style.position = 'sticky';
+  barBox.style.top = 'var(--hh)'; // stick below the header
+  barBox.style.zIndex = '40';
   
-  clearTimeout(_cartPopupTimeout);
-  _cartPopupTimeout = setTimeout(closeCartPopup, 5000);
-}
-
-function closeCartPopup() {
-  const card = document.getElementById('cartPopupCard');
-  card.style.transform = 'translateY(100%)';
-  setTimeout(() => document.getElementById('cartPopup').style.display = 'none', 350);
+  document.getElementById('globalIncText').textContent = `Add ETB ${inc.amount_needed.toLocaleString()} more`;
+  document.getElementById('globalIncSavings').textContent = `Save ETB ${nextInc.discount_offered.toLocaleString()}`;
+  document.getElementById('globalIncBar').style.width = inc.progress_pct + '%';
 }
 
 /* ── Rewards Tab ───────────────────────────────── */
@@ -2138,33 +2127,21 @@ if(tg){
 }
 </script>
 
-<div id="cartPopup" style="display:none;position:fixed;inset:0;z-index:600;align-items:flex-end;background:rgba(0,0,0,.45);backdrop-filter:blur(3px)">
-  <div id="cartPopupCard" style="width:100%;background:var(--sf);border-radius:24px 24px 0 0;padding:20px 16px 28px;transform:translateY(100%);transition:transform .35s cubic-bezier(.34,1.56,.64,1);box-shadow:0 -8px 40px rgba(0,0,0,.18)">
-    <div style="width:40px;height:4px;background:var(--br);border-radius:100px;margin:0 auto 16px"></div>
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
-      <img id="popupImg" style="width:60px;height:60px;border-radius:12px;object-fit:cover;background:var(--be)" src="" />
-      <div style="flex:1">
-        <div style="font-size:.65rem;font-weight:800;color:var(--g);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">✅ Added to Cart!</div>
-        <div id="popupName" style="font-size:.9rem;font-weight:800;line-height:1.3"></div>
-        <div id="popupPrice" style="font-size:.82rem;color:var(--tm);margin-top:2px"></div>
-      </div>
-    </div>
-    <div id="popupDiscountBadge" style="display:none;background:linear-gradient(135deg,#ECFDF5,#D1FAE5);border:1.5px solid #A7F3D0;border-radius:12px;padding:10px 14px;margin-bottom:12px">
-      <div style="font-size:.72rem;font-weight:900;color:#065F46;display:flex;align-items:center;gap:6px">
-        <span style="font-size:1rem">🎉</span>
-        <span id="popupDiscountText"></span>
-      </div>
-    </div>
-    <div id="popupIncentiveBar" style="display:none;background:var(--bg);border:1px solid var(--br);border-radius:12px;padding:10px 14px;margin-bottom:14px">
-      <div style="font-size:.7rem;font-weight:700;color:var(--tm);margin-bottom:5px" id="popupIncText"></div>
-      <div style="height:6px;background:var(--br);border-radius:100px;overflow:hidden">
-        <div id="popupIncBar" style="height:100%;background:linear-gradient(90deg,var(--gl),var(--g));border-radius:100px;transition:width .5s"></div>
-      </div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <button onclick="closeCartPopup();showTab('tab-cart')" style="background:var(--g);color:#fff;border-radius:100px;padding:13px;font-size:.88rem;font-weight:800;display:flex;align-items:center;justify-content:center;gap:6px"><i class='fas fa-shopping-bag'></i> View Cart</button>
-      <button onclick="closeCartPopup()" style="background:var(--bg);border:1.5px solid var(--br);border-radius:100px;padding:13px;font-size:.88rem;font-weight:700;color:var(--tm)">Continue</button>
-    </div>
+<div id="topRewardToast" style="position:fixed;top:15px;left:50%;transform:translateX(-50%) translateY(-150%);width:90%;max-width:400px;background:var(--sf);border-radius:100px;padding:10px 16px;box-shadow:0 10px 40px rgba(0,0,0,.2);display:flex;align-items:center;gap:12px;z-index:999;transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1);border:2px solid var(--g)">
+  <div style="width:36px;height:36px;border-radius:50%;background:var(--gp);display:flex;align-items:center;justify-content:center;font-size:1.2rem">🎉</div>
+  <div style="flex:1">
+    <div style="font-size:0.75rem;font-weight:800;color:var(--g);text-transform:uppercase;letter-spacing:0.5px">Discount Unlocked!</div>
+    <div id="topRewardText" style="font-size:0.85rem;font-weight:700;color:var(--tx)"></div>
+  </div>
+</div>
+
+<div id="globalLoyaltyBar" style="display:none;position:fixed;top:var(--hh);left:0;right:0;background:var(--sf);border-bottom:1px solid var(--br);padding:10px 16px;z-index:40;box-shadow:0 4px 12px rgba(0,0,0,.04)">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+    <div id="globalIncText" style="font-size:.75rem;font-weight:700;color:var(--tx)"></div>
+    <div id="globalIncSavings" style="font-size:.7rem;font-weight:800;color:var(--g);background:var(--gp);padding:2px 8px;border-radius:100px"></div>
+  </div>
+  <div style="height:6px;background:var(--br);border-radius:100px;overflow:hidden">
+    <div id="globalIncBar" style="height:100%;background:linear-gradient(90deg,var(--gl),var(--g));border-radius:100px;transition:width .5s"></div>
   </div>
 </div>
 </body>
