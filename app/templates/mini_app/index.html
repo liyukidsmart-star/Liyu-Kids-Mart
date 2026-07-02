@@ -1043,13 +1043,15 @@ async function init(){
   if(TGU?.first_name)document.getElementById('hname').textContent=TGU.first_name;
   updBdg();
   await auth();
-  // Load loyalty profile early so product cards can use it
-  if(TGID){
-    fetch('/api/v1/loyalty/profile?telegram_id='+TGID)
-      .then(r=>r.json()).then(d=>{
-        if(d.success)loyaltyProfile=d.data;
-      }).catch(()=>{});
-  }
+  // Load loyalty profile early so product cards can use it and global bar can render
+  const profUrl = TGID ? '/api/v1/loyalty/profile?telegram_id='+TGID : '/api/v1/loyalty/profile';
+  fetch(profUrl)
+    .then(r=>r.json()).then(d=>{
+      if(d.success){
+        loyaltyProfile=d.data;
+        updateGlobalLoyaltyBar();
+      }
+    }).catch(()=>{});
   await Promise.all([loadHomeCats(),loadHomeSections()]);
   loadShop(true);
   await openStartParamTarget();
@@ -1866,6 +1868,9 @@ function renderCK(){
     return;
   }
   if(ckStep==='form'){
+    const stored_cn = localStorage.getItem('lkm_cn') || nm;
+    const stored_cp = localStorage.getItem('lkm_cp') || '';
+    const stored_cl = localStorage.getItem('lkm_cl') || '';
     document.getElementById('chkBody').innerHTML=`
       <div class="chk-sec">
         <h3><i class="fas fa-shopping-bag" style="color:var(--g)"></i> ${tr('ck_order_sum')}</h3>
@@ -1876,11 +1881,11 @@ function renderCK(){
       <div class="chk-sec">
         <h3><i class="fas fa-user" style="color:var(--g)"></i> ${tr('ck_contact')}</h3>
         <div class="fg"><label class="flbl">${tr('ck_full_name')}</label>
-          <input class="finp" id="cn" type="text" placeholder="${curLang==='am'?'ሙሉ ስም':'Your name'}" value="${window.ckFormData?.cn||nm}"/></div>
+          <input class="finp" id="cn" type="text" placeholder="${curLang==='am'?'ሙሉ ስም':'Your name'}" value="${window.ckFormData?.cn||stored_cn}"/></div>
         <div class="fg"><label class="flbl">${tr('ck_phone')}</label>
-          <input class="finp" id="cp" type="tel" placeholder="${curLang==='am'?'09XXXXXXXX':'09XXXXXXXX'}" value="${window.ckFormData?.cp||''}"/></div>
+          <input class="finp" id="cp" type="tel" placeholder="${curLang==='am'?'09XXXXXXXX':'09XXXXXXXX'}" value="${window.ckFormData?.cp||stored_cp}"/></div>
         <div class="fg"><label class="flbl">${tr('ck_location')}</label>
-          <input class="finp" id="cl" type="text" placeholder="Near landmark, building name…" value="${window.ckFormData?.cl||''}"/></div>
+          <input class="finp" id="cl" type="text" placeholder="Near landmark, building name…" value="${window.ckFormData?.cl||stored_cl}"/></div>
         <div class="fg"><label class="flbl">${tr('ck_notes')}</label>
           <input class="finp" id="cno" type="text" placeholder="${curLang==='am'?'ልዩ መመሪያ ወይም ክፍለ ከተማ':'Any special instructions or sub-city'}" value="${window.ckFormData?.cno||''}"/></div>
       </div>
@@ -2008,6 +2013,9 @@ async function placeOrder(){
       })});
     const d=await r.json();
     if(d.success){
+      localStorage.setItem('lkm_cn', cn);
+      localStorage.setItem('lkm_cp', cp);
+      localStorage.setItem('lkm_cl', cl);
       lastON=d.data?.order_number||'LKM-0001';
       cart=[];saveCart();ckStep='success';renderCK();
       try{tg?.HapticFeedback?.notificationOccurred('success');}catch{}

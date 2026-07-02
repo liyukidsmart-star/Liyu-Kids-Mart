@@ -46,7 +46,11 @@ def loyalty_profile():
     """Return the full loyalty profile for the current user."""
     user = _get_user_from_request()
     if not user:
-        return error_response('Authentication required', 401)
+        from app.services.loyalty_service import _get_active_thresholds
+        thresholds = _get_active_thresholds()
+        return success_response({
+            'spending_thresholds': [t.to_dict() for t in thresholds]
+        })
     profile = get_customer_loyalty_profile(user)
     return success_response(profile)
 
