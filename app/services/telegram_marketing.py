@@ -189,7 +189,7 @@ def _absolute_url(url: str) -> str:
 def _telegram_image_input(url: str) -> str:
     if not url:
         return ''
-    if url.startswith('/media/'):
+    if '/media/' in url:
         return url.split('/media/', 1)[-1]
     if url.startswith('/static/'):
         return f"{DEFAULT_APP_URL.rstrip('/')}{url}"
