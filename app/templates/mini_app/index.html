@@ -1268,6 +1268,7 @@ function renderCart(){
   }
 
   body.innerHTML=`<div class="cscroll">
+    <div id="cartLoyaltyBanner"></div>
     ${cart.map((item,idx)=>`
       <div class="ci">
         <img src="${item.img}" alt="${item.name}" loading="lazy" decoding="async" onerror="this.src='/static/images/placeholder.png'"/>
@@ -1302,6 +1303,11 @@ function renderCart(){
       </button>
     </div>
   </div>`;
+
+  renderCartLoyaltyBanner(st).then(html => {
+    const b = document.getElementById('cartLoyaltyBanner');
+    if(b) b.innerHTML = html;
+  });
 }
 function cqty(idx,d){cart[idx].qty=Math.max(1,cart[idx].qty+d);saveCart();renderCart();}
 function crm(idx){const n=cart[idx].name.slice(0,22);cart.splice(idx,1);saveCart();renderCart();toast('🗑 '+n+'… removed');}
@@ -1471,13 +1477,16 @@ function calcClientDiscount() {
 }
 
 let _cartPopupTimeout = null;
-function showCartPopup(id, name, price, img) {
+async function showCartPopup(id, name, price, img) {
   const popup = document.getElementById('cartPopup');
   const card = document.getElementById('cartPopupCard');
   
   document.getElementById('popupImg').src = img || '/static/images/placeholder.png';
   document.getElementById('popupName').textContent = name;
   document.getElementById('popupPrice').textContent = 'ETB ' + Math.round(price).toLocaleString();
+  
+  const st = sub();
+  await fetchLoyaltyCartContext(st); // ensure context is loaded
   
   // Update Discount Badge
   const d = calcClientDiscount();
@@ -1493,8 +1502,14 @@ function showCartPopup(id, name, price, img) {
   
   // Progress bar (Next free delivery or cart incentive)
   const incBox = document.getElementById('popupIncentiveBar');
-  const st = sub();
-  if (st < 1000) {
+  const inc = _loyIncentiveCache;
+  const nextInc = inc?.next_incentive;
+  
+  if (nextInc && inc.amount_needed > 0) {
+    incBox.style.display = 'block';
+    document.getElementById('popupIncText').textContent = `Add ETB ${inc.amount_needed.toLocaleString()} more — save ETB ${nextInc.discount_offered.toLocaleString()}!`;
+    document.getElementById('popupIncBar').style.width = inc.progress_pct + '%';
+  } else if (st < 1000) {
     incBox.style.display = 'block';
     document.getElementById('popupIncText').textContent = `Add ETB ${(1000 - st).toLocaleString()} for Free Delivery`;
     document.getElementById('popupIncBar').style.width = Math.min(100, (st/1000)*100) + '%';
@@ -1506,7 +1521,7 @@ function showCartPopup(id, name, price, img) {
   setTimeout(() => card.style.transform = 'translateY(0)', 10);
   
   clearTimeout(_cartPopupTimeout);
-  _cartPopupTimeout = setTimeout(closeCartPopup, 4000);
+  _cartPopupTimeout = setTimeout(closeCartPopup, 5000);
 }
 
 function closeCartPopup() {
