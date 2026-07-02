@@ -343,10 +343,74 @@ ul{list-style:none}
 .spin{width:30px;height:30px;border:3px solid var(--gp);border-top-color:var(--g);border-radius:50%;animation:sp .7s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
 
-/* EMPTY */
-.empty{padding:40px 20px;text-align:center;color:var(--ts)}
-.empty .ei{font-size:3rem;opacity:.4;margin-bottom:10px}
-.empty p{font-size:.88rem}
+/* LOYALTY — Rewards Tab */
+.rwd-hdr{background:linear-gradient(135deg,#7C3AED,#9F4AFF,#C084FC);padding:24px 16px 32px;position:relative;overflow:hidden;border-radius:0 0 28px 28px;box-shadow:0 8px 30px rgba(124,58,237,.35)}
+.rwd-hdr::before{content:'';position:absolute;inset:0;background:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");opacity:.6}
+.rwd-tier-badge{width:72px;height:72px;border-radius:50%;background:rgba(255,255,255,.2);border:3px solid rgba(255,255,255,.4);display:flex;align-items:center;justify-content:center;font-size:2.2rem;margin:0 auto 10px;position:relative;z-index:1;backdrop-filter:blur(10px);box-shadow:0 8px 24px rgba(0,0,0,.2)}
+.rwd-tier-badge::after{content:'';position:absolute;inset:-6px;border-radius:50%;border:2px dashed rgba(255,255,255,.3);animation:spin 12s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.rwd-tier-name{color:#fff;font-weight:900;font-size:1.15rem;text-align:center;position:relative;z-index:1}
+.rwd-tier-sub{color:rgba(255,255,255,.75);font-size:.8rem;text-align:center;margin-top:2px;position:relative;z-index:1}
+.rwd-points-pill{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.2);border-radius:100px;padding:6px 16px;font-size:.85rem;font-weight:800;color:#fff;margin:10px auto 0;position:relative;z-index:1;border:1px solid rgba(255,255,255,.3)}
+.rwd-scroll{overflow-y:auto;flex:1;padding:0 0 20px}
+.rwd-progress-card{margin:16px 14px 0;background:#fff;border-radius:20px;padding:16px;border:1px solid #E9D5FF;box-shadow:0 4px 16px rgba(124,58,237,.08)}
+.rwd-prog-title{font-size:.8rem;font-weight:800;color:#7C3AED;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.rwd-prog-bar{height:10px;background:#F3F0FF;border-radius:100px;overflow:hidden;margin:8px 0 6px}
+.rwd-prog-fill{height:100%;border-radius:100px;background:linear-gradient(90deg,#7C3AED,#C084FC);transition:width .8s cubic-bezier(.34,1.56,.64,1)}
+.rwd-prog-labels{display:flex;justify-content:space-between;font-size:.72rem;color:#9CA3AF;font-weight:600}
+.rwd-stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 14px 0}
+.rwd-stat{background:#fff;border-radius:16px;padding:14px;border:1px solid #F3F4F6;box-shadow:0 2px 8px rgba(0,0,0,.04);text-align:center}
+.rwd-stat-ico{font-size:1.6rem;margin-bottom:4px}
+.rwd-stat-val{font-size:1.1rem;font-weight:900;color:#111}
+.rwd-stat-lbl{font-size:.68rem;font-weight:600;color:#9CA3AF;margin-top:2px}
+.rwd-section-title{padding:18px 14px 10px;font-size:.95rem;font-weight:800;display:flex;align-items:center;gap:7px}
+.rwd-achv-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:0 14px}
+.rwd-achv{background:#fff;border-radius:16px;padding:12px 8px;text-align:center;border:1.5px solid #F3F4F6;box-shadow:0 2px 8px rgba(0,0,0,.04);transition:transform .2s}
+.rwd-achv.locked{opacity:.45;filter:grayscale(.8)}
+.rwd-achv:active{transform:scale(.95)}
+.rwd-achv-ico{font-size:1.8rem;margin-bottom:5px}
+.rwd-achv-name{font-size:.68rem;font-weight:700;color:#374151;line-height:1.3}
+.rwd-achv-pts{font-size:.6rem;font-weight:800;color:#7C3AED;margin-top:2px}
+.rwd-disc-card{margin:0 14px 10px;background:linear-gradient(135deg,#ECFDF5,#D1FAE5);border:1.5px solid #A7F3D0;border-radius:18px;padding:16px;display:flex;align-items:center;gap:12px}
+.rwd-disc-ico{font-size:2rem;flex-shrink:0}
+.rwd-disc-val{font-size:1.4rem;font-weight:900;color:#065F46}
+.rwd-disc-sub{font-size:.75rem;color:#34D399;font-weight:700}
+.rwd-unlock-card{margin:0 14px 10px;background:linear-gradient(135deg,#FFF7ED,#FFEDD5);border:1.5px solid #FED7AA;border-radius:18px;padding:14px;cursor:pointer}
+.rwd-unlock-title{font-size:.8rem;font-weight:800;color:#C2410C;margin-bottom:6px;display:flex;align-items:center;gap:5px}
+.rwd-unlock-row{display:flex;align-items:center;justify-content:space-between;margin-top:6px}
+.rwd-unlock-badge{background:linear-gradient(135deg,#F97316,#EA580C);color:#fff;border-radius:100px;padding:4px 12px;font-size:.75rem;font-weight:800}
+/* LOYALTY — Smart Cart Banner */
+.loy-cart-banner{margin:10px 14px 0;border-radius:18px;padding:14px 16px;position:relative;overflow:hidden}
+.loy-cart-banner.thresh{background:linear-gradient(135deg,#1D4ED8,#3B82F6);color:#fff}
+.loy-cart-banner.incentive{background:linear-gradient(135deg,#059669,#10B981);color:#fff}
+.loy-cart-banner.both{background:linear-gradient(135deg,#7C3AED,#8B5CF6);color:#fff}
+.loy-banner-top{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.loy-banner-ico{font-size:1.8rem;flex-shrink:0}
+.loy-banner-text{flex:1}
+.loy-banner-title{font-weight:900;font-size:.9rem;line-height:1.3}
+.loy-banner-sub{font-size:.72rem;opacity:.85;margin-top:2px}
+.loy-banner-bar{height:7px;background:rgba(255,255,255,.25);border-radius:100px;overflow:hidden;margin-bottom:6px}
+.loy-banner-fill{height:100%;background:#fff;border-radius:100px;transition:width .6s cubic-bezier(.34,1.56,.64,1)}
+.loy-banner-labels{display:flex;justify-content:space-between;font-size:.65rem;opacity:.8;font-weight:700}
+.loy-suggest-label{font-size:.72rem;font-weight:800;opacity:.9;margin:8px 0 6px;display:flex;align-items:center;gap:5px}
+.loy-suggest-row{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.loy-suggest-row::-webkit-scrollbar{display:none}
+.loy-suggest-card{flex-shrink:0;width:100px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:12px;overflow:hidden;backdrop-filter:blur(4px)}
+.loy-suggest-card img{width:100%;height:70px;object-fit:cover;background:rgba(255,255,255,.1)}
+.loy-suggest-info{padding:5px 6px}
+.loy-suggest-name{font-size:.6rem;font-weight:700;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.loy-suggest-price{font-size:.7rem;font-weight:900;margin-top:2px;opacity:.9}
+.loy-suggest-btn{width:100%;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);color:#fff;border-radius:0 0 11px 11px;padding:5px;font-size:.65rem;font-weight:800;cursor:pointer}
+.loy-suggest-btn:active{background:rgba(255,255,255,.4)}
+/* Premium product locked state */
+.ppremium{position:absolute;inset:0;background:rgba(17,17,34,.55);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;border-radius:var(--rm);backdrop-filter:blur(3px)}
+.ppremium-ico{font-size:1.8rem;filter:drop-shadow(0 2px 8px rgba(0,0,0,.4))}
+.ppremium-label{background:linear-gradient(135deg,#7C3AED,#C084FC);color:#fff;font-size:.65rem;font-weight:800;border-radius:100px;padding:3px 10px;box-shadow:0 2px 8px rgba(124,58,237,.4)}
+.pcard.premium-locked .padd{background:linear-gradient(135deg,#7C3AED,#C084FC);opacity:.85}
+.sh-premium-block{background:linear-gradient(135deg,#F5F3FF,#EDE9FE);border:1.5px solid #DDD6FE;border-radius:16px;padding:16px;margin-bottom:16px;text-align:center}
+.sh-premium-title{font-size:.9rem;font-weight:900;color:#5B21B6;margin-bottom:4px}
+.sh-premium-sub{font-size:.8rem;color:#7C3AED}
+.sh-premium-cta{display:block;width:100%;background:linear-gradient(135deg,#7C3AED,#9F4AFF);color:#fff;border-radius:100px;padding:12px;font-size:.85rem;font-weight:800;margin-top:10px;cursor:pointer;border:none}
 </style>
 </head>
 <body>
@@ -459,6 +523,36 @@ ul{list-style:none}
   <div id="cartBody"></div>
 </div>
 
+<!-- ═══ REWARDS TAB ═══ -->
+<div id="tab-rewards" class="tab">
+  <div class="rwd-hdr" id="rwdHdr">
+    <div class="rwd-tier-badge" id="rwdBadge">👑</div>
+    <div class="rwd-tier-name" id="rwdTierName">Welcome!</div>
+    <div class="rwd-tier-sub" id="rwdTierSub">Your loyalty journey starts here</div>
+    <div style="display:flex;justify-content:center">
+      <div class="rwd-points-pill"><i class="fas fa-star"></i> <span id="rwdPoints">0</span> pts</div>
+    </div>
+  </div>
+  <div class="rwd-scroll">
+    <div id="rwdProgressCard" class="rwd-progress-card" style="display:none">
+      <div class="rwd-prog-title"><i class="fas fa-arrow-up"></i> Progress to Next Tier</div>
+      <div id="rwdProgText" style="font-size:.82rem;color:#374151;margin-bottom:6px"></div>
+      <div class="rwd-prog-bar"><div class="rwd-prog-fill" id="rwdProgFill" style="width:0%"></div></div>
+      <div class="rwd-prog-labels"><span id="rwdProgLow"></span><span id="rwdProgHigh"></span></div>
+    </div>
+    <div class="rwd-stats-grid">
+      <div class="rwd-stat"><div class="rwd-stat-ico">💰</div><div class="rwd-stat-val" id="rwdSavings">ETB 0</div><div class="rwd-stat-lbl">Total Saved</div></div>
+      <div class="rwd-stat"><div class="rwd-stat-ico">📦</div><div class="rwd-stat-val" id="rwdOrders">0</div><div class="rwd-stat-lbl">Total Orders</div></div>
+      <div class="rwd-stat"><div class="rwd-stat-ico">🏆</div><div class="rwd-stat-val" id="rwdAchCount">0</div><div class="rwd-stat-lbl">Achievements</div></div>
+      <div class="rwd-stat"><div class="rwd-stat-ico">🌟</div><div class="rwd-stat-val" id="rwdSpent">ETB 0</div><div class="rwd-stat-lbl">Lifetime Spent</div></div>
+    </div>
+    <div id="rwdNextUnlock"></div>
+    <div class="rwd-section-title"><i class="fas fa-trophy" style="color:#F59E0B"></i> Achievements</div>
+    <div class="rwd-achv-grid" id="rwdAchvGrid"><div class="ldr"><div class="spin"></div></div></div>
+    <div style="height:20px"></div>
+  </div>
+</div>
+
 <!-- ═══ ORDERS TAB ═══ -->
 <div id="tab-orders" class="tab">
   <header class="hdr">
@@ -488,9 +582,9 @@ ul{list-style:none}
     <div class="ni-lbl" data-i18n="nav_cart">Cart</div>
     <span class="ni-bdg" id="niBdg">0</span>
   </div>
-  <div class="ni" id="ni-orders" onclick="showTab('tab-orders')">
-    <div class="ni-ico"><i class="fas fa-box"></i></div>
-    <div class="ni-lbl" data-i18n="nav_orders">Orders</div>
+  <div class="ni" id="ni-rewards" onclick="showTab('tab-rewards')">
+    <div class="ni-ico"><i class="fas fa-crown"></i></div>
+    <div class="ni-lbl">Rewards</div>
   </div>
 </nav>
 
@@ -507,6 +601,7 @@ ul{list-style:none}
         <div class="sh-cmp" id="shCmp" style="display:none"></div>
       </div>
       <div class="age-bdg" id="shAge" style="margin-bottom:10px"></div>
+      <div id="shPremiumBlock"></div>
       <div class="sh-desc" id="shDesc"></div>
       <div class="sh-qrow">
         <span class="sh-qlbl">Quantity</span>
@@ -576,12 +671,13 @@ function showTab(id){
   if(id==='tab-orders')loadOrders();
   if(id==='tab-shop'){setupShopObserver();if(!sAll.length)loadShop(true);}
   if(id==='tab-ai'&&!aiDone)aiWelcome();
+  if(id==='tab-rewards')loadRewards();
 }
 
 function _resolveStartTab(raw){
   const value=(raw||'').trim().toLowerCase();
   if(!value)return '';
-  const map={home:'tab-home',shop:'tab-shop',store:'tab-shop',cart:'tab-cart',orders:'tab-orders',ai:'tab-ai',liyu:'tab-ai'};
+  const map={home:'tab-home',shop:'tab-shop',store:'tab-shop',cart:'tab-cart',orders:'tab-orders',ai:'tab-ai',liyu:'tab-ai',rewards:'tab-rewards',loyalty:'tab-rewards'};
   if(map[value])return map[value];
   if(value.startsWith('tab-'))return value;
   if(value.startsWith('tab:')){
@@ -656,43 +752,63 @@ function toggleWish(id,el){
     body:JSON.stringify({telegram_id:TGID,product_id:id})}).catch(()=>{});
 }
 
+/* ── Loyalty state ────────────────────────────── */
+let loyaltyProfile=null;
+let suggestProducts=[];
+
+function esc(s){return s.replace(/'/g,"\\'").replace(/"/g,'&quot;');}
+
+
 /* ── Product card HTML ────────────────────────── */
 function pcard(p,v='grid'){
   const n = curLang==='am'&&(p.name_am||'')?p.name_am:p.name;
   const w=wish.has(p.id);
+  const isPremium=p.is_premium||false;
+  const priceHidden=p.price_hidden||false;
+  const minLvl=p.min_loyalty_level_id||null;
+  // Can user interact with this product?
+  const userLvlOrder=loyaltyProfile?.level?.sort_order||0;
+  const prodLvlOrder=p.min_loyalty_level_sort_order||0;
+  const isLocked=minLvl&&(userLvlOrder<prodLvlOrder);
+  const lockLvlName=p.min_loyalty_level_name||'a higher tier';
   const bdgs=[p.is_new_arrival?'<span class="bpill bnew">New</span>':'',
     p.compare_price>p.price?'<span class="bpill bsale">Sale</span>':'',
-    p.sales_count>20?'<span class="bpill bhot">Hot</span>':''].join('');
-  const disc=p.compare_price>p.price?'<div class="pcard-cmp">ETB '+Math.round(p.compare_price).toLocaleString()+'</div>':'';
+    p.sales_count>20?'<span class="bpill bhot">Hot</span>':'',
+    isPremium?'<span class="bpill" style="background:linear-gradient(135deg,#7C3AED,#C084FC);color:#fff">💎 Premium</span>':''].join('');
+  const priceHTML=priceHidden&&isLocked
+    ?'<div class="pcard-price" style="color:#7C3AED;font-size:.78rem">💎 Members Only</div>'
+    :'<div class="pcard-price">ETB '+Math.round(p.price).toLocaleString()+'</div>';
+  const disc=p.compare_price>p.price&&!priceHidden?'<div class="pcard-cmp">ETB '+Math.round(p.compare_price).toLocaleString()+'</div>':'';
   const pj=esc(JSON.stringify(p));
   if(v==='h') return `
     <div class="hcard" onclick="openSheet(this.dataset.p)" data-p="${pj}">
       <img src="${p.primary_image}" alt="${n}" loading="lazy" decoding="async" onerror="this.src='/static/images/placeholder.png'"/>
       <div class="hcard-body">
         <div class="hcard-name">${n}</div>
-        <div class="hcard-price">ETB ${Math.round(p.price).toLocaleString()}</div>
+        <div class="hcard-price">${priceHidden&&isLocked?'💎 Members Only':'ETB '+Math.round(p.price).toLocaleString()}</div>
         <button class="hcard-add" data-pid="${p.id}"
-          onclick="event.stopPropagation();addCart(${p.id},'${esc(n)}',${p.price},'${p.primary_image}')">${tr("sh_add")}</button>
+          onclick="event.stopPropagation();${isLocked?`showTab('tab-rewards')`:`addCart(${p.id},'${esc(n)}',${p.price},'${p.primary_image}')`}">
+          ${isLocked?'🔒 Unlock':'+ Add'}</button>
       </div>
     </div>`;
   return `
-    <div class="pcard" onclick="openSheet(this.dataset.p)" data-p="${pj}">
+    <div class="pcard${isPremium?' premium-card':''}${isLocked?' premium-locked':''}" onclick="openSheet(this.dataset.p)" data-p="${pj}" style="position:relative">
       <div class="pbadges">${bdgs}</div>
       <button class="pwish${w?' on':''}" onclick="event.stopPropagation();toggleWish(${p.id},this)">
         <i class="fas fa-heart"></i></button>
       <img src="${p.primary_image}" alt="${n}" class="pcard-img"
            loading="lazy" decoding="async" onerror="this.src='/static/images/placeholder.png'"/>
+      ${isLocked?`<div class="ppremium"><div class="ppremium-ico">🔒</div><div class="ppremium-label">${lockLvlName} Tier</div></div>`:''}
       <div class="pcard-body">
         <div class="age-bdg">${p.age_label||''}</div>
         <div class="pcard-name">${n}</div>
-        <div class="pcard-prices"><div class="pcard-price">ETB ${Math.round(p.price).toLocaleString()}</div>${disc}</div>
-        <button class="padd" data-pid="${p.id}" ${p.stock_qty===0?'disabled':''}
-          onclick="event.stopPropagation();addCart(${p.id},'${esc(n)}',${p.price},'${p.primary_image}')">
-          ${p.stock_qty===0?'Out of Stock':'+ Add'}</button>
+        <div class="pcard-prices">${priceHTML}${disc}</div>
+        <button class="padd" data-pid="${p.id}" ${p.stock_qty===0||isLocked?'':''}style="${isLocked?'background:linear-gradient(135deg,#7C3AED,#C084FC);color:#fff':''}" onclick="event.stopPropagation();${isLocked?`showTab('tab-rewards')`:p.stock_qty===0?'':`addCart(${p.id},'${esc(n)}',${p.price},'${p.primary_image}')`}" ${isLocked||p.stock_qty===0?'':''}>
+          ${isLocked?'🔒 Unlock in Rewards':p.stock_qty===0?'Out of Stock':'+ Add'}
+        </button>
       </div>
     </div>`;
 }
-function esc(s){return s.replace(/'/g,"\\'").replace(/"/g,'&quot;');}
 
 /* ── Quick-view sheet ─────────────────────────── */
 function openSheet(pJson){
@@ -700,21 +816,54 @@ function openSheet(pJson){
   const n = curLang==='am'&&(p.name_am||'')?p.name_am:p.name;
   const sd = curLang==='am'&&(p.short_description_am||'')?p.short_description_am:p.short_description;
   const fd = curLang==='am'&&(p.description_am||'')?p.description_am:p.description;
+  const isPremium=p.is_premium||false;
+  const priceHidden=p.price_hidden||false;
+  const minLvl=p.min_loyalty_level_id||null;
+  const userLvlOrder=loyaltyProfile?.level?.sort_order||0;
+  const prodLvlOrder=p.min_loyalty_level_sort_order||0;
+  const isLocked=minLvl&&(userLvlOrder<prodLvlOrder);
+  const lockLvlName=p.min_loyalty_level_name||'a higher tier';
   document.getElementById('shQval').textContent=1;
   document.getElementById('shImg').src=p.primary_image||'/static/images/placeholder.png';
   document.getElementById('shName').textContent=n;
-  document.getElementById('shPrice').textContent='ETB '+Math.round(p.price).toLocaleString();
-  const cmp=document.getElementById('shCmp');
-  if(p.compare_price>p.price){cmp.textContent='ETB '+Math.round(p.compare_price).toLocaleString();cmp.style.display='block';}
-  else cmp.style.display='none';
+  // Price display
+  if(priceHidden&&isLocked){
+    document.getElementById('shPrice').innerHTML='<span style="color:#7C3AED;font-size:1rem;font-weight:900">💎 Price unlocks at '+lockLvlName+'</span>';
+    document.getElementById('shCmp').style.display='none';
+  } else {
+    document.getElementById('shPrice').textContent='ETB '+Math.round(p.price).toLocaleString();
+    const cmp=document.getElementById('shCmp');
+    if(p.compare_price>p.price){cmp.textContent='ETB '+Math.round(p.compare_price).toLocaleString();cmp.style.display='block';}
+    else cmp.style.display='none';
+  }
   document.getElementById('shAge').textContent=p.age_label||'';
   document.getElementById('shDesc').textContent=sd||fd?.slice(0,200)||'No description.';
+  // Premium block
+  const premBlock=document.getElementById('shPremiumBlock');
+  if(isPremium&&isLocked){
+    premBlock.innerHTML=`<div class="sh-premium-block">
+      <div class="sh-premium-title">💎 Premium Product</div>
+      <div class="sh-premium-sub">Reach <strong>${lockLvlName}</strong> tier to unlock purchasing & full details.</div>
+      <button class="sh-premium-cta" onclick="closeSheet();showTab('tab-rewards')">View My Rewards Progress →</button>
+    </div>`;
+  } else premBlock.innerHTML='';
+  // CTA button
   const btn=document.getElementById('shAdd');
-  if(p.stock_qty===0){btn.textContent='Out of Stock';btn.disabled=true;}
-  else{btn.innerHTML='<i class="fas fa-shopping-bag"></i> Add to Cart';btn.disabled=false;}
+  if(isLocked){
+    btn.innerHTML='🔒 Unlock at '+lockLvlName+' Tier';
+    btn.disabled=false;
+    btn.onclick=()=>{closeSheet();showTab('tab-rewards');};
+    btn.style.background='linear-gradient(135deg,#7C3AED,#9F4AFF)';
+  } else if(p.stock_qty===0){
+    btn.textContent='Out of Stock';btn.disabled=true;btn.style.background='';
+  } else {
+    btn.innerHTML='<i class="fas fa-shopping-bag"></i> Add to Cart';btn.disabled=false;
+    btn.style.background='';btn.onclick=shAddCart;
+  }
   const bdg=document.getElementById('shBdgs');
   bdg.innerHTML=(p.is_new_arrival?'<span class="bpill bnew">New</span>':'')+
-    (p.compare_price>p.price?'<span class="bpill bsale">Sale</span>':'');
+    (p.compare_price>p.price?'<span class="bpill bsale">Sale</span>':'')+
+    (isPremium?'<span class="bpill" style="background:linear-gradient(135deg,#7C3AED,#C084FC);color:#fff">💎 Premium</span>':'');
   document.getElementById('sov').classList.add('on'); hap();
 }
 function closeSheet(){document.getElementById('sov').classList.remove('on');shProd=null;}
@@ -856,6 +1005,13 @@ async function init(){
   if(TGU?.first_name)document.getElementById('hname').textContent=TGU.first_name;
   updBdg();
   await auth();
+  // Load loyalty profile early so product cards can use it
+  if(TGID){
+    fetch('/api/v1/loyalty/profile?telegram_id='+TGID)
+      .then(r=>r.json()).then(d=>{
+        if(d.success)loyaltyProfile=d.data;
+      }).catch(()=>{});
+  }
   await Promise.all([loadHomeCats(),loadHomeSections()]);
   loadShop(true);
   await openStartParamTarget();
@@ -1107,6 +1263,211 @@ function renderCart(){
 }
 function cqty(idx,d){cart[idx].qty=Math.max(1,cart[idx].qty+d);saveCart();renderCart();}
 function crm(idx){const n=cart[idx].name.slice(0,22);cart.splice(idx,1);saveCart();renderCart();toast('🗑 '+n+'… removed');}
+
+/* ── Smart Cart Incentives ─────────────────────── */
+let _loyIncentiveCache=null, _loyThreshCache=null;
+
+async function fetchLoyaltyCartContext(subtotal){
+  // Fetch both: cart incentive and spending threshold in parallel
+  try{
+    const [incR, profR] = await Promise.all([
+      fetch('/api/v1/loyalty/cart-incentive?subtotal='+subtotal),
+      TGID?fetch('/api/v1/loyalty/profile?telegram_id='+TGID):Promise.resolve(null)
+    ]);
+    const incD = await incR.json();
+    const profD = profR ? await profR.json() : null;
+    if(incD.success) _loyIncentiveCache = incD.data;
+    if(profD?.success) { loyaltyProfile = profD.data; _loyThreshCache = profD.data?.discount_preview; }
+  } catch{}
+}
+
+async function renderCartLoyaltyBanner(subtotal){
+  await fetchLoyaltyCartContext(subtotal);
+  const inc = _loyIncentiveCache;
+  const profile = loyaltyProfile;
+  if(!inc && !profile) return '';
+
+  // Spending Threshold Banner — shown only if user is a new/generic customer
+  const userIsLoyalTier = profile?.level && (profile.level.sort_order||0) > 0;
+  const nextInc = inc?.next_incentive;
+  const amtNeeded = inc?.amount_needed||0;
+  const progPct = inc?.progress_pct||0;
+  const curSaving = inc?.current_savings||0;
+
+  // Spending threshold from the profile
+  const thresh = profile?.spending_threshold;
+  const threshNeeded = thresh?.amount_needed||0;
+  const threshDiscount = thresh?.discount_amount||0;
+  const threshPct = thresh?.progress_pct||0;
+
+  // Suggest products: cheapest in-stock products close to what they need
+  let suggestHTML = '';
+  if((nextInc || threshNeeded>0) && suggestProducts.length){
+    const needAmt = nextInc ? amtNeeded : threshNeeded;
+    const cheap = suggestProducts.filter(p=>!p.min_loyalty_level_id).slice(0,6);
+    if(cheap.length){
+      suggestHTML = `<div class="loy-suggest-label">🛍 Add to unlock:</div>
+        <div class="loy-suggest-row">${cheap.map(p=>{
+          const n=p.name.slice(0,20);
+          return `<div class="loy-suggest-card">
+            <img src="${p.primary_image}" alt="${n}" onerror="this.src='/static/images/placeholder.png'" loading="lazy"/>
+            <div class="loy-suggest-info">
+              <div class="loy-suggest-name">${n}</div>
+              <div class="loy-suggest-price">ETB ${Math.round(p.price).toLocaleString()}</div>
+            </div>
+            <button class="loy-suggest-btn" onclick="addCart(${p.id},'${esc(p.name)}',${p.price},'${p.primary_image}');renderCart()">+ Add</button>
+          </div>`;}).join('')}</div>`;
+    }
+  }
+
+  // Cart incentive banner (universal for all customers)
+  let incBannerHTML = '';
+  if(nextInc && amtNeeded > 0){
+    incBannerHTML = `<div class="loy-cart-banner incentive">
+      <div class="loy-banner-top">
+        <div class="loy-banner-ico">🎁</div>
+        <div class="loy-banner-text">
+          <div class="loy-banner-title">Add ETB ${Math.round(amtNeeded).toLocaleString()} more — save ETB ${Math.round(nextInc.discount_offered||0).toLocaleString()}!</div>
+          <div class="loy-banner-sub">${nextInc.popup_text||'Exclusive cart discount waiting for you'}</div>
+        </div>
+      </div>
+      <div class="loy-banner-bar"><div class="loy-banner-fill" style="width:${progPct}%"></div></div>
+      <div class="loy-banner-labels"><span>ETB ${Math.round(subtotal).toLocaleString()}</span><span>ETB ${Math.round(nextInc.min_cart_value||0).toLocaleString()}</span></div>
+      ${suggestHTML}
+    </div>`;
+  } else if(curSaving>0){
+    incBannerHTML = `<div class="loy-cart-banner incentive">
+      <div class="loy-banner-top">
+        <div class="loy-banner-ico">🎉</div>
+        <div class="loy-banner-text">
+          <div class="loy-banner-title">Cart discount unlocked! Save ETB ${Math.round(curSaving).toLocaleString()}</div>
+          <div class="loy-banner-sub">Applied automatically at checkout</div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // Spending threshold banner — shown only to non-loyal or new customers (universal threshold)
+  let threshBannerHTML = '';
+  if(!userIsLoyalTier && threshNeeded > 0 && threshDiscount > 0){
+    threshBannerHTML = `<div class="loy-cart-banner thresh">
+      <div class="loy-banner-top">
+        <div class="loy-banner-ico">💸</div>
+        <div class="loy-banner-text">
+          <div class="loy-banner-title">Add ETB ${Math.round(threshNeeded).toLocaleString()} more — get ETB ${Math.round(threshDiscount).toLocaleString()} off!</div>
+          <div class="loy-banner-sub">Large purchase discount — automatic at checkout</div>
+        </div>
+      </div>
+      <div class="loy-banner-bar"><div class="loy-banner-fill" style="width:${threshPct}%"></div></div>
+      <div class="loy-banner-labels"><span>ETB ${Math.round(subtotal).toLocaleString()}</span><span>ETB ${Math.round((subtotal+threshNeeded)).toLocaleString()}</span></div>
+      ${!incBannerHTML?suggestHTML:''}
+    </div>`;
+  }
+
+  // Loyal customer — show their tier discount instead of threshold
+  let tierBannerHTML = '';
+  if(userIsLoyalTier && profile?.level?.discount_percentage > 0){
+    const discAmt = Math.round(subtotal * profile.level.discount_percentage / 100);
+    if(discAmt > 0){
+      tierBannerHTML = `<div class="loy-cart-banner both">
+        <div class="loy-banner-top">
+          <div class="loy-banner-ico">${profile.level.badge_icon||'👑'}</div>
+          <div class="loy-banner-text">
+            <div class="loy-banner-title">${profile.level.name} discount: Save ETB ${discAmt.toLocaleString()}!</div>
+            <div class="loy-banner-sub">${profile.level.discount_percentage}% loyalty reward — applied at checkout</div>
+          </div>
+        </div>
+      </div>`;
+    }
+  }
+
+  return threshBannerHTML + tierBannerHTML + incBannerHTML;
+}
+
+/* ── Rewards Tab ───────────────────────────────── */
+async function loadRewards(){
+  if(!TGID){
+    document.getElementById('rwdTierName').textContent='Open in Telegram';
+    document.getElementById('rwdTierSub').textContent='Sign in to see your rewards';
+    return;
+  }
+  try{
+    const [profR, achvR] = await Promise.all([
+      fetch('/api/v1/loyalty/profile?telegram_id='+TGID),
+      fetch('/api/v1/loyalty/achievements?telegram_id='+TGID)
+    ]);
+    const [profD, achvD] = await Promise.all([profR.json(), achvR.json()]);
+    if(profD.success){
+      loyaltyProfile = profD.data;
+      const p = profD.data;
+      const lvl = p.level;
+      const badge = document.getElementById('rwdBadge');
+      const tierName = document.getElementById('rwdTierName');
+      const tierSub = document.getElementById('rwdTierSub');
+      const pts = document.getElementById('rwdPoints');
+      badge.textContent = lvl?.badge_icon||'🌱';
+      tierName.textContent = lvl?.name||'New Member';
+      tierSub.textContent = lvl?`${lvl.discount_percentage}% loyalty discount active`:'Complete your first order to start earning!';
+      pts.textContent = (p.reward_points||0).toLocaleString();
+      // Header gradient color
+      if(lvl?.color_hex){
+        document.getElementById('rwdHdr').style.background=`linear-gradient(135deg,${lvl.color_hex},${lvl.color_hex}CC,${lvl.color_hex}88)`;
+      }
+      // Stats
+      document.getElementById('rwdSavings').textContent='ETB '+Math.round(p.lifetime_savings||0).toLocaleString();
+      document.getElementById('rwdOrders').textContent=(p.total_orders||0).toLocaleString();
+      document.getElementById('rwdSpent').textContent='ETB '+Math.round(p.total_money_spent||0).toLocaleString();
+      // Progress to next tier
+      const nextLvl = p.next_level;
+      const progCard = document.getElementById('rwdProgressCard');
+      if(nextLvl){
+        progCard.style.display='block';
+        const spent=parseFloat(p.total_money_spent||0);
+        const needed=parseFloat(nextLvl.min_spending||0);
+        const pct=Math.min(100,needed>0?(spent/needed*100):100);
+        const rem=Math.max(0,needed-spent);
+        document.getElementById('rwdProgText').textContent=`Spend ETB ${Math.round(rem).toLocaleString()} more to reach ${nextLvl.name}`;
+        document.getElementById('rwdProgFill').style.width=pct+'%';
+        document.getElementById('rwdProgLow').textContent='ETB '+Math.round(spent).toLocaleString();
+        document.getElementById('rwdProgHigh').textContent='ETB '+Math.round(needed).toLocaleString();
+        // Unlock card teaser
+        document.getElementById('rwdNextUnlock').innerHTML=`
+          <div class="rwd-unlock-card" onclick="showTab('tab-shop')">
+            <div class="rwd-unlock-title"><i class="fas fa-lock"></i> Next Tier Unlock: ${nextLvl.name}</div>
+            <div style="font-size:.8rem;color:#92400E;line-height:1.5">Reach ${nextLvl.name} for ${nextLvl.discount_percentage}% discount on every order. Shop more to level up!</div>
+            <div class="rwd-unlock-row">
+              <span style="font-size:.75rem;color:#92400E">ETB ${Math.round(rem).toLocaleString()} to go</span>
+              <span class="rwd-unlock-badge">Shop Now →</span>
+            </div>
+          </div>`;
+      } else if(lvl){
+        progCard.style.display='none';
+        document.getElementById('rwdNextUnlock').innerHTML=`
+          <div class="rwd-disc-card">
+            <div class="rwd-disc-ico">👑</div>
+            <div><div class="rwd-disc-val">Max Tier Reached!</div><div class="rwd-disc-sub">You enjoy ${lvl.discount_percentage}% on every order</div></div>
+          </div>`;
+      }
+    }
+    // Achievements
+    if(achvD.success){
+      const achieves = achvD.data?.achievements||[];
+      document.getElementById('rwdAchCount').textContent=achieves.filter(a=>a.is_unlocked).length;
+      if(!achieves.length){
+        document.getElementById('rwdAchvGrid').innerHTML='<div style="grid-column:span 3;text-align:center;color:#9CA3AF;font-size:.82rem;padding:20px">No achievements yet — place your first order!</div>';
+      } else {
+        document.getElementById('rwdAchvGrid').innerHTML=achieves.map(a=>`
+          <div class="rwd-achv${a.is_unlocked?'':' locked'}">
+            <div class="rwd-achv-ico">${a.badge_icon||'🏅'}</div>
+            <div class="rwd-achv-name">${a.name}</div>
+            <div class="rwd-achv-pts">+${a.points_awarded} pts</div>
+          </div>`).join('');
+      }
+    }
+  } catch(e){
+    document.getElementById('rwdTierName').textContent='Could not load';
+  }
+}
 </script>
 
 <script>

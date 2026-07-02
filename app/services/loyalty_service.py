@@ -111,19 +111,30 @@ def calculate_loyalty_discount(user, cart_subtotal: float) -> dict:
                 'pct': loyalty_disc_pct,
             })
 
-    # 2. Per-order spending threshold discount
+    # 2. Per-order spending threshold discount (only applied if better than loyalty)
     thresholds = _get_active_thresholds()
+    best_threshold = None
     for t in reversed(thresholds):   # highest threshold first
         if cart_subtotal >= float(t.min_amount):
-            spending_disc_pct = float(t.discount_percentage)
-            spending_disc_amt = round(cart_subtotal * spending_disc_pct / 100, 2)
-            if spending_disc_amt > 0:
-                savings_breakdown.append({
-                    'label': f'Large Purchase Discount ({t.label or f"{t.min_amount:.0f}+ Birr"})',
-                    'amount': spending_disc_amt,
-                    'pct': spending_disc_pct,
-                })
+            best_threshold = t
             break
+            
+    if best_threshold:
+        potential_spending_disc_pct = float(best_threshold.discount_percentage)
+        potential_spending_disc_amt = round(cart_subtotal * potential_spending_disc_pct / 100, 2)
+        
+        # Take the better of the two (do not stack)
+        if potential_spending_disc_amt > loyalty_disc_amt:
+            spending_disc_pct = potential_spending_disc_pct
+            spending_disc_amt = potential_spending_disc_amt
+            # Clear loyalty discount since spending is better
+            loyalty_disc_pct = 0.0
+            loyalty_disc_amt = 0.0
+            savings_breakdown = [{
+                'label': f'Large Purchase Discount ({best_threshold.label or f"{best_threshold.min_amount:.0f}+ Birr"})',
+                'amount': spending_disc_amt,
+                'pct': spending_disc_pct,
+            }]
 
     # 3. Quantity discount (based on total items in cart)
     total_items = 0
@@ -442,11 +453,32 @@ def get_customer_loyalty_profile(user) -> dict:
         .all()
     )
 
+    # Spending threshold context (for non-loyal / new customers)
+    thresholds = _get_active_thresholds()
+    spending_threshold_ctx = {}
+    for t in reversed(thresholds):
+        if spending < float(t.min_amount):
+            needed = round(float(t.min_amount) - spending, 2)
+            disc_amt = round(spending * float(t.discount_percentage) / 100, 2)
+            pct = round(min(spending / float(t.min_amount) * 100, 100), 1)
+            spending_threshold_ctx = {
+                'min_amount': float(t.min_amount),
+                'discount_percentage': float(t.discount_percentage),
+                'amount_needed': needed,
+                'discount_amount': disc_amt,
+                'progress_pct': pct,
+                'label': t.label,
+            }
+            break
+
     return {
         'user_id': user.id,
         'full_name': user.full_name,
         'telegram_username': user.telegram_username,
         'customer_status': user.customer_status.value,
+        # Flat level field for Mini App convenience
+        'level': current_level.to_dict() if current_level else None,
+        'next_level': next_level.to_dict() if next_level else None,
         'current_level': current_level.to_dict() if current_level else None,
         'reward_points': user.reward_points or 0,
         'lifetime_points_earned': user.lifetime_points_earned or 0,
@@ -458,6 +490,7 @@ def get_customer_loyalty_profile(user) -> dict:
         'last_purchase_date': user.last_purchase_date.isoformat() if user.last_purchase_date else None,
         'referral_code': user.referral_code,
         'progress': progress,
+        'spending_threshold': spending_threshold_ctx or None,
         'unlocked_achievements': unlocked,
         'locked_achievements': locked,
         'recent_transactions': [t.to_dict() for t in recent_txns],
