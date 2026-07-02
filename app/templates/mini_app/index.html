@@ -1264,9 +1264,9 @@ function renderCart(){
     </div>`;
     return;
   }
-  const st=sub(), df=delfee();
+  const st=sub();
   const d = calcClientDiscount();
-  const tot = st - d.total + df;
+  const tot = st - d.total;
   
   // Build discount rows HTML
   let discRows = '';
@@ -1276,12 +1276,15 @@ function renderCart(){
   if (d.threshDiscAmt > 0) {
     discRows += `<div class="csum-row" style="color:var(--g)"><span>${d.threshLabel}</span><span>-ETB ${d.threshDiscAmt.toLocaleString()}</span></div>`;
   }
+  if (d.qtyDiscAmt > 0) {
+    discRows += `<div class="csum-row" style="color:var(--g)"><span>${d.qtyLabel}</span><span>-ETB ${d.qtyDiscAmt.toLocaleString()}</span></div>`;
+  }
   if (d.incentiveDiscAmt > 0) {
     discRows += `<div class="csum-row" style="color:var(--g)"><span>${d.incentiveLabel}</span><span>-ETB ${d.incentiveDiscAmt.toLocaleString()}</span></div>`;
   }
   let savingsBanner = '';
   if (d.total > 0) {
-    savingsBanner = `<div class="disc-saved">🎉 You saved ETB ${d.total.toLocaleString()} today!</div>`;
+    savingsBanner = `<div class="disc-saved">🎉 ${curLang==='am'?'በአጠቃላይ ETB '+d.total.toLocaleString()+' ቀንሶልዎታል!':'You saved ETB '+d.total.toLocaleString()+' today!'}</div>`;
   }
 
   body.innerHTML=`<div class="cscroll">
@@ -1301,15 +1304,14 @@ function renderCart(){
         </div>
       </div>`).join('')}
     <div class="csum">
-      <div class="csum-row"><span>Subtotal (${cart.reduce((s,i)=>s+i.qty,0)} items)</span><span>ETB ${Math.round(st).toLocaleString()}</span></div>
+      <div class="csum-row"><span>${curLang==='am'?'አጠቃላይ':'Subtotal'} (${cart.reduce((s,i)=>s+i.qty,0)} items)</span><span>ETB ${Math.round(st).toLocaleString()}</span></div>
       ${discRows}
-      <div class="csum-row"><span>${tr("c_df")}</span><span>ETB ${df}</span></div>
-      <div class="csum-row tot"><span>Total</span><span>ETB ${Math.round(tot).toLocaleString()}</span></div>
+      <div class="csum-row tot"><span>${curLang==='am'?'ድምር':'Total'}</span><span>ETB ${Math.round(tot).toLocaleString()}</span></div>
       ${savingsBanner}
     </div>
     <div style="padding:0 14px 20px">
       <button class="co-btn" onclick="openCheckout()">
-        <i class="fas fa-lock"></i> Checkout — ETB ${Math.round(tot).toLocaleString()}
+        <i class="fas fa-lock"></i> ${curLang==='am'?'ወደ ክፍያ ይቀጥሉ':'Checkout'} — ETB ${Math.round(tot).toLocaleString()}
       </button>
     </div>
   </div>`;
@@ -1343,7 +1345,9 @@ async function fetchDiscountFromServer(){
         loyaltyDiscAmt: Math.round(data.loyalty_discount_amount || 0),
         loyaltyLabel: data.savings_breakdown?.find(s=>s.label?.includes('Loyalty'))?.label || 'Loyalty Discount',
         threshDiscAmt: Math.round(data.spending_discount_amount || 0),
-        threshLabel: data.savings_breakdown?.find(s=>!s.label?.includes('Loyalty'))?.label || 'Purchase Discount',
+        threshLabel: data.savings_breakdown?.find(s=>s.label?.includes('Large'))?.label || 'Purchase Discount',
+        qtyDiscAmt: Math.round(data.qty_discount_amount || 0),
+        qtyLabel: data.savings_breakdown?.find(s=>s.label?.includes('Items'))?.label || 'Quantity Discount',
         incentiveDiscAmt: 0, // handled separately via cart incentive API
         incentiveLabel: 'Cart Reward',
         total_discount_amount: Math.round(data.total_discount_amount || 0),
@@ -1415,7 +1419,7 @@ async function renderCartLoyaltyBanner(subtotal){
   if(prog.nextThresh && suggestProducts.length){
     const cheap = suggestProducts.filter(p=>!p.min_loyalty_level_id).slice(0,6);
     if(cheap.length){
-      suggestHTML = `<div class="loy-suggest-label">\ud83d\udecd\ufe0f Add to unlock:</div>
+      suggestHTML = `<div class="loy-suggest-label">\ud83d\udecd\ufe0f ${curLang==='am'?'ቅናሹን ለማግኘት እነዚህን ይጨምሩ':'Add to unlock'}:</div>
         <div class="loy-suggest-row">${cheap.map(p=>{
           const n=p.name.slice(0,20);
           return `<div class="loy-suggest-card">
@@ -1424,7 +1428,7 @@ async function renderCartLoyaltyBanner(subtotal){
               <div class="loy-suggest-name">${n}</div>
               <div class="loy-suggest-price">ETB ${Math.round(p.price).toLocaleString()}</div>
             </div>
-            <button class="loy-suggest-btn" onclick="addCart(${p.id},'${esc(p.name)}',${p.price},'${p.primary_image}');renderCart()">+ Add</button>
+            <button class="loy-suggest-btn" onclick="addCart(${p.id},'${esc(p.name)}',${p.price},'${p.primary_image}');renderCart()">+ ${curLang==='am'?'ጨምር':'Add'}</button>
           </div>`;}).join('')}</div>`;
     }
   }
@@ -1440,8 +1444,8 @@ async function renderCartLoyaltyBanner(subtotal){
       <div class="loy-banner-top">
         <div class="loy-banner-ico">${loyaltyProfile.level.badge_icon||'\ud83d\udc51'}</div>
         <div class="loy-banner-text">
-          <div class="loy-banner-title">${loyaltyProfile.level.name} discount: Save ETB ${discAmt.toLocaleString()}!</div>
-          <div class="loy-banner-sub">${tierPct}% loyalty reward \u2014 applied at checkout</div>
+          <div class="loy-banner-title">${loyaltyProfile.level.name} ${curLang==='am'?'ቅናሽ':'discount'}: ${curLang==='am'?'ETB '+discAmt.toLocaleString()+' ቀንሷል!':'Save ETB '+discAmt.toLocaleString()+'!'}</div>
+          <div class="loy-banner-sub">${tierPct}% ${curLang==='am'?'የታማኝነት ሽልማት \u2014 በክፍያ ጊዜ ይቀነሳል':'loyalty reward \u2014 applied at checkout'}</div>
         </div>
       </div>
     </div>`;
@@ -1455,8 +1459,8 @@ async function renderCartLoyaltyBanner(subtotal){
       <div class="loy-banner-top">
         <div class="loy-banner-ico">\ud83c\udf81</div>
         <div class="loy-banner-text">
-          <div class="loy-banner-title">Add ETB ${Math.round(prog.needed).toLocaleString()} more \u2014 unlock ${prog.nextThresh.discount_percentage}% OFF!</div>
-          <div class="loy-banner-sub">Save at least ETB ${prog.potSavings.toLocaleString()} on your order</div>
+          <div class="loy-banner-title">${curLang==='am'?'ተጨማሪ ETB '+Math.round(prog.needed).toLocaleString()+' ይጨምሩ \u2014 የ '+prog.nextThresh.discount_percentage+'% ቅናሽ ያግኙ!':'Add ETB '+Math.round(prog.needed).toLocaleString()+' more \u2014 unlock '+prog.nextThresh.discount_percentage+'% OFF!'}</div>
+          <div class="loy-banner-sub">${curLang==='am'?'በአጠቃላይ ቢያንስ ETB '+prog.potSavings.toLocaleString()+' ይቀንሳል':'Save at least ETB '+prog.potSavings.toLocaleString()+' on your order'}</div>
         </div>
       </div>
       <div class="loy-banner-bar"><div class="loy-banner-fill" style="width:${prog.pct}%"></div></div>
@@ -1469,8 +1473,8 @@ async function renderCartLoyaltyBanner(subtotal){
       <div class="loy-banner-top">
         <div class="loy-banner-ico">\ud83c\udf89</div>
         <div class="loy-banner-text">
-          <div class="loy-banner-title">Maximum Discount Unlocked!</div>
-          <div class="loy-banner-sub">You are saving ETB ${curSaving.toLocaleString()} (${prog.curThresh.discount_percentage}% OFF)</div>
+          <div class="loy-banner-title">${curLang==='am'?'ከፍተኛው ቅናሽ ተከፍቷል!':'Maximum Discount Unlocked!'}</div>
+          <div class="loy-banner-sub">${curLang==='am'?'ETB '+curSaving.toLocaleString()+' ('+prog.curThresh.discount_percentage+'%) ቀንሷል':'You are saving ETB '+curSaving.toLocaleString()+' ('+prog.curThresh.discount_percentage+'% OFF)'}</div>
         </div>
       </div>
     </div>`;
@@ -1501,6 +1505,8 @@ function calcClientDiscount() {
   let threshDiscAmt = 0, threshLabel = '';
   let incentiveDiscAmt = 0, incentiveLabel = '';
 
+  let qtyDiscAmt = 0, qtyLabel = '';
+
   if (loyaltyProfile?.level?.discount_percentage > 0) {
     const pct = loyaltyProfile.level.discount_percentage;
     loyaltyDiscAmt = Math.round(st * pct / 100);
@@ -1520,14 +1526,19 @@ function calcClientDiscount() {
     }
   }
 
+  // Fallback missing qty discount (usually backend does this, but we can't easily sync all rules)
+  // Let's just return 0 if not from server cache to prevent mismatch
+  // Actually, we shouldn't attempt to guess quantity discounts locally since they vary heavily.
+
   const inc = _loyIncentiveCache;
+
   if (inc?.current_savings > 0) {
     incentiveDiscAmt = Math.round(inc.current_savings);
     incentiveLabel = 'Cart Reward';
   }
 
-  const total = loyaltyDiscAmt + threshDiscAmt + incentiveDiscAmt;
-  return { loyaltyDiscAmt, loyaltyLabel, threshDiscAmt, threshLabel, incentiveDiscAmt, incentiveLabel, total };
+  const total = loyaltyDiscAmt + threshDiscAmt + incentiveDiscAmt + qtyDiscAmt;
+  return { loyaltyDiscAmt, loyaltyLabel, threshDiscAmt, threshLabel, incentiveDiscAmt, incentiveLabel, qtyDiscAmt, qtyLabel, total };
 }
 
 let _rewardToastTimeout = null;
@@ -1559,8 +1570,18 @@ function updateGlobalLoyaltyBar() {
   barBox.style.top = 'var(--hh)'; // stick below the header
   barBox.style.zIndex = '40';
   
-  document.getElementById('globalIncText').textContent = `Add ETB ${Math.round(prog.needed).toLocaleString()} more`;
-  document.getElementById('globalIncSavings').textContent = `Save ${prog.nextThresh.discount_percentage}% (ETB ${prog.potSavings.toLocaleString()})`;
+  const amtNeeded = Math.round(prog.needed).toLocaleString();
+  const potSav = prog.potSavings.toLocaleString();
+  const pct = prog.nextThresh.discount_percentage;
+  
+  if(curLang==='am'){
+    document.getElementById('globalIncText').textContent = `ተጨማሪ ETB ${amtNeeded} ይጨምሩ`;
+    document.getElementById('globalIncSavings').textContent = `${pct}% ቅናሽ ያግኙ (ETB ${potSav})`;
+  } else {
+    document.getElementById('globalIncText').textContent = `Add ETB ${amtNeeded} more`;
+    document.getElementById('globalIncSavings').textContent = `Save ${pct}% (ETB ${potSav})`;
+  }
+  
   document.getElementById('globalIncBar').style.width = prog.pct + '%';
 }
 
