@@ -411,6 +411,24 @@ ul{list-style:none}
 .sh-premium-title{font-size:.9rem;font-weight:900;color:#5B21B6;margin-bottom:4px}
 .sh-premium-sub{font-size:.8rem;color:#7C3AED}
 .sh-premium-cta{display:block;width:100%;background:linear-gradient(135deg,#7C3AED,#9F4AFF);color:#fff;border-radius:100px;padding:12px;font-size:.85rem;font-weight:800;margin-top:10px;cursor:pointer;border:none}
+/* ME TAB — sub-navigation */
+.me-hdr{background:linear-gradient(135deg,var(--g),var(--gm));padding:16px 16px 20px;position:relative;overflow:hidden}
+.me-hdr::after{content:'👤';position:absolute;right:-10px;top:-10px;font-size:7rem;opacity:.08}
+.me-av{width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.25);border:2px solid rgba(255,255,255,.5);display:flex;align-items:center;justify-content:center;font-size:1.4rem;font-weight:900;color:#fff;flex-shrink:0}
+.me-info .me-name{color:#fff;font-weight:800;font-size:1rem}
+.me-info .me-status{color:rgba(255,255,255,.75);font-size:.75rem}
+.me-subtabs{display:flex;gap:8px;padding:12px 14px;background:var(--sf);border-bottom:1px solid var(--br)}
+.me-stab{flex:1;padding:9px 12px;border-radius:100px;border:1.5px solid var(--br);font-size:.8rem;font-weight:700;color:var(--tm);text-align:center;transition:all .18s}
+.me-stab.on{background:var(--g);border-color:var(--g);color:#fff}
+.me-section{display:none;flex:1;overflow-y:auto}
+.me-section.on{display:block;animation:sin .2s var(--ease)}
+/* EMPTY */
+.empty{padding:40px 20px;text-align:center;color:var(--ts)}
+.empty .ei{font-size:3rem;opacity:.4;margin-bottom:10px}
+.empty p{font-size:.88rem}
+/* DISCOUNT ROWS */
+.disc-row{display:flex;justify-content:space-between;padding:5px 0;font-size:.82rem;color:var(--g);font-weight:700}
+.disc-saved{background:linear-gradient(135deg,var(--gp),#fff);border:1.5px solid var(--gl);border-radius:12px;padding:10px 14px;margin:8px 0;display:flex;align-items:center;gap:8px;font-size:.82rem;font-weight:800;color:var(--g)}
 </style>
 </head>
 <body>
@@ -523,17 +541,26 @@ ul{list-style:none}
   <div id="cartBody"></div>
 </div>
 
-<!-- ═══ REWARDS TAB ═══ -->
-<div id="tab-rewards" class="tab">
-  <div class="rwd-hdr" id="rwdHdr">
-    <div class="rwd-tier-badge" id="rwdBadge">👑</div>
-    <div class="rwd-tier-name" id="rwdTierName">Welcome!</div>
-    <div class="rwd-tier-sub" id="rwdTierSub">Your loyalty journey starts here</div>
-    <div style="display:flex;justify-content:center">
-      <div class="rwd-points-pill"><i class="fas fa-star"></i> <span id="rwdPoints">0</span> pts</div>
+<!-- ═══ ME TAB ═══ -->
+<div id="tab-me" class="tab">
+  <div class="me-hdr" id="meHdr">
+    <div style="display:flex;align-items:center;gap:12px;position:relative;z-index:1">
+      <div class="me-av" id="meAv">👤</div>
+      <div class="me-info" style="flex:1">
+        <div class="me-name" id="meName">My Account</div>
+        <div class="me-status" id="meStatus">Loading...</div>
+      </div>
+      <div style="display:flex;justify-content:center">
+        <div class="rwd-points-pill"><i class="fas fa-star"></i> <span id="rwdPoints">0</span> pts</div>
+      </div>
     </div>
   </div>
-  <div class="rwd-scroll">
+  <div class="me-subtabs">
+    <button class="me-stab on" id="stab-rewards" onclick="switchMeTab('rewards')">👑 Rewards</button>
+    <button class="me-stab" id="stab-orders" onclick="switchMeTab('orders')">📦 My Orders</button>
+  </div>
+  <!-- Rewards Section -->
+  <div class="me-section on" id="me-sec-rewards">
     <div id="rwdProgressCard" class="rwd-progress-card" style="display:none">
       <div class="rwd-prog-title"><i class="fas fa-arrow-up"></i> Progress to Next Tier</div>
       <div id="rwdProgText" style="font-size:.82rem;color:#374151;margin-bottom:6px"></div>
@@ -551,16 +578,10 @@ ul{list-style:none}
     <div class="rwd-achv-grid" id="rwdAchvGrid"><div class="ldr"><div class="spin"></div></div></div>
     <div style="height:20px"></div>
   </div>
-</div>
-
-<!-- ═══ ORDERS TAB ═══ -->
-<div id="tab-orders" class="tab">
-  <header class="hdr">
-    <div class="hdr-brand"><i class="fas fa-box" style="font-size:.95rem"></i> &nbsp;<span data-i18n="o_orders">My Orders</span></div>
-    <div class="hdr-acts">
-      <button class="hdr-btn" id="langBtn" style="font-weight:bold;font-size:0.9rem;border:1px solid rgba(255,255,255,0.3)" onclick="toggleLang()">አማ</button><button class="hdr-btn" onclick="loadOrders()"><i class="fas fa-sync-alt"></i></button></div>
-  </header>
-  <div class="oscroll" id="ordersList"><div class="ldr"><div class="spin"></div></div></div>
+  <!-- Orders Section -->
+  <div class="me-section" id="me-sec-orders">
+    <div class="oscroll" id="ordersList"><div class="ldr"><div class="spin"></div></div></div>
+  </div>
 </div>
 
 <!-- ═══ BOTTOM NAV ═══ -->
@@ -582,9 +603,9 @@ ul{list-style:none}
     <div class="ni-lbl" data-i18n="nav_cart">Cart</div>
     <span class="ni-bdg" id="niBdg">0</span>
   </div>
-  <div class="ni" id="ni-rewards" onclick="showTab('tab-rewards')">
-    <div class="ni-ico"><i class="fas fa-crown"></i></div>
-    <div class="ni-lbl">Rewards</div>
+  <div class="ni" id="ni-me" onclick="showTab('tab-me')">
+    <div class="ni-ico"><i class="fas fa-user-circle"></i></div>
+    <div class="ni-lbl">Me</div>
   </div>
 </nav>
 
@@ -668,16 +689,15 @@ function showTab(id){
   const ni=document.getElementById('ni-'+id.replace('tab-',''));
   if(ni)ni.classList.add('on');
   if(id==='tab-cart')renderCart();
-  if(id==='tab-orders')loadOrders();
   if(id==='tab-shop'){setupShopObserver();if(!sAll.length)loadShop(true);}
   if(id==='tab-ai'&&!aiDone)aiWelcome();
-  if(id==='tab-rewards')loadRewards();
+  if(id==='tab-me'){loadRewards();loadOrders();}
 }
 
 function _resolveStartTab(raw){
   const value=(raw||'').trim().toLowerCase();
   if(!value)return '';
-  const map={home:'tab-home',shop:'tab-shop',store:'tab-shop',cart:'tab-cart',orders:'tab-orders',ai:'tab-ai',liyu:'tab-ai',rewards:'tab-rewards',loyalty:'tab-rewards'};
+  const map={home:'tab-home',shop:'tab-shop',store:'tab-shop',cart:'tab-cart',orders:'tab-me',ai:'tab-ai',liyu:'tab-ai',rewards:'tab-me',loyalty:'tab-me',me:'tab-me'};
   if(map[value])return map[value];
   if(value.startsWith('tab-'))return value;
   if(value.startsWith('tab:')){
@@ -741,6 +761,7 @@ function addCart(id,name,price,img,qty=1){
     b.textContent='✓ Added';b.classList.add('ok');
     setTimeout(()=>{b.textContent='+ Add';b.classList.remove('ok');},1600);
   });
+  showCartPopup(id, name, price, img);
 }
 
 /* ── Wishlist ─────────────────────────────────── */
@@ -1224,9 +1245,28 @@ function renderCart(){
     </div>`;
     return;
   }
-  const st=sub(), df=delfee(), tot=total();
+  const st=sub(), df=delfee();
+  const d = calcClientDiscount();
+  const tot = st - d.total + df;
   const prog=Math.min(100,(st/1000)*100);
   const rem=Math.max(0,1000-st);
+  
+  // Build discount rows HTML
+  let discRows = '';
+  if (d.loyaltyDiscAmt > 0) {
+    discRows += `<div class="csum-row" style="color:var(--g)"><span>${d.loyaltyLabel}</span><span>-ETB ${d.loyaltyDiscAmt.toLocaleString()}</span></div>`;
+  }
+  if (d.threshDiscAmt > 0) {
+    discRows += `<div class="csum-row" style="color:var(--g)"><span>${d.threshLabel}</span><span>-ETB ${d.threshDiscAmt.toLocaleString()}</span></div>`;
+  }
+  if (d.incentiveDiscAmt > 0) {
+    discRows += `<div class="csum-row" style="color:var(--g)"><span>${d.incentiveLabel}</span><span>-ETB ${d.incentiveDiscAmt.toLocaleString()}</span></div>`;
+  }
+  let savingsBanner = '';
+  if (d.total > 0) {
+    savingsBanner = `<div class="disc-saved">🎉 You saved ETB ${d.total.toLocaleString()} today!</div>`;
+  }
+
   body.innerHTML=`<div class="cscroll">
     ${cart.map((item,idx)=>`
       <div class="ci">
@@ -1251,8 +1291,10 @@ function renderCart(){
     </div>
     <div class="csum">
       <div class="csum-row"><span>Subtotal (${cart.reduce((s,i)=>s+i.qty,0)} items)</span><span>ETB ${Math.round(st).toLocaleString()}</span></div>
+      ${discRows}
       <div class="csum-row"><span>${tr("c_df")}</span><span>${df===0?'<span style="color:var(--g);font-weight:700">FREE</span>':'ETB '+df}</span></div>
       <div class="csum-row tot"><span>Total</span><span>ETB ${Math.round(tot).toLocaleString()}</span></div>
+      ${savingsBanner}
     </div>
     <div style="padding:0 14px 20px">
       <button class="co-btn" onclick="openCheckout()">
@@ -1384,11 +1426,100 @@ async function renderCartLoyaltyBanner(subtotal){
   return threshBannerHTML + tierBannerHTML + incBannerHTML;
 }
 
+/* ── Me Tab Sub-Navigation ─────────────────────── */
+function switchMeTab(tabId){
+  document.querySelectorAll('.me-stab').forEach(btn => btn.classList.remove('on'));
+  document.querySelectorAll('.me-section').forEach(sec => sec.classList.remove('on'));
+  document.getElementById('stab-'+tabId).classList.add('on');
+  document.getElementById('me-sec-'+tabId).classList.add('on');
+}
+
+/* ── Cart Popup & Discount Calculation ─────────── */
+function calcClientDiscount() {
+  const st = sub(); // cart subtotal
+  let loyaltyDiscAmt = 0, loyaltyDiscPct = 0, loyaltyLabel = '';
+  let threshDiscAmt = 0, threshLabel = '';
+  let incentiveDiscAmt = 0, incentiveLabel = '';
+
+  // 1. Loyalty tier discount
+  if (loyaltyProfile?.level?.discount_percentage > 0) {
+    loyaltyDiscPct = loyaltyProfile.level.discount_percentage;
+    loyaltyDiscAmt = Math.round(st * loyaltyDiscPct / 100);
+    loyaltyLabel = loyaltyProfile.level.name + ' Loyalty (' + loyaltyDiscPct + '%)';
+  }
+
+  // 2. Spending threshold (only if better than loyalty, and only for non-loyal)
+  const thresh = loyaltyProfile?.spending_threshold;
+  if (thresh && st >= thresh.min_amount) {
+    const potential = Math.round(st * thresh.discount_percentage / 100);
+    if (potential > loyaltyDiscAmt) {
+      threshDiscAmt = potential;
+      loyaltyDiscAmt = 0; // take best, not both
+      threshLabel = 'Large Purchase Discount (' + thresh.discount_percentage + '%)';
+    }
+  }
+
+  // 3. Cart incentive (from _loyIncentiveCache)
+  const inc = _loyIncentiveCache;
+  if (inc?.current_savings > 0) {
+    incentiveDiscAmt = Math.round(inc.current_savings);
+    incentiveLabel = 'Cart Reward';
+  }
+
+  const total = loyaltyDiscAmt + threshDiscAmt + incentiveDiscAmt;
+  return { loyaltyDiscAmt, loyaltyLabel, threshDiscAmt, threshLabel, incentiveDiscAmt, incentiveLabel, total };
+}
+
+let _cartPopupTimeout = null;
+function showCartPopup(id, name, price, img) {
+  const popup = document.getElementById('cartPopup');
+  const card = document.getElementById('cartPopupCard');
+  
+  document.getElementById('popupImg').src = img || '/static/images/placeholder.png';
+  document.getElementById('popupName').textContent = name;
+  document.getElementById('popupPrice').textContent = 'ETB ' + Math.round(price).toLocaleString();
+  
+  // Update Discount Badge
+  const d = calcClientDiscount();
+  const dbg = document.getElementById('popupDiscountBadge');
+  const dtext = document.getElementById('popupDiscountText');
+  
+  if (d.total > 0) {
+    dbg.style.display = 'block';
+    dtext.textContent = `You saved ETB ${d.total.toLocaleString()} so far!`;
+  } else {
+    dbg.style.display = 'none';
+  }
+  
+  // Progress bar (Next free delivery or cart incentive)
+  const incBox = document.getElementById('popupIncentiveBar');
+  const st = sub();
+  if (st < 1000) {
+    incBox.style.display = 'block';
+    document.getElementById('popupIncText').textContent = `Add ETB ${(1000 - st).toLocaleString()} for Free Delivery`;
+    document.getElementById('popupIncBar').style.width = Math.min(100, (st/1000)*100) + '%';
+  } else {
+    incBox.style.display = 'none';
+  }
+  
+  popup.style.display = 'flex';
+  setTimeout(() => card.style.transform = 'translateY(0)', 10);
+  
+  clearTimeout(_cartPopupTimeout);
+  _cartPopupTimeout = setTimeout(closeCartPopup, 4000);
+}
+
+function closeCartPopup() {
+  const card = document.getElementById('cartPopupCard');
+  card.style.transform = 'translateY(100%)';
+  setTimeout(() => document.getElementById('cartPopup').style.display = 'none', 350);
+}
+
 /* ── Rewards Tab ───────────────────────────────── */
 async function loadRewards(){
   if(!TGID){
-    document.getElementById('rwdTierName').textContent='Open in Telegram';
-    document.getElementById('rwdTierSub').textContent='Sign in to see your rewards';
+    document.getElementById('meName').textContent='Open in Telegram';
+    document.getElementById('meStatus').textContent='Sign in to see your rewards';
     return;
   }
   try{
@@ -1401,9 +1532,9 @@ async function loadRewards(){
       loyaltyProfile = profD.data;
       const p = profD.data;
       const lvl = p.level;
-      const badge = document.getElementById('rwdBadge');
-      const tierName = document.getElementById('rwdTierName');
-      const tierSub = document.getElementById('rwdTierSub');
+      const badge = document.getElementById('meAv');
+      const tierName = document.getElementById('meName');
+      const tierSub = document.getElementById('meStatus');
       const pts = document.getElementById('rwdPoints');
       badge.textContent = lvl?.badge_icon||'🌱';
       tierName.textContent = lvl?.name||'New Member';
@@ -1411,7 +1542,7 @@ async function loadRewards(){
       pts.textContent = (p.reward_points||0).toLocaleString();
       // Header gradient color
       if(lvl?.color_hex){
-        document.getElementById('rwdHdr').style.background=`linear-gradient(135deg,${lvl.color_hex},${lvl.color_hex}CC,${lvl.color_hex}88)`;
+        document.getElementById('meHdr').style.background=`linear-gradient(135deg,${lvl.color_hex},${lvl.color_hex}CC,${lvl.color_hex}88)`;
       }
       // Stats
       document.getElementById('rwdSavings').textContent='ETB '+Math.round(p.lifetime_savings||0).toLocaleString();
@@ -1661,17 +1792,25 @@ function renderCK(){
   const st=sub(), df=delfee(), tot=total();
   const nm=TGU?((TGU.first_name||'')+' '+(TGU.last_name||'')).trim():'';
   if(ckStep==='success'){
+    const d = calcClientDiscount();
+    let savingsHtml = '';
+    if (d.total > 0) {
+      savingsHtml = `<div style="background:linear-gradient(135deg,#ECFDF5,#D1FAE5);border:1.5px solid #A7F3D0;border-radius:12px;padding:12px;margin:12px 0;font-weight:800;color:#065F46">
+        🎉 You saved ETB ${d.total.toLocaleString()} on this order!
+      </div>`;
+    }
     document.getElementById('chkBody').innerHTML=`
       <div class="success-scr">
         <div class="suc-ico">🎉</div>
         <h2>${tr('ck_order_placed')}</h2>
         <p>${tr('ck_thanks').replace('\n','<br>')}</p>
+        ${savingsHtml}
         <div class="suc-onum">Order #${lastON}</div>
         <p style="font-size:.82rem;color:var(--ts);margin-top:6px">
           📍 Bole Bulbula, 93 Mazoriya, Addis Ababa<br>
           📞 Questions? Call <strong>0947967117</strong>
         </p>
-        <button class="suc-btn" onclick="closeCheckout();showTab('tab-orders')">
+        <button class="suc-btn" onclick="closeCheckout();showTab('tab-me')">
           <i class="fas fa-box"></i> ${tr('ck_view_orders')}
         </button>
         <button style="width:100%;margin-top:8px;padding:12px;border-radius:var(--rm);background:var(--bg);border:1.5px solid var(--br);font-size:.9rem;font-weight:700;color:var(--tm)"
@@ -1745,7 +1884,8 @@ function renderCK(){
     // Step 3: Payment Method
     document.getElementById('chkBody').style.padding='16px';
     document.getElementById('chkBody').style.height='auto';
-    const finalTot = tot + (ckDeliveryFee||0);
+    const d = calcClientDiscount();
+    const finalTot = tot - d.total + (ckDeliveryFee||0);
     document.getElementById('chkBody').innerHTML=`
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
         <button onclick="ckStep='map';renderCK();initCkMap();" 
@@ -1758,6 +1898,9 @@ function renderCK(){
         <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:.9rem">
           <span>${tr('c_sub')} (${cart.reduce((s,i)=>s+i.qty,0)} items)</span><span style="font-weight:700">ETB ${Math.round(st).toLocaleString()}</span>
         </div>
+        ${d.loyaltyDiscAmt > 0 ? `<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:.9rem;color:var(--g)"><span>${d.loyaltyLabel}</span><span style="font-weight:700">-ETB ${d.loyaltyDiscAmt.toLocaleString()}</span></div>` : ''}
+        ${d.threshDiscAmt > 0 ? `<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:.9rem;color:var(--g)"><span>${d.threshLabel}</span><span style="font-weight:700">-ETB ${d.threshDiscAmt.toLocaleString()}</span></div>` : ''}
+        ${d.incentiveDiscAmt > 0 ? `<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:.9rem;color:var(--g)"><span>${d.incentiveLabel}</span><span style="font-weight:700">-ETB ${d.incentiveDiscAmt.toLocaleString()}</span></div>` : ''}
         <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:.9rem;border-bottom:1px solid var(--br)">
           <span>${tr('ck_fee')}</span><span style="font-weight:700;color:var(--g)">ETB ${Math.round(ckDeliveryFee||0).toLocaleString()}</span>
         </div>
@@ -1801,6 +1944,7 @@ async function placeOrder(){
   const btn=document.getElementById('placeBtn');
   if(btn){btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Placing order…';}
   try{
+    const discParams = calcClientDiscount();
     const r=await fetch('/api/v1/mini-app/checkout',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
         telegram_id:TGID,
@@ -1809,6 +1953,10 @@ async function placeOrder(){
         cart_items:cart.map(i=>({id:i.id,qty:i.qty})),
         delivery:{name:cn,phone:cp,sub_city:'',specific_location:cl,city:'Addis Ababa',lat:ckLat,lng:ckLng,delivery_fee:ckDeliveryFee},
         payment_method:selPM,
+        loyalty_discount_amount: discParams.loyaltyDiscAmt,
+        spending_discount_amount: discParams.threshDiscAmt,
+        cart_incentive_discount: discParams.incentiveDiscAmt,
+        total_discount_amount: discParams.total,
         notes:cno||'Placed via Telegram Mini App'
       })});
     const d=await r.json();
@@ -1975,5 +2123,34 @@ if(tg){
 }
 </script>
 
+<div id="cartPopup" style="display:none;position:fixed;inset:0;z-index:600;align-items:flex-end;background:rgba(0,0,0,.45);backdrop-filter:blur(3px)">
+  <div id="cartPopupCard" style="width:100%;background:var(--sf);border-radius:24px 24px 0 0;padding:20px 16px 28px;transform:translateY(100%);transition:transform .35s cubic-bezier(.34,1.56,.64,1);box-shadow:0 -8px 40px rgba(0,0,0,.18)">
+    <div style="width:40px;height:4px;background:var(--br);border-radius:100px;margin:0 auto 16px"></div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+      <img id="popupImg" style="width:60px;height:60px;border-radius:12px;object-fit:cover;background:var(--be)" src="" />
+      <div style="flex:1">
+        <div style="font-size:.65rem;font-weight:800;color:var(--g);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">✅ Added to Cart!</div>
+        <div id="popupName" style="font-size:.9rem;font-weight:800;line-height:1.3"></div>
+        <div id="popupPrice" style="font-size:.82rem;color:var(--tm);margin-top:2px"></div>
+      </div>
+    </div>
+    <div id="popupDiscountBadge" style="display:none;background:linear-gradient(135deg,#ECFDF5,#D1FAE5);border:1.5px solid #A7F3D0;border-radius:12px;padding:10px 14px;margin-bottom:12px">
+      <div style="font-size:.72rem;font-weight:900;color:#065F46;display:flex;align-items:center;gap:6px">
+        <span style="font-size:1rem">🎉</span>
+        <span id="popupDiscountText"></span>
+      </div>
+    </div>
+    <div id="popupIncentiveBar" style="display:none;background:var(--bg);border:1px solid var(--br);border-radius:12px;padding:10px 14px;margin-bottom:14px">
+      <div style="font-size:.7rem;font-weight:700;color:var(--tm);margin-bottom:5px" id="popupIncText"></div>
+      <div style="height:6px;background:var(--br);border-radius:100px;overflow:hidden">
+        <div id="popupIncBar" style="height:100%;background:linear-gradient(90deg,var(--gl),var(--g));border-radius:100px;transition:width .5s"></div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <button onclick="closeCartPopup();showTab('tab-cart')" style="background:var(--g);color:#fff;border-radius:100px;padding:13px;font-size:.88rem;font-weight:800;display:flex;align-items:center;justify-content:center;gap:6px"><i class='fas fa-shopping-bag'></i> View Cart</button>
+      <button onclick="closeCartPopup()" style="background:var(--bg);border:1.5px solid var(--br);border-radius:100px;padding:13px;font-size:.88rem;font-weight:700;color:var(--tm)">Continue</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
