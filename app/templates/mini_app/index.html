@@ -1380,32 +1380,40 @@ async function fetchLoyaltyCartContext(subtotal){
   } catch{}
 }
 
+function getSpendingThresholdProgress(st) {
+  const thresholds = loyaltyProfile?.spending_thresholds || [];
+  let curThresh = null;
+  let nextThresh = null;
+  
+  for (let t of thresholds) {
+    if (st >= t.min_amount) {
+      curThresh = t;
+    } else {
+      nextThresh = t;
+      break;
+    }
+  }
+  
+  if (!nextThresh) {
+    return { curThresh, nextThresh: null, needed: 0, pct: 100, potSavings: 0 };
+  }
+  const needed = nextThresh.min_amount - st;
+  const pct = Math.min(100, Math.max(0, (st / nextThresh.min_amount) * 100));
+  const potSavings = Math.round(nextThresh.min_amount * nextThresh.discount_percentage / 100);
+  return { curThresh, nextThresh, needed, pct, potSavings };
+}
+
 async function renderCartLoyaltyBanner(subtotal){
   await fetchLoyaltyCartContext(subtotal);
-  const inc = _loyIncentiveCache;
-  const profile = loyaltyProfile;
-  if(!inc && !profile) return '';
+  if(!loyaltyProfile) return '';
 
-  // Spending Threshold Banner — shown only if user is a new/generic customer
-  const userIsLoyalTier = profile?.level && (profile.level.sort_order||0) > 0;
-  const nextInc = inc?.next_incentive;
-  const amtNeeded = inc?.amount_needed||0;
-  const progPct = inc?.progress_pct||0;
-  const curSaving = inc?.current_savings||0;
-
-  // Spending threshold from the profile
-  const thresh = profile?.spending_threshold;
-  const threshNeeded = thresh?.amount_needed||0;
-  const threshDiscount = thresh?.discount_amount||0;
-  const threshPct = thresh?.progress_pct||0;
-
-  // Suggest products: cheapest in-stock products close to what they need
+  const prog = getSpendingThresholdProgress(subtotal);
+  
   let suggestHTML = '';
-  if((nextInc || threshNeeded>0) && suggestProducts.length){
-    const needAmt = nextInc ? amtNeeded : threshNeeded;
+  if(prog.nextThresh && suggestProducts.length){
     const cheap = suggestProducts.filter(p=>!p.min_loyalty_level_id).slice(0,6);
     if(cheap.length){
-      suggestHTML = `<div class="loy-suggest-label">🛍 Add to unlock:</div>
+      suggestHTML = `<div class="loy-suggest-label">\ud83d\udecd\ufe0f Add to unlock:</div>
         <div class="loy-suggest-row">${cheap.map(p=>{
           const n=p.name.slice(0,20);
           return `<div class="loy-suggest-card">
@@ -1419,68 +1427,54 @@ async function renderCartLoyaltyBanner(subtotal){
     }
   }
 
-  // Cart incentive banner (universal for all customers)
-  let incBannerHTML = '';
-  if(nextInc && amtNeeded > 0){
-    incBannerHTML = `<div class="loy-cart-banner incentive">
+  // Loyal customer tier discount (takes precedence if higher than threshold)
+  const userIsLoyalTier = loyaltyProfile?.level && (loyaltyProfile.level.sort_order||0) > 0;
+  const tierPct = loyaltyProfile?.level?.discount_percentage || 0;
+  
+  let tierBannerHTML = '';
+  if(userIsLoyalTier && tierPct > 0 && tierPct >= (prog.nextThresh?.discount_percentage||0)){
+    const discAmt = Math.round(subtotal * tierPct / 100);
+    tierBannerHTML = `<div class="loy-cart-banner both">
       <div class="loy-banner-top">
-        <div class="loy-banner-ico">🎁</div>
+        <div class="loy-banner-ico">${loyaltyProfile.level.badge_icon||'\ud83d\udc51'}</div>
         <div class="loy-banner-text">
-          <div class="loy-banner-title">Add ETB ${Math.round(amtNeeded).toLocaleString()} more — save ETB ${Math.round(nextInc.discount_offered||0).toLocaleString()}!</div>
-          <div class="loy-banner-sub">${nextInc.popup_text||'Exclusive cart discount waiting for you'}</div>
+          <div class="loy-banner-title">${loyaltyProfile.level.name} discount: Save ETB ${discAmt.toLocaleString()}!</div>
+          <div class="loy-banner-sub">${tierPct}% loyalty reward \u2014 applied at checkout</div>
         </div>
       </div>
-      <div class="loy-banner-bar"><div class="loy-banner-fill" style="width:${progPct}%"></div></div>
-      <div class="loy-banner-labels"><span>ETB ${Math.round(subtotal).toLocaleString()}</span><span>ETB ${Math.round(nextInc.min_cart_value||0).toLocaleString()}</span></div>
+    </div>`;
+    return tierBannerHTML; // Skip thresholds if loyalty tier is already better than what they can unlock
+  }
+
+  // Otherwise show spending threshold progress
+  let bannerHTML = '';
+  if(prog.nextThresh && prog.needed > 0){
+    bannerHTML = `<div class="loy-cart-banner thresh">
+      <div class="loy-banner-top">
+        <div class="loy-banner-ico">\ud83c\udf81</div>
+        <div class="loy-banner-text">
+          <div class="loy-banner-title">Add ETB ${Math.round(prog.needed).toLocaleString()} more \u2014 unlock ${prog.nextThresh.discount_percentage}% OFF!</div>
+          <div class="loy-banner-sub">Save at least ETB ${prog.potSavings.toLocaleString()} on your order</div>
+        </div>
+      </div>
+      <div class="loy-banner-bar"><div class="loy-banner-fill" style="width:${prog.pct}%"></div></div>
+      <div class="loy-banner-labels"><span>ETB ${Math.round(subtotal).toLocaleString()}</span><span>ETB ${Math.round(prog.nextThresh.min_amount).toLocaleString()}</span></div>
       ${suggestHTML}
     </div>`;
-  } else if(curSaving>0){
-    incBannerHTML = `<div class="loy-cart-banner incentive">
+  } else if(prog.curThresh){
+    const curSaving = Math.round(subtotal * prog.curThresh.discount_percentage / 100);
+    bannerHTML = `<div class="loy-cart-banner thresh">
       <div class="loy-banner-top">
-        <div class="loy-banner-ico">🎉</div>
+        <div class="loy-banner-ico">\ud83c\udf89</div>
         <div class="loy-banner-text">
-          <div class="loy-banner-title">Cart discount unlocked! Save ETB ${Math.round(curSaving).toLocaleString()}</div>
-          <div class="loy-banner-sub">Applied automatically at checkout</div>
+          <div class="loy-banner-title">Maximum Discount Unlocked!</div>
+          <div class="loy-banner-sub">You are saving ETB ${curSaving.toLocaleString()} (${prog.curThresh.discount_percentage}% OFF)</div>
         </div>
       </div>
     </div>`;
   }
 
-  // Spending threshold banner — shown only to non-loyal or new customers (universal threshold)
-  let threshBannerHTML = '';
-  if(!userIsLoyalTier && threshNeeded > 0 && threshDiscount > 0){
-    threshBannerHTML = `<div class="loy-cart-banner thresh">
-      <div class="loy-banner-top">
-        <div class="loy-banner-ico">💸</div>
-        <div class="loy-banner-text">
-          <div class="loy-banner-title">Add ETB ${Math.round(threshNeeded).toLocaleString()} more — get ETB ${Math.round(threshDiscount).toLocaleString()} off!</div>
-          <div class="loy-banner-sub">Large purchase discount — automatic at checkout</div>
-        </div>
-      </div>
-      <div class="loy-banner-bar"><div class="loy-banner-fill" style="width:${threshPct}%"></div></div>
-      <div class="loy-banner-labels"><span>ETB ${Math.round(subtotal).toLocaleString()}</span><span>ETB ${Math.round((subtotal+threshNeeded)).toLocaleString()}</span></div>
-      ${!incBannerHTML?suggestHTML:''}
-    </div>`;
-  }
-
-  // Loyal customer — show their tier discount instead of threshold
-  let tierBannerHTML = '';
-  if(userIsLoyalTier && profile?.level?.discount_percentage > 0){
-    const discAmt = Math.round(subtotal * profile.level.discount_percentage / 100);
-    if(discAmt > 0){
-      tierBannerHTML = `<div class="loy-cart-banner both">
-        <div class="loy-banner-top">
-          <div class="loy-banner-ico">${profile.level.badge_icon||'👑'}</div>
-          <div class="loy-banner-text">
-            <div class="loy-banner-title">${profile.level.name} discount: Save ETB ${discAmt.toLocaleString()}!</div>
-            <div class="loy-banner-sub">${profile.level.discount_percentage}% loyalty reward — applied at checkout</div>
-          </div>
-        </div>
-      </div>`;
-    }
-  }
-
-  return threshBannerHTML + tierBannerHTML + incBannerHTML;
+  return bannerHTML;
 }
 
 /* ── Me Tab Sub-Navigation ─────────────────────── */
@@ -1549,12 +1543,11 @@ function showRewardToast(msg) {
 
 function updateGlobalLoyaltyBar() {
   const barBox = document.getElementById('globalLoyaltyBar');
-  if(!barBox) return;
-  const inc = _loyIncentiveCache;
-  const nextInc = inc?.next_incentive;
+  if(!barBox || !loyaltyProfile) return;
+  const st = sub();
+  const prog = getSpendingThresholdProgress(st);
   
-  // If no incentives configured, or already hit max, hide
-  if (!nextInc || !inc.amount_needed) {
+  if (!prog.nextThresh || !prog.needed) {
     barBox.style.display = 'none';
     return;
   }
@@ -1564,9 +1557,9 @@ function updateGlobalLoyaltyBar() {
   barBox.style.top = 'var(--hh)'; // stick below the header
   barBox.style.zIndex = '40';
   
-  document.getElementById('globalIncText').textContent = `Add ETB ${inc.amount_needed.toLocaleString()} more`;
-  document.getElementById('globalIncSavings').textContent = `Save ETB ${nextInc.discount_offered.toLocaleString()}`;
-  document.getElementById('globalIncBar').style.width = inc.progress_pct + '%';
+  document.getElementById('globalIncText').textContent = `Add ETB ${Math.round(prog.needed).toLocaleString()} more`;
+  document.getElementById('globalIncSavings').textContent = `Save ${prog.nextThresh.discount_percentage}% (ETB ${prog.potSavings.toLocaleString()})`;
+  document.getElementById('globalIncBar').style.width = prog.pct + '%';
 }
 
 /* ── Rewards Tab ───────────────────────────────── */
