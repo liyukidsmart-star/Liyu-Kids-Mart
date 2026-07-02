@@ -696,7 +696,7 @@ function showTab(id){
   }
   const ni=document.getElementById('ni-'+id.replace('tab-',''));
   if(ni)ni.classList.add('on');
-  if(id==='tab-cart')renderCart();
+  if(id==='tab-cart'){fetchDiscountFromServer().then(()=>{renderCart();updateGlobalLoyaltyBar();});}
   if(id==='tab-shop'){setupShopObserver();if(!sAll.length)loadShop(true);}
   if(id==='tab-ai'&&!aiDone)aiWelcome();
   if(id==='tab-me'){loadRewards();loadOrders();}
@@ -769,7 +769,16 @@ function addCart(id,name,price,img,qty=1){
     b.textContent='✓ Added';b.classList.add('ok');
     setTimeout(()=>{b.textContent='+ Add';b.classList.remove('ok');},1600);
   });
-  showCartPopup(id, name, price, img);
+  // Fetch server discount, update bar, and toast only on new threshold unlock
+  const prevTotal = _discountCache?.total_discount_amount || 0;
+  fetchDiscountFromServer().then(() => {
+    updateGlobalLoyaltyBar();
+    renderCart();
+    const newTotal = _discountCache?.total_discount_amount || 0;
+    if (newTotal > prevTotal && newTotal > 0) {
+      showRewardToast('🎉 Discount unlocked! You save ETB ' + Math.round(newTotal).toLocaleString() + ' on this order!');
+    }
+  });
 }
 
 /* ── Wishlist ─────────────────────────────────── */
@@ -1308,11 +1317,54 @@ function renderCart(){
     if(b) b.innerHTML = html;
   });
 }
-function cqty(idx,d){cart[idx].qty=Math.max(1,cart[idx].qty+d);saveCart();renderCart();}
-function crm(idx){const n=cart[idx].name.slice(0,22);cart.splice(idx,1);saveCart();renderCart();toast('🗑 '+n+'… removed');}
+function cqty(idx,d){cart[idx].qty=Math.max(1,cart[idx].qty+d);saveCart();_discountCache=null;renderCart();fetchDiscountFromServer().then(()=>{renderCart();updateGlobalLoyaltyBar();});}
+function crm(idx){const n=cart[idx].name.slice(0,22);cart.splice(idx,1);saveCart();_discountCache=null;renderCart();toast('🗑 '+n+'… removed');}
 
 /* ── Smart Cart Incentives ─────────────────────── */
 let _loyIncentiveCache=null, _loyThreshCache=null;
+let _discountCache=null; // Server-authoritative discount data
+
+async function fetchDiscountFromServer(){
+  // Calls the backend which reads admin-configured thresholds from DB
+  // Picks best between loyalty tier discount and spending threshold
+  const st = sub();
+  const items = cart.reduce((s,i)=>s+i.qty,0);
+  try {
+    const params = new URLSearchParams({subtotal: st, items});
+    if (TGID) params.set('telegram_id', TGID);
+    const r = await fetch('/api/v1/loyalty/discount?' + params.toString());
+    const d = await r.json();
+    if (d.success) {
+      const data = d.data;
+      // Normalize into the shape calcClientDiscount() returns
+      _discountCache = {
+        loyaltyDiscAmt: Math.round(data.loyalty_discount_amount || 0),
+        loyaltyLabel: data.savings_breakdown?.find(s=>s.label?.includes('Loyalty'))?.label || 'Loyalty Discount',
+        threshDiscAmt: Math.round(data.spending_discount_amount || 0),
+        threshLabel: data.savings_breakdown?.find(s=>!s.label?.includes('Loyalty'))?.label || 'Purchase Discount',
+        incentiveDiscAmt: 0, // handled separately via cart incentive API
+        incentiveLabel: 'Cart Reward',
+        total_discount_amount: Math.round(data.total_discount_amount || 0),
+        total: Math.round(data.total_discount_amount || 0),
+        raw: data,
+      };
+    }
+  } catch(e) { console.warn('fetchDiscountFromServer failed:', e); }
+  // Also refresh cart incentive context
+  try {
+    const incR = await fetch('/api/v1/loyalty/cart-incentive?subtotal=' + st);
+    const incD = await incR.json();
+    if(incD.success) {
+      _loyIncentiveCache = incD.data;
+      // Add incentive savings to discount cache
+      if(_discountCache && _loyIncentiveCache?.current_savings > 0){
+        _discountCache.incentiveDiscAmt = Math.round(_loyIncentiveCache.current_savings);
+        _discountCache.total += _discountCache.incentiveDiscAmt;
+        _discountCache.total_discount_amount += _discountCache.incentiveDiscAmt;
+      }
+    }
+  } catch{}
+}
 
 async function fetchLoyaltyCartContext(subtotal){
   // Fetch both: cart incentive and spending threshold in parallel
@@ -1442,38 +1494,36 @@ function switchMeTab(tabId){
 
 /* ── Cart Popup & Discount Calculation ─────────── */
 function calcClientDiscount() {
-  const st = sub(); // cart subtotal
-  let loyaltyDiscAmt = 0, loyaltyDiscPct = 0, loyaltyLabel = '';
+  // Uses server-fetched data if available (most accurate)
+  // Falls back to local calculation if cache is empty
+  if (_discountCache) {
+    return _discountCache;
+  }
+  // Fallback: local estimate using cached loyalty profile
+  const st = sub();
+  let loyaltyDiscAmt = 0, loyaltyLabel = '';
   let threshDiscAmt = 0, threshLabel = '';
   let incentiveDiscAmt = 0, incentiveLabel = '';
 
-  // 1. Loyalty tier discount
   if (loyaltyProfile?.level?.discount_percentage > 0) {
-    loyaltyDiscPct = loyaltyProfile.level.discount_percentage;
-    loyaltyDiscAmt = Math.round(st * loyaltyDiscPct / 100);
-    loyaltyLabel = loyaltyProfile.level.name + ' Loyalty (' + loyaltyDiscPct + '%)';
+    const pct = loyaltyProfile.level.discount_percentage;
+    loyaltyDiscAmt = Math.round(st * pct / 100);
+    loyaltyLabel = loyaltyProfile.level.name + ' Loyalty (' + pct + '%)';
   }
 
-  // 2. Spending threshold (only if better than loyalty, and only for non-loyal)
   const thresholds = loyaltyProfile?.spending_thresholds || [];
-  let bestThresh = null;
-  // Thresholds are ordered ascending by min_amount, so reverse to find highest applicable
   for (let i = thresholds.length - 1; i >= 0; i--) {
     if (st >= thresholds[i].min_amount) {
-      bestThresh = thresholds[i];
+      const potential = Math.round(st * thresholds[i].discount_percentage / 100);
+      if (potential > loyaltyDiscAmt) {
+        threshDiscAmt = potential;
+        loyaltyDiscAmt = 0;
+        threshLabel = 'Large Purchase Discount (' + thresholds[i].discount_percentage + '%)';
+      }
       break;
     }
   }
-  if (bestThresh) {
-    const potential = Math.round(st * bestThresh.discount_percentage / 100);
-    if (potential > loyaltyDiscAmt) {
-      threshDiscAmt = potential;
-      loyaltyDiscAmt = 0; // take best, not both
-      threshLabel = 'Large Purchase Discount (' + bestThresh.discount_percentage + '%)';
-    }
-  }
 
-  // 3. Cart incentive (from _loyIncentiveCache)
   const inc = _loyIncentiveCache;
   if (inc?.current_savings > 0) {
     incentiveDiscAmt = Math.round(inc.current_savings);
