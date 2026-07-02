@@ -96,7 +96,14 @@ def mini_app_checkout():
         return error_response('No valid items in cart', 400)
 
     delivery_fee = float(delivery.get('delivery_fee', 0)) if delivery.get('delivery_fee') else 80.0
-    total = subtotal + delivery_fee
+
+    # ── Calculate Loyalty Discount (tier-gated) ──────────────────
+    from app.services.loyalty_service import calculate_loyalty_discount, process_order_rewards
+    total_items = sum(oi['qty'] for oi in order_items)
+    user._cart_item_count = total_items
+    discount_info = calculate_loyalty_discount(user, subtotal)
+    discount_amount = round(discount_info.get('total_discount_amount', 0.0), 2)
+    total = round(subtotal - discount_amount + delivery_fee, 2)
 
     # Map payment method
     pm_map = {
@@ -129,7 +136,7 @@ def mini_app_checkout():
         status=OrderStatus.pending,
         subtotal=subtotal,
         delivery_fee=delivery_fee,
-        discount_amount=0,
+        discount_amount=discount_amount,
         total=total,
         payment_method=payment_method,
         payment_status='pending',
@@ -161,17 +168,86 @@ def mini_app_checkout():
     # Also clear any server-side cart items for this user
     Cart.query.filter_by(user_id=user.id).delete()
 
+    # Process loyalty rewards (update user's tier, points, savings)
+    try:
+        process_order_rewards(user, order, savings_amount=discount_amount)
+    except Exception:
+        pass
+
     db.session.commit()
+
+    # ── Notify store managers ─────────────────────────────────────
+    try:
+        _notify_store_managers(order, order_items, addr, payment_method_str, discount_amount)
+    except Exception:
+        pass
 
     return success_response({
         'order_number': order_number,
         'total': total,
         'delivery_fee': delivery_fee,
         'subtotal': subtotal,
+        'discount_amount': discount_amount,
         'items_count': len(order_items),
         'payment_method': payment_method_str,
         'message': f'Order #{order_number} placed successfully! We will confirm shortly.'
     }, 'Order placed successfully')
+
+
+def _notify_store_managers(order, order_items, addr, payment_method_str, discount_amount):
+    """Send rich order notification to all store managers via Telegram."""
+    import os
+    import httpx as _httpx
+    token = os.getenv('TELEGRAM_BOT_TOKEN', '')
+    app_url = os.getenv('APP_URL', 'http://localhost:5000')
+    manager_ids_raw = os.getenv('MANAGER_TG_IDS', '')
+    if not token or not manager_ids_raw:
+        return
+
+    manager_ids = [m.strip() for m in manager_ids_raw.split(',') if m.strip()]
+    if not manager_ids:
+        return
+
+    # Build items text
+    items_text = ''
+    for oi in order_items:
+        p = oi['product']
+        items_text += f"  • {p.name[:35]} x{oi['qty']} — ETB {oi['item_total']:,.0f}\n"
+
+    pm_labels = {'cod': 'Cash on Delivery', 'telebirr': 'TeleBirr', 'chapa': 'Chapa'}
+    pm_label = pm_labels.get(payment_method_str, payment_method_str.upper())
+    subtotal = float(order.subtotal)
+    delivery_fee = float(order.delivery_fee)
+
+    store_url = f'{app_url}/telegram/store-app'
+    msg = (
+        f"🛍️ *NEW ORDER #{order.order_number}*\n\n"
+        f"👤 Customer: {order.user.full_name or 'Customer'}\n"
+        f"📞 Phone: {addr.phone}\n"
+        f"📍 Location: {addr.specific_location or 'Not specified'}\n\n"
+        f"📦 *Items:*\n{items_text}\n"
+        f"💰 Subtotal: ETB {subtotal:,.0f}\n"
+    )
+    if discount_amount > 0:
+        msg += f"🎁 Discount: -ETB {discount_amount:,.0f}\n"
+    msg += (
+        f"🚚 Delivery: ETB {delivery_fee:,.0f}\n"
+        f"💳 *Total: ETB {float(order.total):,.0f}*\n"
+        f"💳 Payment: {pm_label}\n\n"
+        f"[📋 View Order in Store Portal]({store_url})"
+    )
+
+    for manager_id in manager_ids:
+        try:
+            _httpx.post(
+                f'https://api.telegram.org/bot{token}/sendMessage',
+                json={'chat_id': manager_id, 'text': msg, 'parse_mode': 'Markdown'},
+                timeout=5
+            )
+        except Exception:
+            pass
+
+
 
 
 @api_bp.route('/mini-app/wishlist', methods=['GET'])

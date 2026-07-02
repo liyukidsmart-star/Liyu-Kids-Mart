@@ -83,22 +83,41 @@ def calculate_loyalty_discount(user, cart_subtotal: float) -> dict:
     """
     Calculate the complete discount breakdown for a cart.
 
+    Tier gating rules (based on loyalty level sort_order):
+      - sort_order == 0 / None: Guest/New — only Spending Thresholds apply
+      - sort_order 1–2 (Bronze/Silver): + Quantity Discounts
+      - sort_order >= 3 (Gold+): + Quantity Discounts + Cart Incentives
+
     Returns a dict with:
       loyalty_discount_pct    — loyalty tier % (e.g. 4.0)
       loyalty_discount_amount — Birr saved from tier
       spending_discount_pct   — per-order spending threshold %
       spending_discount_amount— Birr saved from purchase size
-      qty_discount_amount     — Birr saved from quantity rules
+      qty_discount_amount     — Birr saved from quantity rules (0 if not eligible)
+      incentive_discount_amount — Birr saved from cart incentives (0 if not eligible)
       total_discount_amount   — sum of all discounts
       total_discount_pct      — effective %
       savings_breakdown       — human-readable list of savings
+      qty_allowed             — bool: customer eligible for quantity discounts
+      incentive_allowed       — bool: customer eligible for cart incentives
+      tier_sort_order         — int: user's tier sort_order (0 = no tier)
     """
     loyalty_disc_pct = 0.0
     loyalty_disc_amt = 0.0
     spending_disc_pct = 0.0
     spending_disc_amt = 0.0
     qty_disc_amt = 0.0
+    incentive_disc_amt = 0.0
     savings_breakdown = []
+
+    # Determine tier level
+    tier_sort_order = 0
+    if user and user.loyalty_level and user.loyalty_level.is_active:
+        tier_sort_order = int(user.loyalty_level.sort_order or 0)
+
+    # Access flags based on tier
+    qty_allowed = tier_sort_order >= 1        # Bronze (sort_order=1) and above
+    incentive_allowed = tier_sort_order >= 3  # Gold (sort_order=3) and above
 
     # 1. Loyalty tier discount
     if user and user.loyalty_level:
@@ -136,24 +155,42 @@ def calculate_loyalty_discount(user, cart_subtotal: float) -> dict:
                 'pct': spending_disc_pct,
             }]
 
-    # 3. Quantity discount (based on total items in cart)
-    total_items = 0
-    if hasattr(user, '_cart_item_count'):
-        total_items = user._cart_item_count  # set by caller for performance
-    qty_discounts = _get_active_quantity_discounts()
-    for qd in reversed(qty_discounts):
-        if total_items >= qd.min_items:
-            qty_disc_amt = round(float(qd.discount_amount), 2)
-            if qty_disc_amt > 0:
+    # 3. Quantity discount — Bronze+ only
+    if qty_allowed:
+        total_items = 0
+        if hasattr(user, '_cart_item_count'):
+            total_items = user._cart_item_count  # set by caller for performance
+        qty_discounts = _get_active_quantity_discounts()
+        for qd in reversed(qty_discounts):
+            if total_items >= qd.min_items:
+                qty_disc_amt = round(float(qd.discount_amount), 2)
+                if qty_disc_amt > 0:
+                    savings_breakdown.append({
+                        'label': qd.label or f'{qd.min_items} Items Discount',
+                        'amount': qty_disc_amt,
+                        'pct': None,
+                    })
+                break
+
+    # 4. Cart Incentive discount — Gold+ only
+    if incentive_allowed:
+        cart_incentives = _get_active_cart_incentives()
+        best_incentive = None
+        for inc in reversed(cart_incentives):
+            if cart_subtotal >= float(inc.min_cart_value):
+                best_incentive = inc
+                break
+        if best_incentive:
+            incentive_disc_amt = round(float(best_incentive.discount_offered), 2)
+            if incentive_disc_amt > 0:
                 savings_breakdown.append({
-                    'label': qd.label or f'{qd.min_items} Items Discount',
-                    'amount': qty_disc_amt,
+                    'label': best_incentive.popup_text or 'Cart Reward',
+                    'amount': incentive_disc_amt,
                     'pct': None,
                 })
-            break
 
     # Ensure discounts don't exceed cart value
-    total_disc = min(loyalty_disc_amt + spending_disc_amt + qty_disc_amt, cart_subtotal)
+    total_disc = min(loyalty_disc_amt + spending_disc_amt + qty_disc_amt + incentive_disc_amt, cart_subtotal)
     total_pct = round(total_disc / cart_subtotal * 100, 2) if cart_subtotal > 0 else 0.0
 
     return {
@@ -162,10 +199,15 @@ def calculate_loyalty_discount(user, cart_subtotal: float) -> dict:
         'spending_discount_pct': spending_disc_pct,
         'spending_discount_amount': spending_disc_amt,
         'qty_discount_amount': qty_disc_amt,
+        'incentive_discount_amount': incentive_disc_amt,
         'total_discount_amount': total_disc,
         'total_discount_pct': total_pct,
         'savings_breakdown': savings_breakdown,
+        'qty_allowed': qty_allowed,
+        'incentive_allowed': incentive_allowed,
+        'tier_sort_order': tier_sort_order,
     }
+
 
 
 # ─────────────────────────────────────────────────────────────

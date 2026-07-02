@@ -760,6 +760,30 @@ function saveCart(){localStorage.setItem('lkm_c',JSON.stringify(cart));updBdg();
 function saveWish(){localStorage.setItem('lkm_w',JSON.stringify([...wish]));}
 
 /* ── Add to cart ──────────────────────────────── */
+function showCartPopup(id, name, price, img) {
+  document.getElementById('popupImg').src = img;
+  document.getElementById('popupName').innerText = name;
+  document.getElementById('popupPrice').innerText = 'ETB ' + price.toLocaleString();
+  
+  const popup = document.getElementById('cartPopup');
+  const card = document.getElementById('cartPopupCard');
+  if(!popup) return;
+  popup.style.display = 'flex';
+  setTimeout(() => {
+    popup.style.opacity = '1';
+    card.style.transform = 'translateY(0)';
+  }, 10);
+}
+
+function closeCartPopup() {
+  const popup = document.getElementById('cartPopup');
+  const card = document.getElementById('cartPopupCard');
+  if(!popup) return;
+  card.style.transform = 'translateY(100%)';
+  popup.style.opacity = '0';
+  setTimeout(() => { popup.style.display = 'none'; }, 300);
+}
+
 function addCart(id,name,price,img,qty=1){
   const ex=cart.find(i=>i.id===id);
   if(ex)ex.qty+=qty; else cart.push({id,name,price,img,qty});
@@ -769,16 +793,33 @@ function addCart(id,name,price,img,qty=1){
     b.textContent='✓ Added';b.classList.add('ok');
     setTimeout(()=>{b.textContent='+ Add';b.classList.remove('ok');},1600);
   });
-  // Fetch server discount, update bar, and toast only on new threshold unlock
-  const prevTotal = _discountCache?.total_discount_amount || 0;
+  
+  const prevBreakdowns = _discountCache?.savings_breakdown?.length || 0;
+  
   fetchDiscountFromServer().then(() => {
     updateGlobalLoyaltyBar();
     renderCart();
     const newTotal = _discountCache?.total_discount_amount || 0;
-    if (newTotal > prevTotal && newTotal > 0) {
+    const newBreakdowns = _discountCache?.savings_breakdown?.length || 0;
+    
+    // Only toast if a NEW discount rule (threshold/tier) is applied
+    if (newBreakdowns > prevBreakdowns && newTotal > 0) {
       showRewardToast('🎉 Discount unlocked! You save ETB ' + Math.round(newTotal).toLocaleString() + ' on this order!');
     }
+    
+    // Update Popup details
+    if(_discountCache) {
+       const badge = document.getElementById('popupDiscountBadge');
+       if(badge && _discountCache.savings_breakdown && _discountCache.savings_breakdown.length > 0) {
+           badge.style.display = 'block';
+           document.getElementById('popupDiscountText').innerText = `You save ETB ${_discountCache.total_discount_amount.toLocaleString()} on your cart!`;
+       } else if(badge) {
+           badge.style.display = 'none';
+       }
+    }
   });
+  
+  showCartPopup(id, name, price, img);
 }
 
 /* ── Wishlist ─────────────────────────────────── */
@@ -1504,8 +1545,12 @@ function calcClientDiscount() {
   let loyaltyDiscAmt = 0, loyaltyLabel = '';
   let threshDiscAmt = 0, threshLabel = '';
   let incentiveDiscAmt = 0, incentiveLabel = '';
-
   let qtyDiscAmt = 0, qtyLabel = '';
+
+  // Determine user tier level (0 = guest, 1 = Bronze, 2 = Silver, 3 = Gold, 4+ = higher)
+  const tierSortOrder = loyaltyProfile?.level?.sort_order || 0;
+  const qtyAllowed = tierSortOrder >= 1;       // Bronze and above
+  const incentiveAllowed = tierSortOrder >= 3; // Gold and above
 
   if (loyaltyProfile?.level?.discount_percentage > 0) {
     const pct = loyaltyProfile.level.discount_percentage;
@@ -1526,20 +1571,23 @@ function calcClientDiscount() {
     }
   }
 
-  // Fallback missing qty discount (usually backend does this, but we can't easily sync all rules)
-  // Let's just return 0 if not from server cache to prevent mismatch
-  // Actually, we shouldn't attempt to guess quantity discounts locally since they vary heavily.
-
-  const inc = _loyIncentiveCache;
-
-  if (inc?.current_savings > 0) {
-    incentiveDiscAmt = Math.round(inc.current_savings);
-    incentiveLabel = 'Cart Reward';
+  // Cart incentive — only for Gold+ (sort_order >= 3)
+  if (incentiveAllowed) {
+    const inc = _loyIncentiveCache;
+    if (inc?.current_savings > 0) {
+      incentiveDiscAmt = Math.round(inc.current_savings);
+      incentiveLabel = 'Cart Reward';
+    }
   }
 
+  // Quantity discount — only for Bronze+ (sort_order >= 1)
+  // Server-calculated; client shows 0 unless we got it from server cache already
+  // (Qty discount requires server knowledge of rules, we don't duplicate that logic here)
+
   const total = loyaltyDiscAmt + threshDiscAmt + incentiveDiscAmt + qtyDiscAmt;
-  return { loyaltyDiscAmt, loyaltyLabel, threshDiscAmt, threshLabel, incentiveDiscAmt, incentiveLabel, qtyDiscAmt, qtyLabel, total };
+  return { loyaltyDiscAmt, loyaltyLabel, threshDiscAmt, threshLabel, incentiveDiscAmt, incentiveLabel, qtyDiscAmt, qtyLabel, total, qtyAllowed, incentiveAllowed, tierSortOrder };
 }
+
 
 let _rewardToastTimeout = null;
 function showRewardToast(msg) {
@@ -1575,7 +1623,7 @@ function updateGlobalLoyaltyBar() {
   const pct = prog.nextThresh.discount_percentage;
   
   if(curLang==='am'){
-    document.getElementById('globalIncText').textContent = `ተጨማሪ ETB ${amtNeeded} ይጨምሩ`;
+    document.getElementById('globalIncText').textContent = `ተጨማሪ ETB ${amtNeeded} በመግዛት`;
     document.getElementById('globalIncSavings').textContent = `${pct}% ቅናሽ ያግኙ (ETB ${potSav})`;
   } else {
     document.getElementById('globalIncText').textContent = `Add ETB ${amtNeeded} more`;
@@ -2216,5 +2264,37 @@ if(tg){
     <div id="globalIncBar" style="height:100%;background:linear-gradient(90deg,var(--gl),var(--g));border-radius:100px;transition:width .5s"></div>
   </div>
 </div>
+
+<!-- Add to Cart Popup -->
+<div id="cartPopup" style="display:none;position:fixed;inset:0;z-index:9000;align-items:flex-end;background:rgba(0,0,0,.45);backdrop-filter:blur(3px);opacity:0;transition:opacity 0.3s;">
+  <div id="cartPopupCard" style="width:100%;background:var(--sf);border-radius:24px 24px 0 0;padding:20px 16px 28px;transform:translateY(100%);transition:transform .35s cubic-bezier(.34,1.56,.64,1);box-shadow:0 -8px 40px rgba(0,0,0,.18)">
+    <div style="width:40px;height:4px;background:var(--br);border-radius:100px;margin:0 auto 16px"></div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+      <img id="popupImg" style="width:60px;height:60px;border-radius:12px;object-fit:cover;background:var(--br)" src="" />
+      <div style="flex:1">
+        <div style="font-size:.65rem;font-weight:800;color:var(--g);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">✅ Added to Cart!</div>
+        <div id="popupName" style="font-size:.9rem;font-weight:800;line-height:1.3"></div>
+        <div id="popupPrice" style="font-size:.82rem;color:var(--tm);margin-top:2px"></div>
+      </div>
+    </div>
+    <div id="popupDiscountBadge" style="display:none;background:linear-gradient(135deg,#ECFDF5,#D1FAE5);border:1.5px solid #A7F3D0;border-radius:12px;padding:10px 14px;margin-bottom:12px">
+      <div style="font-size:.75rem;font-weight:900;color:#065F46;display:flex;align-items:center;gap:6px">
+        <span style="font-size:1.1rem">🎉</span>
+        <span id="popupDiscountText"></span>
+      </div>
+    </div>
+    <div id="popupIncentiveBar" style="display:none;background:var(--bg);border:1px solid var(--br);border-radius:12px;padding:10px 14px;margin-bottom:14px">
+      <div style="font-size:.7rem;font-weight:700;color:var(--tm);margin-bottom:5px" id="popupIncText"></div>
+      <div style="height:6px;background:var(--br);border-radius:100px;overflow:hidden">
+        <div id="popupIncBar" style="height:100%;background:linear-gradient(90deg,var(--gp),var(--g));border-radius:100px;transition:width .5s"></div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <button onclick="closeCartPopup();showTab('tab-cart')" style="background:var(--g);color:#fff;border-radius:100px;padding:13px;font-size:.88rem;font-weight:800;display:flex;align-items:center;justify-content:center;gap:6px;border:none"><i class='fas fa-shopping-bag'></i> View Cart</button>
+      <button onclick="closeCartPopup()" style="background:var(--bg);border:1.5px solid var(--br);border-radius:100px;padding:13px;font-size:.88rem;font-weight:700;color:var(--tm)">Continue</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>

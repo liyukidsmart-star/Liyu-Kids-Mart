@@ -1,4 +1,4 @@
-﻿import asyncio
+import asyncio
 import random
 import os
 from types import SimpleNamespace
@@ -116,6 +116,14 @@ def is_driver_user(telegram_id):
     if user.role == UserRole.driver or user.driver_profile:
         return True
     return str(telegram_id) in DRIVER_TG_IDS
+
+
+def is_manager_user(telegram_id):
+    """Check if telegram_id is a manager or admin in the DB."""
+    user = User.query.filter_by(telegram_id=str(telegram_id)).first()
+    if not user:
+        return False
+    return user.role.value in ('admin', 'manager')
 
 
 def add_to_cart(telegram_id, product_id, quantity=1):

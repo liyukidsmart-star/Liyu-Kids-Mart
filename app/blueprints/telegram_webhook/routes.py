@@ -151,3 +151,10 @@ def mini_app_products():
 def driver_app():
     """Driver Mini App for the delivery man."""
     return render_template('mini_app/driver.html')
+
+
+@telegram_bp.route('/store-app')
+def store_app():
+    """Store Management Mini App for store managers and admins."""
+    return render_template('mini_app/store_app.html')
+

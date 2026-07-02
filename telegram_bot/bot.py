@@ -14,6 +14,7 @@ TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 APP_URL = os.getenv('APP_URL', 'http://localhost:5000')
 BOT_MODE = os.getenv('BOT_MODE', 'polling')
 DRIVER_TG_IDS = [d.strip() for d in os.getenv('DRIVER_TG_IDS', '851785627,7733651914').split(',') if d.strip()]
+MANAGER_TG_IDS = [m.strip() for m in os.getenv('MANAGER_TG_IDS', '').split(',') if m.strip()]
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 logger = logging.getLogger(__name__)
@@ -38,7 +39,7 @@ def store_btn(text, path):
         return InlineKeyboardButton(text, web_app=WebAppInfo(url=full_url))
     return InlineKeyboardButton(text, url=full_url)
 
-def main_keyboard(show_driver=False):
+def main_keyboard(show_driver=False, show_manager=False):
     rows = [
         [InlineKeyboardButton("🛒 Native Shop", callback_data="shop_cats"),
          store_btn("🌐 Open Mini App", "/telegram/mini-app")],
@@ -49,6 +50,8 @@ def main_keyboard(show_driver=False):
     ]
     if show_driver:
         rows.append([store_btn("🛵 Driver Dashboard", "/telegram/driver-app")])
+    if show_manager:
+        rows.append([store_btn("🏪 Store Management", "/telegram/store-app")])
     return InlineKeyboardMarkup(rows)
 
 def back_menu_btn():
@@ -63,6 +66,7 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     # Register user in DB
     await db.run_in_db(db.get_or_create_user, user.id, user.username, full_name)
     show_driver = await db.run_in_db(db.is_driver_user, user.id)
+    show_manager = str(user.id) in MANAGER_TG_IDS or await db.run_in_db(db.is_manager_user, user.id)
 
     welcome_text = (
         f"🌟 *Welcome to Liyu Kids Mart, {user.first_name}!* 🌟\n\n"
@@ -72,9 +76,9 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     )
     
     if update.message:
-        await update.message.reply_text(welcome_text, parse_mode='Markdown', reply_markup=main_keyboard(show_driver))
+        await update.message.reply_text(welcome_text, parse_mode='Markdown', reply_markup=main_keyboard(show_driver, show_manager))
     elif update.callback_query:
-        await update.callback_query.message.reply_text(welcome_text, parse_mode='Markdown', reply_markup=main_keyboard(show_driver))
+        await update.callback_query.message.reply_text(welcome_text, parse_mode='Markdown', reply_markup=main_keyboard(show_driver, show_manager))
 
 async def menu_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -82,12 +86,13 @@ async def menu_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     
     text = "🌟 *Liyu Kids Mart Main Menu*\n\nHow can we help you today?"
     show_driver = await db.run_in_db(db.is_driver_user, update.effective_user.id)
+    show_manager = str(update.effective_user.id) in MANAGER_TG_IDS or await db.run_in_db(db.is_manager_user, update.effective_user.id)
     try:
-        await query.message.edit_text(text, parse_mode='Markdown', reply_markup=main_keyboard(show_driver))
+        await query.message.edit_text(text, parse_mode='Markdown', reply_markup=main_keyboard(show_driver, show_manager))
     except Exception:
         # If it's a photo message, delete and send new
         await query.message.delete()
-        await query.message.reply_text(text, parse_mode='Markdown', reply_markup=main_keyboard(show_driver))
+        await query.message.reply_text(text, parse_mode='Markdown', reply_markup=main_keyboard(show_driver, show_manager))
 
 # --- NATIVE SHOPPING ---
 

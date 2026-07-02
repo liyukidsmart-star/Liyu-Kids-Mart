@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Store Management - Liyu Kids Mart</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --g: #10B981; --gp: #059669; --p: #6C3FC5; --bg: #F9FAFB;
+            --sf: #FFFFFF; --tm: #374151; --ts: #6B7280; --br: #E5E7EB;
+            --danger: #EF4444; --warning: #F59E0B; --info: #3B82F6;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background: var(--bg); color: var(--tm); padding-bottom: 70px; }
+        
+        /* Header */
+        .header { background: var(--sf); padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .header h1 { font-size: 1.2rem; font-weight: 800; color: var(--p); display: flex; align-items: center; gap: 8px; }
+        .header-profile { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, var(--p), #9D75EA); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+
+        /* Tabs Navigation */
+        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--sf); display: flex; justify-content: space-around; padding: 10px 0 calc(10px + env(safe-area-inset-bottom)); box-shadow: 0 -4px 20px rgba(0,0,0,0.05); z-index: 100; border-radius: 20px 20px 0 0; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--ts); font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s; position: relative; }
+        .nav-item i { font-size: 1.2rem; transition: transform 0.2s; }
+        .nav-item.active { color: var(--p); }
+        .nav-item.active i { transform: translateY(-2px) scale(1.1); }
+        .badge { position: absolute; top: -5px; right: -8px; background: var(--danger); color: white; font-size: 0.6rem; padding: 2px 6px; border-radius: 100px; border: 2px solid var(--sf); font-weight: bold; }
+
+        /* Views */
+        .view { display: none; padding: 16px; animation: fadeIn 0.3s ease; }
+        .view.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Dashboard Cards */
+        .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+        .stat-card { background: var(--sf); padding: 16px; border-radius: 16px; border: 1px solid var(--br); box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
+        .stat-card .title { font-size: 0.75rem; color: var(--ts); font-weight: 600; margin-bottom: 8px; display: flex; justify-content: space-between; }
+        .stat-card .value { font-size: 1.4rem; font-weight: 800; color: var(--tm); }
+        .stat-card.primary { background: linear-gradient(135deg, var(--p), #8B5CF6); color: white; border: none; }
+        .stat-card.primary .title, .stat-card.primary .value { color: white; }
+
+        /* Order List */
+        .filter-scroll { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 12px; margin-bottom: 8px; scrollbar-width: none; }
+        .filter-scroll::-webkit-scrollbar { display: none; }
+        .filter-pill { padding: 6px 14px; background: var(--sf); border: 1px solid var(--br); border-radius: 100px; font-size: 0.8rem; font-weight: 600; color: var(--ts); white-space: nowrap; transition: all 0.2s; }
+        .filter-pill.active { background: var(--p); color: white; border-color: var(--p); }
+
+        .order-card { background: var(--sf); border-radius: 16px; padding: 16px; margin-bottom: 12px; border: 1px solid var(--br); display: flex; flex-direction: column; gap: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); position: relative; overflow: hidden; }
+        .order-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--br); padding-bottom: 12px; }
+        .order-id { font-weight: 800; font-size: 0.95rem; display: flex; align-items: center; gap: 6px; }
+        .order-time { font-size: 0.75rem; color: var(--ts); }
+        .order-status { font-size: 0.7rem; font-weight: 700; padding: 4px 10px; border-radius: 100px; text-transform: uppercase; }
+        .status-pending { background: #FEF3C7; color: #D97706; }
+        .status-confirmed { background: #DBEAFE; color: #2563EB; }
+        .status-packed { background: #F3E8FF; color: #7E22CE; }
+        .status-out_for_delivery { background: #E0E7FF; color: #4338CA; }
+        .status-delivered { background: #D1FAE5; color: #059669; }
+        .status-cancelled { background: #FEE2E2; color: #DC2626; }
+        
+        .order-customer { display: flex; align-items: center; gap: 10px; }
+        .customer-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--bg); display: flex; align-items: center; justify-content: center; font-weight: bold; color: var(--ts); }
+        .customer-info .name { font-weight: 700; font-size: 0.9rem; }
+        .customer-info .phone { font-size: 0.75rem; color: var(--ts); }
+        
+        .order-footer { display: flex; justify-content: space-between; align-items: center; background: var(--bg); padding: 10px 12px; border-radius: 12px; margin-top: 4px; }
+        .order-total { font-weight: 800; font-size: 1rem; color: var(--g); }
+        .order-items { font-size: 0.8rem; font-weight: 600; color: var(--ts); }
+        .btn { padding: 8px 16px; border-radius: 100px; font-weight: 700; font-size: 0.85rem; border: none; cursor: pointer; transition: opacity 0.2s; }
+        .btn:active { opacity: 0.8; }
+        .btn-primary { background: var(--p); color: white; }
+        .btn-outline { background: transparent; border: 1px solid var(--br); color: var(--tm); }
+        .btn-success { background: var(--g); color: white; }
+
+        /* Inventory List */
+        .product-item { display: flex; align-items: center; gap: 12px; background: var(--sf); padding: 12px; border-radius: 12px; border: 1px solid var(--br); margin-bottom: 10px; }
+        .product-img { width: 50px; height: 50px; border-radius: 8px; object-fit: cover; background: var(--bg); }
+        .product-info { flex: 1; }
+        .product-name { font-weight: 600; font-size: 0.85rem; margin-bottom: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .product-stock { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: 600; }
+        .stock-badge { padding: 2px 6px; border-radius: 4px; background: var(--bg); }
+        .stock-badge.low { background: #FEE2E2; color: #DC2626; }
+        .stock-badge.good { background: #D1FAE5; color: #059669; }
+        .stock-actions { display: flex; align-items: center; gap: 8px; }
+        .stock-btn { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--br); background: var(--bg); display: flex; align-items: center; justify-content: center; font-weight: bold; color: var(--tm); }
+
+        /* Modal Overlay */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; display: none; align-items: flex-end; backdrop-filter: blur(2px); }
+        .modal-content { background: var(--sf); width: 100%; border-radius: 24px 24px 0 0; padding: 24px 20px 30px; max-height: 85vh; overflow-y: auto; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .modal-overlay.active { display: flex; }
+        .modal-overlay.active .modal-content { transform: translateY(0); }
+        .modal-handle { width: 40px; height: 4px; background: var(--br); border-radius: 2px; margin: 0 auto 20px; }
+        
+        .detail-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px dashed var(--br); font-size: 0.85rem; }
+        .detail-row span:last-child { font-weight: 600; }
+        
+        /* Driver Assign List */
+        .driver-item { display: flex; align-items: center; justify-content: space-between; padding: 12px; border: 1px solid var(--br); border-radius: 12px; margin-bottom: 10px; }
+        .driver-item.busy { opacity: 0.6; }
+        .driver-info { display: flex; align-items: center; gap: 10px; }
+        .driver-avatar { width: 40px; height: 40px; border-radius: 50%; background: #E0E7FF; color: #4338CA; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1><i class="fas fa-store"></i> Store Portal</h1>
+        <div class="header-profile" id="userInitial">M</div>
+    </div>
+
+    <!-- DASHBOARD VIEW -->
+    <div id="view-dashboard" class="view active">
+        <h2 style="font-size: 1.1rem; margin-bottom: 16px;">Overview</h2>
+        <div class="stat-grid">
+            <div class="stat-card primary">
+                <div class="title">Today's Revenue <i class="fas fa-chart-line"></i></div>
+                <div class="value" id="dashRev">ETB 0</div>
+            </div>
+            <div class="stat-card">
+                <div class="title">Today's Orders <i class="fas fa-shopping-bag"></i></div>
+                <div class="value" id="dashOrd">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="title">Pending Orders <i class="fas fa-clock"></i></div>
+                <div class="value" id="dashPen" style="color: var(--warning);">0</div>
+            </div>
+            <div class="stat-card" onclick="switchTab('inventory')">
+                <div class="title">Low Stock <i class="fas fa-exclamation-triangle"></i></div>
+                <div class="value" id="dashLow" style="color: var(--danger);">0</div>
+            </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <h2 style="font-size: 1rem;">Recent Orders</h2>
+            <span style="font-size: 0.8rem; color: var(--p); font-weight: 600; cursor: pointer;" onclick="switchTab('orders')">View All</span>
+        </div>
+        <div id="recentOrdersList"></div>
+    </div>
+
+    <!-- ORDERS VIEW -->
+    <div id="view-orders" class="view">
+        <div class="filter-scroll" id="orderFilters">
+            <div class="filter-pill active" data-status="all">All</div>
+            <div class="filter-pill" data-status="pending">Pending <span id="badgePending" style="display:none;background:var(--danger);color:white;border-radius:10px;padding:0 4px;font-size:0.6rem;margin-left:4px"></span></div>
+            <div class="filter-pill" data-status="confirmed">Confirmed</div>
+            <div class="filter-pill" data-status="out_for_delivery">Delivering</div>
+            <div class="filter-pill" data-status="delivered">Delivered</div>
+        </div>
+        <div id="ordersList"></div>
+    </div>
+
+    <!-- INVENTORY VIEW -->
+    <div id="view-inventory" class="view">
+        <div style="display: flex; gap: 10px; margin-bottom: 16px;">
+            <input type="text" id="searchInv" placeholder="Search products..." style="flex: 1; padding: 10px 14px; border: 1px solid var(--br); border-radius: 12px; outline: none; font-size: 0.9rem;" oninput="debounce(loadInventory, 500)()">
+            <button class="btn btn-outline" onclick="toggleLowStock()"><i class="fas fa-filter"></i></button>
+        </div>
+        <div id="inventoryList"></div>
+    </div>
+
+    <!-- DRIVERS VIEW -->
+    <div id="view-drivers" class="view">
+        <h2 style="font-size: 1.1rem; margin-bottom: 16px;">Active Drivers</h2>
+        <div id="driversList"></div>
+    </div>
+
+    <!-- BOTTOM NAVIGATION -->
+    <div class="bottom-nav">
+        <div class="nav-item active" data-tab="dashboard" onclick="switchTab('dashboard')">
+            <i class="fas fa-chart-pie"></i>
+            <span>Dashboard</span>
+        </div>
+        <div class="nav-item" data-tab="orders" onclick="switchTab('orders')">
+            <i class="fas fa-list-alt"></i>
+            <span>Orders</span>
+            <div class="badge" id="navBadgeOrders" style="display: none;">0</div>
+        </div>
+        <div class="nav-item" data-tab="inventory" onclick="switchTab('inventory')">
+            <i class="fas fa-box-open"></i>
+            <span>Inventory</span>
+        </div>
+        <div class="nav-item" data-tab="drivers" onclick="switchTab('drivers')">
+            <i class="fas fa-motorcycle"></i>
+            <span>Drivers</span>
+        </div>
+    </div>
+
+    <!-- ORDER DETAIL MODAL -->
+    <div class="modal-overlay" id="orderModal" onclick="if(event.target===this) closeOrderModal()">
+        <div class="modal-content">
+            <div class="modal-handle"></div>
+            <div id="orderModalBody"></div>
+        </div>
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        const managerId = tg.initDataUnsafe?.user?.id || new URLSearchParams(window.location.search).get('manager_id');
+        if(tg.initDataUnsafe?.user?.first_name) {
+            document.getElementById('userInitial').innerText = tg.initDataUnsafe.user.first_name.charAt(0);
+        }
+
+        let currentStatusFilter = 'all';
+        let showLowStockOnly = false;
+        let _timer;
+
+        // Init
+        document.addEventListener('DOMContentLoaded', () => {
+            loadDashboard();
+            
+            // Setup filters
+            document.querySelectorAll('.filter-pill').forEach(pill => {
+                pill.addEventListener('click', () => {
+                    document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+                    pill.classList.add('active');
+                    currentStatusFilter = pill.dataset.status;
+                    loadOrders();
+                });
+            });
+        });
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.getElementById('view-' + tabId).classList.add('active');
+            document.querySelector(`.nav-item[data-tab="${tabId}"]`).classList.add('active');
+            
+            if(tabId === 'dashboard') loadDashboard();
+            if(tabId === 'orders') loadOrders();
+            if(tabId === 'inventory') loadInventory();
+            if(tabId === 'drivers') loadDrivers();
+        }
+
+        function debounce(func, wait) {
+            return function() {
+                clearTimeout(_timer);
+                _timer = setTimeout(func, wait);
+            };
+        }
+
+        // --- API CALLS ---
+        async function fetchAPI(endpoint, options = {}) {
+            const url = new URL('/api/v1' + endpoint, window.location.origin);
+            if(managerId) url.searchParams.append('manager_id', managerId);
+            
+            const reqOpts = { ...options };
+            if(options.body) {
+                reqOpts.headers = { ...reqOpts.headers, 'Content-Type': 'application/json' };
+            }
+            try {
+                const res = await fetch(url, reqOpts);
+                const data = await res.json();
+                if(data.success) return data.data;
+                tg.showAlert(data.message || 'Error');
+                return null;
+            } catch(e) {
+                console.error(e);
+                return null;
+            }
+        }
+
+        async function loadDashboard() {
+            const data = await fetchAPI('/store/dashboard');
+            if(!data) return;
+            
+            document.getElementById('dashRev').innerText = `ETB ${data.today.revenue.toLocaleString()}`;
+            document.getElementById('dashOrd').innerText = data.today.orders;
+            document.getElementById('dashPen').innerText = data.pending_orders;
+            document.getElementById('dashLow').innerText = data.low_stock_products.length;
+
+            if(data.pending_orders > 0) {
+                const b1 = document.getElementById('navBadgeOrders');
+                const b2 = document.getElementById('badgePending');
+                b1.style.display = 'block'; b1.innerText = data.pending_orders;
+                b2.style.display = 'inline-block'; b2.innerText = data.pending_orders;
+            } else {
+                document.getElementById('navBadgeOrders').style.display = 'none';
+                document.getElementById('badgePending').style.display = 'none';
+            }
+
+            const rList = document.getElementById('recentOrdersList');
+            if(data.recent_orders.length === 0) {
+                rList.innerHTML = '<div style="text-align:center;padding:20px;color:var(--ts)">No recent orders</div>';
+            } else {
+                rList.innerHTML = data.recent_orders.map(o => createOrderCard(o)).join('');
+            }
+        }
+
+        async function loadOrders() {
+            const url = `/store/orders?status=${currentStatusFilter}`;
+            const data = await fetchAPI(url);
+            if(!data) return;
+            
+            const list = document.getElementById('ordersList');
+            if(data.orders.length === 0) {
+                list.innerHTML = `<div style="text-align:center;padding:40px 20px;color:var(--ts)"><i class="fas fa-inbox" style="font-size:3rem;margin-bottom:10px;opacity:0.3"></i><br>No orders found</div>`;
+            } else {
+                list.innerHTML = data.orders.map(o => createOrderCard(o)).join('');
+            }
+        }
+
+        function createOrderCard(o) {
+            return `
+            <div class="order-card" onclick="openOrderModal(${o.id})">
+                <div class="order-header">
+                    <div class="order-id">#${o.order_number}</div>
+                    <div class="order-status status-${o.status}">${o.status_label}</div>
+                </div>
+                <div class="order-customer">
+                    <div class="customer-avatar"><i class="fas fa-user"></i></div>
+                    <div class="customer-info">
+                        <div class="name">${o.customer}</div>
+                        <div class="phone">${o.customer_phone || ''} <span style="color:var(--ts);font-size:0.7rem">• ${o.created_label || o.created_at}</span></div>
+                    </div>
+                </div>
+                <div class="order-footer">
+                    <div class="order-items">${o.items_count || ''} Items</div>
+                    <div class="order-total">ETB ${o.total.toLocaleString()}</div>
+                </div>
+            </div>`;
+        }
+
+        async function loadInventory() {
+            const search = document.getElementById('searchInv').value;
+            const ls = showLowStockOnly ? '1' : '0';
+            const data = await fetchAPI(`/store/products?search=${encodeURIComponent(search)}&low_stock=${ls}`);
+            if(!data) return;
+            
+            const list = document.getElementById('inventoryList');
+            if(data.products.length === 0) {
+                list.innerHTML = `<div style="text-align:center;padding:40px 20px;color:var(--ts)">No products found</div>`;
+            } else {
+                list.innerHTML = data.products.map(p => `
+                <div class="product-item">
+                    <img src="${p.image || ''}" class="product-img" onerror="this.src=''">
+                    <div class="product-info">
+                        <div class="product-name">${p.name}</div>
+                        <div class="product-stock">
+                            <span style="color:var(--p)">ETB ${p.price}</span> • 
+                            <span class="stock-badge ${p.low_stock ? 'low' : 'good'}">${p.stock} in stock</span>
+                        </div>
+                    </div>
+                    <div class="stock-actions">
+                        <button class="stock-btn" onclick="updateStock(${p.id}, ${p.stock - 1})">-</button>
+                        <button class="stock-btn" onclick="updateStock(${p.id}, ${p.stock + 1})">+</button>
+                    </div>
+                </div>`).join('');
+            }
+        }
+
+        function toggleLowStock() {
+            showLowStockOnly = !showLowStockOnly;
+            loadInventory();
+        }
+
+        async function updateStock(id, newStock) {
+            if(newStock < 0) return;
+            await fetchAPI(`/store/products/${id}/stock`, { method: 'POST', body: JSON.stringify({stock: newStock}) });
+            loadInventory();
+        }
+
+        async function loadDrivers() {
+            const data = await fetchAPI('/store/drivers');
+            if(!data) return;
+            
+            const list = document.getElementById('driversList');
+            if(data.drivers.length === 0) {
+                list.innerHTML = `<div style="text-align:center;padding:40px 20px;color:var(--ts)">No active drivers</div>`;
+            } else {
+                list.innerHTML = data.drivers.map(d => `
+                <div class="driver-item ${d.active_deliveries > 0 ? 'busy' : ''}">
+                    <div class="driver-info">
+                        <div class="driver-avatar"><i class="fas fa-motorcycle"></i></div>
+                        <div>
+                            <div style="font-weight:700;font-size:0.9rem">${d.name}</div>
+                            <div style="font-size:0.75rem;color:var(--ts)">${d.phone || 'No phone'}</div>
+                        </div>
+                    </div>
+                    <div style="text-align:right">
+                        <div style="font-size:0.75rem;font-weight:700;color:${d.active_deliveries > 0 ? 'var(--warning)' : 'var(--g)'}">${d.active_deliveries > 0 ? d.active_deliveries + ' Active' : 'Available'}</div>
+                    </div>
+                </div>`).join('');
+            }
+        }
+
+        // --- ORDER MODAL ---
+        let currentOrder = null;
+        async function openOrderModal(orderId) {
+            currentOrder = await fetchAPI(`/store/orders/${orderId}`);
+            if(!currentOrder) return;
+            
+            const b = document.getElementById('orderModalBody');
+            
+            let actionBtns = '';
+            if (currentOrder.status === 'pending') {
+                actionBtns = `
+                <div style="display:flex;gap:10px;margin-top:20px;">
+                    <button class="btn btn-outline" style="flex:1" onclick="updateOrderStatus('cancelled')">Reject</button>
+                    <button class="btn btn-primary" style="flex:1" onclick="updateOrderStatus('confirmed')">Confirm Order</button>
+                </div>`;
+            } else if (currentOrder.status === 'confirmed' || currentOrder.status === 'packed') {
+                actionBtns = `
+                <div style="margin-top:20px;">
+                    <button class="btn btn-primary" style="width:100%;margin-bottom:10px;" onclick="showAssignDriver()">Assign Driver</button>
+                    ${currentOrder.status === 'confirmed' ? `<button class="btn btn-outline" style="width:100%;" onclick="updateOrderStatus('packed')">Mark as Packed</button>` : ''}
+                </div>`;
+            }
+
+            let deliverySection = '';
+            if (currentOrder.delivery) {
+                deliverySection = `
+                <div style="background:var(--bg);padding:12px;border-radius:12px;margin:16px 0;border:1px solid var(--br)">
+                    <div style="font-size:0.75rem;color:var(--ts);margin-bottom:4px">Delivery Assignment</div>
+                    <div style="font-weight:700">${currentOrder.delivery.driver_name}</div>
+                    <div style="font-size:0.8rem;color:var(--ts)">Status: <span style="text-transform:capitalize">${currentOrder.delivery.status.replace('_', ' ')}</span></div>
+                </div>`;
+            }
+
+            b.innerHTML = `
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;">
+                    <div>
+                        <div style="font-size:1.2rem;font-weight:800;">Order #${currentOrder.order_number}</div>
+                        <div style="font-size:0.8rem;color:var(--ts);">${new Date(currentOrder.created_at).toLocaleString()}</div>
+                    </div>
+                    <div class="order-status status-${currentOrder.status}">${currentOrder.status_label}</div>
+                </div>
+
+                <div style="display:flex;gap:12px;margin-bottom:20px;">
+                    <div style="width:40px;height:40px;border-radius:50%;background:var(--p);color:white;display:flex;align-items:center;justify-content:center"><i class="fas fa-user"></i></div>
+                    <div>
+                        <div style="font-weight:700;">${currentOrder.customer}</div>
+                        <div style="font-size:0.8rem;color:var(--ts);">${currentOrder.customer_phone}</div>
+                    </div>
+                </div>
+
+                <div style="background:var(--bg);padding:12px;border-radius:12px;margin-bottom:16px;font-size:0.85rem;">
+                    <div style="color:var(--ts);margin-bottom:4px"><i class="fas fa-map-marker-alt"></i> Delivery Address</div>
+                    <div style="font-weight:600">${currentOrder.location || 'Not provided'}</div>
+                </div>
+
+                ${deliverySection}
+
+                <div style="font-weight:800;font-size:0.9rem;margin-bottom:10px;">Order Items</div>
+                <div style="border:1px solid var(--br);border-radius:12px;padding:0 12px;margin-bottom:16px;">
+                    ${currentOrder.items.map(i => `
+                    <div style="display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--br);">
+                        <img src="${i.product_image || ''}" style="width:40px;height:40px;border-radius:8px;object-fit:cover;background:var(--bg)">
+                        <div style="flex:1;">
+                            <div style="font-size:0.85rem;font-weight:600">${i.product_name}</div>
+                            <div style="font-size:0.75rem;color:var(--ts)">x${i.quantity} • ETB ${i.unit_price}</div>
+                        </div>
+                        <div style="font-weight:700;font-size:0.9rem">ETB ${i.total_price}</div>
+                    </div>`).join('')}
+                </div>
+
+                <div style="margin-bottom:20px;">
+                    <div class="detail-row"><span>Subtotal</span><span>ETB ${currentOrder.subtotal.toLocaleString()}</span></div>
+                    ${currentOrder.discount_amount > 0 ? `<div class="detail-row"><span style="color:var(--g)">Discount</span><span style="color:var(--g)">-ETB ${currentOrder.discount_amount.toLocaleString()}</span></div>` : ''}
+                    <div class="detail-row"><span>Delivery Fee</span><span>ETB ${currentOrder.delivery_fee.toLocaleString()}</span></div>
+                    <div class="detail-row" style="font-size:1.1rem;font-weight:800;border:none;margin-top:4px;"><span>Total</span><span style="color:var(--p)">ETB ${currentOrder.total.toLocaleString()}</span></div>
+                </div>
+
+                ${actionBtns}
+            `;
+            
+            document.getElementById('orderModal').classList.add('active');
+        }
+
+        function closeOrderModal() {
+            document.getElementById('orderModal').classList.remove('active');
+            currentOrder = null;
+        }
+
+        async function updateOrderStatus(status) {
+            tg.showConfirm(`Change status to ${status}?`, async (res) => {
+                if(res) {
+                    await fetchAPI(`/store/orders/${currentOrder.id}/status`, { method: 'POST', body: JSON.stringify({status}) });
+                    closeOrderModal();
+                    loadOrders();
+                    loadDashboard();
+                }
+            });
+        }
+
+        async function showAssignDriver() {
+            const data = await fetchAPI('/store/drivers');
+            if(!data || data.drivers.length === 0) {
+                tg.showAlert("No drivers available"); return;
+            }
+            
+            const b = document.getElementById('orderModalBody');
+            b.innerHTML = `
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
+                    <button class="btn btn-outline" style="padding:6px 12px;" onclick="openOrderModal(${currentOrder.id})"><i class="fas fa-arrow-left"></i></button>
+                    <h3 style="margin:0;font-size:1.1rem">Assign Driver</h3>
+                </div>
+                <div style="margin-bottom:10px;font-size:0.85rem;color:var(--ts)">Select a driver for Order #${currentOrder.order_number}</div>
+                <div>
+                    ${data.drivers.map(d => `
+                    <div class="driver-item" onclick="assignDriver(${d.id})" style="cursor:pointer;border-color:var(--p);">
+                        <div class="driver-info">
+                            <div class="driver-avatar"><i class="fas fa-motorcycle"></i></div>
+                            <div>
+                                <div style="font-weight:700;font-size:0.9rem">${d.name}</div>
+                                <div style="font-size:0.75rem;color:var(--ts)">${d.active_deliveries} Active Orders</div>
+                            </div>
+                        </div>
+                        <i class="fas fa-chevron-right" style="color:var(--ts)"></i>
+                    </div>`).join('')}
+                </div>
+            `;
+        }
+
+        async function assignDriver(driverId) {
+            await fetchAPI(`/store/orders/${currentOrder.id}/assign-driver`, { method: 'POST', body: JSON.stringify({driver_id: driverId}) });
+            tg.showAlert("Driver assigned successfully!");
+            closeOrderModal();
+            loadOrders();
+        }
+    </script>
+</body>
+</html>
