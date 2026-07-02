@@ -57,8 +57,17 @@ def create_order():
         return error_response('Cart is empty')
 
     subtotal = sum(float(i.product.current_price()) * i.quantity for i in cart_items if i.product)
-    delivery_fee = 0 if subtotal >= 1000 else 50
-    total = subtotal + delivery_fee
+    total_item_count = sum(i.quantity for i in cart_items)
+
+    # ── Calculate Loyalty Discount ──
+    from app.services.loyalty_service import calculate_loyalty_discount, process_order_rewards
+    user._cart_item_count = total_item_count
+    discount_info = calculate_loyalty_discount(user, subtotal)
+    discount_amount = discount_info.get('total_discount_amount', 0.0)
+    
+    discounted_subtotal = max(0.0, subtotal - discount_amount)
+    delivery_fee = 0 if discounted_subtotal >= 1000 else 50
+    total = discounted_subtotal + delivery_fee
 
     addr_data = data.get('address', {})
     addr = Address(
@@ -98,10 +107,16 @@ def create_order():
         item.product.sales_count = (item.product.sales_count or 0) + item.quantity
         db.session.delete(item)
 
+    # ── Process Loyalty Rewards ──
+    loyalty_result = process_order_rewards(user, order, savings_amount=discount_amount)
+
     payment = Payment(order_id=order.id, method='cod', amount=total, status='pending')
     db.session.add(payment)
     db.session.commit()
-    return success_response(order.to_dict(include_items=True), 'Order placed successfully', 201)
+    
+    res_data = order.to_dict(include_items=True)
+    res_data['loyalty_result'] = loyalty_result
+    return success_response(res_data, 'Order placed successfully', 201)
 
 
 @api_bp.route('/orders/<order_number>/cancel', methods=['POST'])

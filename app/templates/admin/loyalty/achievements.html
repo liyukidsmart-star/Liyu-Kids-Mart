@@ -1,0 +1,213 @@
+{% extends 'admin/base_admin.html' %}
+{% block title %}Achievements — Liyu Kids Mart{% endblock %}
+{% block page_title %}🏆 Achievements{% endblock %}
+
+{% block extra_css %}
+<style>
+.loyalty-page-header { background:linear-gradient(135deg,#8B5CF6,#6D28D9); border-radius:16px; padding:1.5rem 2rem; color:white; margin-bottom:2rem; }
+.loyalty-page-header h2 { margin:0; font-weight:700; font-size:1.6rem; }
+.config-card { background:white; border-radius:16px; box-shadow:0 4px 24px rgba(0,0,0,.07); overflow:hidden; }
+.config-card-header { padding:1rem 1.5rem; background:linear-gradient(135deg,#F5F3FF,#EDE9FE); border-bottom:1px solid #DDD6FE; font-weight:700; color:#4C1D95; }
+.config-card-body { padding:1.5rem; }
+.form-control, .form-select { border-radius:10px; border:1.5px solid #E5E7EB; padding:.6rem 1rem; }
+.form-control:focus,.form-select:focus { border-color:#8B5CF6; box-shadow:0 0 0 3px rgba(139,92,246,.12); }
+.ach-card {
+  display:flex; align-items:center; gap:1rem; padding:1rem; border-radius:14px;
+  border:1.5px solid #F3F4F6; margin-bottom:.75rem; transition:all .2s;
+}
+.ach-card:hover { border-color:#8B5CF6; transform:translateX(3px); }
+.ach-badge-circle { width:52px; height:52px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:1.6rem; flex-shrink:0; }
+.ach-meta { flex-grow:1; }
+.ach-name { font-weight:700; color:#1F2937; }
+.ach-trigger { font-size:.8rem; color:#6B7280; }
+.ach-points { background:#F5F3FF; color:#7C3AED; padding:3px 12px; border-radius:20px; font-weight:700; font-size:.8rem; }
+.trigger-type-badge { background:#EDE9FE; color:#6D28D9; padding:2px 10px; border-radius:12px; font-size:.75rem; font-weight:600; }
+.btn-danger-outline { border:1.5px solid #EF4444; color:#EF4444; background:transparent; border-radius:8px; padding:4px 10px; font-size:.8rem; }
+.btn-danger-outline:hover { background:#FEF2F2; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="loyalty-page-header">
+  <h2><i class="fas fa-trophy me-2"></i>Achievements & Badges</h2>
+  <p class="mb-0 opacity-75">Gamify the shopping experience. Customers unlock badges as they shop more.</p>
+</div>
+
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{{ url_for('admin.loyalty_overview') }}">Loyalty</a></li>
+    <li class="breadcrumb-item active">Achievements</li>
+  </ol>
+</nav>
+
+<div class="row g-4">
+  <!-- Create Form -->
+  <div class="col-lg-4">
+    <div class="config-card">
+      <div class="config-card-header"><i class="fas fa-plus me-2"></i>New Achievement</div>
+      <div class="config-card-body">
+        <form method="POST" action="{{ url_for('admin.loyalty_achievements') }}">
+          <input type="hidden" name="action" value="save">
+          <input type="hidden" name="id" value="0">
+          <div class="mb-3">
+            <label class="form-label fw-600">Name <span class="text-danger">*</span></label>
+            <input type="text" name="name" class="form-control" required placeholder="e.g. First Purchase">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-600">Amharic Name</label>
+            <input type="text" name="name_am" class="form-control" placeholder="e.g. ፈጠራ ግዢ">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-600">Description</label>
+            <input type="text" name="description" class="form-control" placeholder="What does the customer need to do?">
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label fw-600">Badge Icon</label>
+              <input type="text" name="badge_icon" class="form-control" value="🏆" maxlength="4" id="achIconInput">
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-600">Color</label>
+              <input type="color" name="color_hex" class="form-control form-control-color w-100" value="#FFD700" style="height:42px;">
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-600">Trigger Type</label>
+            <select name="trigger_type" class="form-select">
+              <option value="orders_count">Number of Orders</option>
+              <option value="spending_total">Total Spending (Birr)</option>
+              <option value="items_count">Items Purchased</option>
+              <option value="review_count">Reviews Written</option>
+              <option value="reward_points">Points Earned</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-600">Trigger Value</label>
+            <input type="number" name="trigger_value" class="form-control" required min="1" value="1" placeholder="e.g. 10">
+            <small class="text-muted">e.g. "10" orders, or "5000" Birr</small>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-600">Points Awarded</label>
+            <input type="number" name="points_awarded" class="form-control" min="0" value="100">
+          </div>
+          <div class="form-check form-switch mb-3">
+            <input class="form-check-input" type="checkbox" name="is_active" id="achActive" checked>
+            <label class="form-check-label" for="achActive">Active</label>
+          </div>
+          <!-- Live preview -->
+          <div class="text-center p-3 rounded-3 mb-3" id="achPreviewBox" style="background:#FFF9E6;">
+            <div id="achPreviewIcon" style="font-size:2.5rem;">🏆</div>
+            <div class="fw-700 mt-1">Achievement</div>
+          </div>
+          <button type="submit" class="btn w-100 rounded-pill fw-600 text-white" style="background:linear-gradient(135deg,#8B5CF6,#6D28D9);">
+            <i class="fas fa-plus me-2"></i>Create Achievement
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Achievements List -->
+  <div class="col-lg-8">
+    <div class="config-card">
+      <div class="config-card-header d-flex justify-content-between align-items-center">
+        <span><i class="fas fa-medal me-2"></i>All Achievements</span>
+        <span class="badge" style="background:#8B5CF6;">{{ achievements | length }} badges</span>
+      </div>
+      <div class="config-card-body">
+        {% if achievements %}
+          {% for ach in achievements %}
+          <div class="ach-card">
+            <div class="ach-badge-circle" style="background:{{ ach.color_hex }}22;">
+              {{ ach.badge_icon }}
+            </div>
+            <div class="ach-meta">
+              <div class="ach-name">{{ ach.name }}{% if ach.name_am %} <small class="text-muted">/ {{ ach.name_am }}</small>{% endif %}</div>
+              <div class="ach-trigger">
+                <span class="trigger-type-badge me-1">{{ ach.trigger_type.replace('_',' ') | title }}</span>
+                ≥ {{ "{:,.0f}".format(ach.trigger_value | float) }}
+                {% if ach.description %} · {{ ach.description }}{% endif %}
+              </div>
+            </div>
+            <div class="d-flex flex-column align-items-end gap-1">
+              <span class="ach-points">+{{ ach.points_awarded }} pts</span>
+              {% if ach.is_active %}<span class="badge bg-success-subtle text-success">Active</span>
+              {% else %}<span class="badge bg-secondary-subtle text-secondary">Inactive</span>{% endif %}
+            </div>
+            <div class="d-flex gap-1">
+              <button class="btn btn-outline-primary btn-sm" data-bs-toggle="collapse" data-bs-target="#editAch{{ ach.id }}">
+                <i class="fas fa-edit"></i>
+              </button>
+              <form method="POST" onsubmit="return confirm('Deactivate?');" class="d-inline">
+                <input type="hidden" name="action" value="delete">
+                <input type="hidden" name="id" value="{{ ach.id }}">
+                <button type="submit" class="btn-danger-outline"><i class="fas fa-ban"></i></button>
+              </form>
+            </div>
+          </div>
+          <!-- Inline Edit -->
+          <div class="collapse mb-3" id="editAch{{ ach.id }}">
+            <form method="POST" class="row g-2 p-3 bg-light rounded-3">
+              <input type="hidden" name="action" value="save">
+              <input type="hidden" name="id" value="{{ ach.id }}">
+              <div class="col-md-4">
+                <label class="form-label small fw-600">Name</label>
+                <input type="text" name="name" class="form-control form-control-sm" value="{{ ach.name }}" required>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label small fw-600">Icon</label>
+                <input type="text" name="badge_icon" class="form-control form-control-sm" value="{{ ach.badge_icon }}" maxlength="4">
+              </div>
+              <div class="col-md-2">
+                <label class="form-label small fw-600">Trigger Type</label>
+                <select name="trigger_type" class="form-select form-select-sm">
+                  <option value="orders_count" {{ 'selected' if ach.trigger_type=='orders_count' }}>Orders</option>
+                  <option value="spending_total" {{ 'selected' if ach.trigger_type=='spending_total' }}>Spending</option>
+                  <option value="items_count" {{ 'selected' if ach.trigger_type=='items_count' }}>Items</option>
+                </select>
+              </div>
+              <div class="col-md-2">
+                <label class="form-label small fw-600">Value</label>
+                <input type="number" name="trigger_value" class="form-control form-control-sm" value="{{ ach.trigger_value | float | int }}">
+              </div>
+              <div class="col-md-1">
+                <label class="form-label small fw-600">Pts</label>
+                <input type="number" name="points_awarded" class="form-control form-control-sm" value="{{ ach.points_awarded }}">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label small fw-600">Description</label>
+                <input type="text" name="description" class="form-control form-control-sm" value="{{ ach.description or '' }}">
+              </div>
+              <div class="col-auto align-self-end">
+                <div class="form-check mb-1">
+                  <input class="form-check-input" type="checkbox" name="is_active" {{ 'checked' if ach.is_active }}>
+                  <label class="form-check-label small">Active</label>
+                </div>
+              </div>
+              <div class="col-auto align-self-end">
+                <button type="submit" class="btn btn-primary btn-sm">Save</button>
+              </div>
+            </form>
+          </div>
+          {% endfor %}
+        {% else %}
+        <div class="text-center py-5">
+          <div style="font-size:3.5rem;opacity:.3;">🏆</div>
+          <p class="text-muted mt-3">No achievements yet. Create your first badge!</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const achIcon = document.getElementById('achIconInput');
+const achPreviewIcon = document.getElementById('achPreviewIcon');
+if (achIcon && achPreviewIcon) {
+  achIcon.addEventListener('input', () => { achPreviewIcon.textContent = achIcon.value || '🏆'; });
+}
+</script>
+{% endblock %}

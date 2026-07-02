@@ -167,11 +167,13 @@ def products():
 @admin_required
 def create_product():
     categories = Category.query.filter_by(is_active=True).all()
+    from app.models.loyalty import LoyaltyLevel
+    loyalty_levels = LoyaltyLevel.query.order_by(LoyaltyLevel.sort_order).all()
     if request.method == 'POST':
         name = request.form.get('name', '').strip()
         if not name:
             flash('Product name is required.', 'danger')
-            return render_template('admin/product_form.html', product=None, categories=categories)
+            return render_template('admin/product_form.html', product=None, categories=categories, loyalty_levels=loyalty_levels)
         slug = slugify(name)
         # Make slug unique
         base_slug, n = slug, 1
@@ -199,6 +201,9 @@ def create_product():
             is_active='is_active' in request.form,
             is_featured='is_featured' in request.form,
             is_new_arrival='is_new_arrival' in request.form,
+            is_premium='is_premium' in request.form,
+            price_hidden='price_hidden' in request.form,
+            min_loyalty_level_id=_safe_int(request.form.get('min_loyalty_level_id'), 0) or None,
         )
         db.session.add(product)
         db.session.flush()
@@ -255,7 +260,7 @@ def create_product():
         else:
             flash(f'✅ Product "{name}" created (draft — not announced yet).', 'success')
         return redirect(url_for('admin.products'))
-    return render_template('admin/product_form.html', product=None, categories=categories)
+    return render_template('admin/product_form.html', product=None, categories=categories, loyalty_levels=loyalty_levels)
 
 
 @admin_bp.route('/products/<int:product_id>/edit', methods=['GET', 'POST'])
@@ -266,6 +271,8 @@ def edit_product(product_id):
         flash('Product not found.', 'danger')
         return redirect(url_for('admin.products'))
     categories = Category.query.filter_by(is_active=True).all()
+    from app.models.loyalty import LoyaltyLevel
+    loyalty_levels = LoyaltyLevel.query.order_by(LoyaltyLevel.sort_order).all()
     if request.method == 'POST':
         def _safe_float(val, default=0.0):
             return float(val) if str(val).strip() else default
@@ -287,6 +294,9 @@ def edit_product(product_id):
         product.is_active = 'is_active' in request.form
         product.is_featured = 'is_featured' in request.form
         product.is_new_arrival = 'is_new_arrival' in request.form
+        product.is_premium = 'is_premium' in request.form
+        product.price_hidden = 'price_hidden' in request.form
+        product.min_loyalty_level_id = _safe_int(request.form.get('min_loyalty_level_id'), 0) or None
 
         images = request.files.getlist('images')
         upload_folder = current_app.config.get('UPLOAD_FOLDER', 'static/uploads')
@@ -339,7 +349,7 @@ def edit_product(product_id):
         else:
             flash(f'✅ Product "{product.name}" updated!', 'success')
         return redirect(url_for('admin.products'))
-    return render_template('admin/product_form.html', product=product, categories=categories)
+    return render_template('admin/product_form.html', product=product, categories=categories, loyalty_levels=loyalty_levels)
 
 
 @admin_bp.route('/products/<int:product_id>/delete', methods=['POST'])

@@ -44,13 +44,30 @@ def get_cart():
     user, session_id = _resolve_user()
     items = _cart_query(user, session_id).all()
     subtotal = sum(float(i.product.current_price()) * i.quantity for i in items if i.product)
+    total_item_count = sum(i.quantity for i in items)
     delivery_fee = 0 if subtotal >= 1000 else 50
+
+    # Loyalty discount calculation
+    from app.services.loyalty_service import calculate_loyalty_discount, get_cart_incentive_context
+    if user:
+        user._cart_item_count = total_item_count
+    discount_info = calculate_loyalty_discount(user, subtotal)
+    discount_amount = discount_info.get('total_discount_amount', 0.0)
+    discounted_total = max(0.0, subtotal - discount_amount)
+
+    # Cart incentive progress bar data
+    incentive_ctx = get_cart_incentive_context(subtotal)
+
     return success_response({
         'items': [i.to_dict() for i in items],
         'subtotal': subtotal,
         'delivery_fee': delivery_fee,
-        'total': subtotal + delivery_fee,
-        'count': sum(i.quantity for i in items),
+        'discount_amount': discount_amount,
+        'discount_info': discount_info,
+        'discounted_total': discounted_total,
+        'total': discounted_total + delivery_fee,
+        'count': total_item_count,
+        'cart_incentive': incentive_ctx,
     })
 
 

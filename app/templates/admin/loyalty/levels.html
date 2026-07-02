@@ -1,0 +1,115 @@
+{% extends 'admin/base_admin.html' %}
+{% block title %}Loyalty Levels — Liyu Kids Mart{% endblock %}
+{% block page_title %}🏅 Loyalty Levels{% endblock %}
+
+{% block extra_css %}
+<style>
+.loyalty-page-header {
+  background: linear-gradient(135deg, #7C3AED 0%, #C026D3 100%);
+  border-radius: 16px; padding: 1.5rem 2rem; color: white; margin-bottom: 2rem;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.loyalty-page-header h2 { margin: 0; font-size: 1.6rem; font-weight: 700; }
+.tier-table-card {
+  background: white; border-radius: 16px;
+  box-shadow: 0 4px 24px rgba(124,58,237,0.08); overflow: hidden;
+}
+.tier-table-card table thead { background: linear-gradient(135deg,#F8F5FF,#FDF4FF); }
+.tier-table-card table thead th { font-size:0.78rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#6B7280; border:none; padding:.9rem 1rem; }
+.tier-table-card table tbody td { padding:.9rem 1rem; vertical-align:middle; border-color:#F3F4F6; }
+.level-badge { display:inline-flex; align-items:center; gap:6px; padding:5px 14px; border-radius:20px; font-weight:600; font-size:.85rem; }
+.color-swatch { width:24px; height:24px; border-radius:50%; border:2px solid white; box-shadow:0 2px 6px rgba(0,0,0,.15); display:inline-block; }
+.actions-cell .btn { padding:4px 10px; font-size:.8rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="loyalty-page-header">
+  <div>
+    <h2><i class="fas fa-layer-group me-2"></i>Loyalty Levels</h2>
+    <p class="mb-0 opacity-75">Create unlimited tiers — Bronze, Silver, Gold, VIP, Elite & beyond.</p>
+  </div>
+  <a href="{{ url_for('admin.loyalty_level_create') }}" class="btn btn-light fw-600">
+    <i class="fas fa-plus me-1"></i> New Level
+  </a>
+</div>
+
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{{ url_for('admin.loyalty_overview') }}">Loyalty</a></li>
+    <li class="breadcrumb-item active">Levels</li>
+  </ol>
+</nav>
+
+<div class="tier-table-card">
+  {% if levels %}
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th>Order</th>
+          <th>Badge</th>
+          <th>Name</th>
+          <th>Min Spending</th>
+          <th>Min Orders</th>
+          <th>Discount</th>
+          <th>Color</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for level in levels %}
+        <tr>
+          <td class="text-muted fw-600">{{ level.sort_order }}</td>
+          <td style="font-size:1.8rem;">{{ level.badge_icon }}</td>
+          <td>
+            <div class="fw-700">{{ level.name }}</div>
+            {% if level.name_am %}<small class="text-muted">{{ level.name_am }}</small>{% endif %}
+          </td>
+          <td class="fw-600">{{ "{:,.0f}".format(level.min_spending | float) }} Birr</td>
+          <td>{{ level.min_orders }} orders</td>
+          <td>
+            <span class="level-badge" style="background:{{ level.color_hex }}20; color:{{ level.color_hex }};">
+              {{ level.discount_percentage }}% OFF
+            </span>
+          </td>
+          <td>
+            <span class="color-swatch" style="background:{{ level.color_hex }};"></span>
+            <small class="ms-1 text-muted">{{ level.color_hex }}</small>
+          </td>
+          <td>
+            {% if level.is_active %}
+              <span class="badge bg-success-subtle text-success">Active</span>
+            {% else %}
+              <span class="badge bg-secondary-subtle text-secondary">Inactive</span>
+            {% endif %}
+          </td>
+          <td class="actions-cell">
+            <a href="{{ url_for('admin.loyalty_level_edit', level_id=level.id) }}" class="btn btn-outline-primary btn-sm me-1">
+              <i class="fas fa-edit"></i> Edit
+            </a>
+            <form method="POST" action="{{ url_for('admin.loyalty_level_delete', level_id=level.id) }}" class="d-inline"
+                  onsubmit="return confirm('Deactivate this level?');">
+              <button type="submit" class="btn btn-outline-danger btn-sm">
+                <i class="fas fa-ban"></i>
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="text-center py-5">
+    <div style="font-size:4rem; opacity:.3;">🏅</div>
+    <h5 class="text-muted mt-3">No loyalty levels yet</h5>
+    <p class="text-muted">Create your first tier to get started.</p>
+    <a href="{{ url_for('admin.loyalty_level_create') }}" class="btn btn-primary rounded-pill px-4">
+      <i class="fas fa-plus me-2"></i>Create First Level
+    </a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

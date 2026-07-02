@@ -1,0 +1,185 @@
+{% extends 'admin/base_admin.html' %}
+{% block title %}{{ 'Edit' if level else 'Create' }} Loyalty Level — Liyu Kids Mart{% endblock %}
+{% block page_title %}{{ '✏️ Edit' if level else '➕ Create' }} Loyalty Level{% endblock %}
+
+{% block extra_css %}
+<style>
+.form-card {
+  background: white; border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(124,58,237,0.10); overflow: hidden; max-width: 780px; margin: 0 auto;
+}
+.form-card-header {
+  background: linear-gradient(135deg,#7C3AED,#C026D3);
+  padding: 2rem; color: white;
+}
+.form-card-header h3 { margin:0; font-weight:700; }
+.form-card-body { padding: 2rem; }
+.form-label { font-weight: 600; font-size: .875rem; color: #374151; }
+.form-control, .form-select { border-radius: 10px; border: 1.5px solid #E5E7EB; padding: .6rem 1rem; }
+.form-control:focus, .form-select:focus { border-color: #7C3AED; box-shadow: 0 0 0 3px rgba(124,58,237,.12); }
+.access-rights-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+.access-right-chip {
+  display: flex; align-items: center; gap: 10px; padding: .75rem 1rem;
+  border: 2px solid #E5E7EB; border-radius: 12px; cursor: pointer; transition: all .2s;
+}
+.access-right-chip:has(input:checked) { border-color: #7C3AED; background: #F5F3FF; }
+.access-right-chip input { accent-color: #7C3AED; width: 18px; height: 18px; }
+.access-right-chip label { cursor: pointer; margin: 0; font-weight: 500; }
+.badge-preview { font-size: 3rem; min-width: 60px; text-align: center; }
+.preview-card {
+  border-radius: 16px; padding: 1.5rem; color: white; text-align: center;
+  transition: all .3s;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{{ url_for('admin.loyalty_overview') }}">Loyalty</a></li>
+    <li class="breadcrumb-item"><a href="{{ url_for('admin.loyalty_levels') }}">Levels</a></li>
+    <li class="breadcrumb-item active">{{ 'Edit' if level else 'Create' }}</li>
+  </ol>
+</nav>
+
+<div class="row g-4">
+  <div class="col-lg-8">
+    <div class="form-card">
+      <div class="form-card-header">
+        <h3>{{ '✏️ Edit Level: ' + level.name if level else '🏅 Create New Loyalty Level' }}</h3>
+        <p class="mb-0 mt-1 opacity-75">All settings are stored in the database and editable at any time.</p>
+      </div>
+      <div class="form-card-body">
+        <form method="POST" action="{{ url_for('admin.loyalty_level_edit', level_id=level.id) if level else url_for('admin.loyalty_level_create') }}">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Level Name <span class="text-danger">*</span></label>
+              <input type="text" name="name" class="form-control" required value="{{ level.name if level else '' }}" placeholder="e.g. Bronze">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Amharic Name</label>
+              <input type="text" name="name_am" class="form-control" value="{{ level.name_am or '' if level else '' }}" placeholder="e.g. ብሮንዝ">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Sort Order</label>
+              <input type="number" name="sort_order" class="form-control" min="0" value="{{ level.sort_order if level else 0 }}">
+              <small class="text-muted">Lower = lower tier</small>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Min Spending (Birr) <span class="text-danger">*</span></label>
+              <input type="number" name="min_spending" class="form-control" required min="0" step="100" value="{{ level.min_spending | float | int if level else 0 }}" placeholder="5000">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Min Orders</label>
+              <input type="number" name="min_orders" class="form-control" min="0" value="{{ level.min_orders if level else 0 }}">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Discount %</label>
+              <input type="number" name="discount_percentage" class="form-control" min="0" max="100" step="0.5" value="{{ level.discount_percentage | float if level else 0 }}" id="discountPct">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Badge Icon (Emoji)</label>
+              <input type="text" name="badge_icon" class="form-control" value="{{ level.badge_icon or '🏅' if level else '🏅' }}" id="badgeIcon" maxlength="4">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Level Color</label>
+              <div class="d-flex gap-2 align-items-center">
+                <input type="color" name="color_hex" class="form-control form-control-color" value="{{ level.color_hex or '#CD7F32' if level else '#CD7F32' }}" id="colorPicker" style="width:60px; height:42px; padding:4px;">
+                <input type="text" id="colorText" class="form-control" value="{{ level.color_hex or '#CD7F32' if level else '#CD7F32' }}" readonly style="font-family:monospace;">
+              </div>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Description</label>
+              <textarea name="description" class="form-control" rows="2" placeholder="Describe the benefits of this level...">{{ level.description or '' if level else '' }}</textarea>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label mb-2"><i class="fas fa-shield-alt me-1"></i>Access Rights</label>
+              <div class="access-rights-grid">
+                {% set all_rights = [
+                  ('see_prices', '💰', 'See Product Prices'),
+                  ('purchase_regular', '🛒', 'Purchase Regular Products'),
+                  ('see_premium', '👁️', 'See Premium Products'),
+                  ('purchase_premium', '💎', 'Purchase Premium Products'),
+                  ('priority_support', '⭐', 'Priority Support'),
+                ] %}
+                {% set current_rights = level.get_access_rights() if level else [] %}
+                {% for right_key, right_icon, right_label in all_rights %}
+                <div class="access-right-chip">
+                  <input type="checkbox" name="access_rights" value="{{ right_key }}" id="right_{{ right_key }}"
+                    {{ 'checked' if right_key in current_rights }}>
+                  <label for="right_{{ right_key }}">{{ right_icon }} {{ right_label }}</label>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+
+            <div class="col-12">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="is_active" id="isActive"
+                  {{ 'checked' if not level or level.is_active }}>
+                <label class="form-check-label fw-600" for="isActive">Active Level</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-primary px-4 rounded-pill">
+              <i class="fas fa-save me-2"></i>{{ 'Update Level' if level else 'Create Level' }}
+            </button>
+            <a href="{{ url_for('admin.loyalty_levels') }}" class="btn btn-outline-secondary px-4 rounded-pill">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Live Preview -->
+  <div class="col-lg-4">
+    <div class="sticky-top" style="top:80px;">
+      <div class="form-card">
+        <div class="form-card-header" style="padding:1.2rem;">
+          <h5 class="mb-0">Live Preview</h5>
+        </div>
+        <div class="p-3">
+          <div class="preview-card" id="previewCard" style="background:linear-gradient(135deg, #CD7F32, #E8A54B);">
+            <div id="previewIcon" style="font-size:3.5rem;">🏅</div>
+            <div id="previewName" class="fw-700 mt-2" style="font-size:1.3rem;">Bronze</div>
+            <div class="opacity-75 mt-1" style="font-size:.85rem;">5,000+ Birr</div>
+            <div class="mt-2 d-inline-block px-3 py-1 rounded-pill fw-700" style="background:rgba(255,255,255,.25); font-size:.9rem;" id="previewDiscount">2% OFF</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const colorPicker = document.getElementById('colorPicker');
+const colorText = document.getElementById('colorText');
+const badgeIconInput = document.getElementById('badgeIcon');
+const discountPctInput = document.getElementById('discountPct');
+const nameInput = document.querySelector('input[name="name"]');
+const previewCard = document.getElementById('previewCard');
+const previewIcon = document.getElementById('previewIcon');
+const previewName = document.getElementById('previewName');
+const previewDiscount = document.getElementById('previewDiscount');
+
+function updatePreview() {
+  const color = colorPicker.value;
+  colorText.value = color;
+  previewCard.style.background = `linear-gradient(135deg, ${color}, ${color}cc)`;
+  previewIcon.textContent = badgeIconInput.value || '🏅';
+  previewName.textContent = nameInput.value || 'Level Name';
+  previewDiscount.textContent = (discountPctInput.value || 0) + '% OFF';
+}
+colorPicker.addEventListener('input', updatePreview);
+badgeIconInput.addEventListener('input', updatePreview);
+discountPctInput.addEventListener('input', updatePreview);
+nameInput.addEventListener('input', updatePreview);
+updatePreview();
+</script>
+{% endblock %}

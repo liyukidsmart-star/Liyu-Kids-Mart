@@ -1,0 +1,180 @@
+{% extends 'admin/base_admin.html' %}
+{% block title %}Cart Incentives — Liyu Kids Mart{% endblock %}
+{% block page_title %}🔥 Cart Incentives{% endblock %}
+
+{% block extra_css %}
+<style>
+.loyalty-page-header { background:linear-gradient(135deg,#EF4444,#DC2626); border-radius:16px; padding:1.5rem 2rem; color:white; margin-bottom:2rem; }
+.loyalty-page-header h2 { margin:0; font-weight:700; font-size:1.6rem; }
+.config-card { background:white; border-radius:16px; box-shadow:0 4px 24px rgba(0,0,0,.07); overflow:hidden; }
+.config-card-header { padding:1rem 1.5rem; background:linear-gradient(135deg,#FFF5F5,#FEE2E2); border-bottom:1px solid #FECACA; font-weight:700; color:#7F1D1D; }
+.config-card-body { padding:1.5rem; }
+.form-control, .form-select { border-radius:10px; border:1.5px solid #E5E7EB; padding:.6rem 1rem; }
+.form-control:focus,.form-select:focus { border-color:#EF4444; box-shadow:0 0 0 3px rgba(239,68,68,.12); }
+.incentive-row { padding:.75rem 1rem; border-radius:12px; border:1.5px solid #F3F4F6; margin-bottom:.5rem; transition:all .2s; }
+.incentive-row:hover { border-color:#EF4444; background:#FFF5F5; }
+.incentive-trigger { font-weight:700; color:#7F1D1D; font-size:1rem; }
+.incentive-reward { background:#FEE2E2; color:#DC2626; padding:4px 12px; border-radius:20px; font-weight:700; font-size:.85rem; }
+.anim-badge { background:#F3F4F6; color:#6B7280; padding:3px 10px; border-radius:12px; font-size:.75rem; }
+.btn-danger-outline { border:1.5px solid #EF4444; color:#EF4444; background:transparent; border-radius:8px; padding:4px 10px; font-size:.8rem; }
+.btn-danger-outline:hover { background:#FEF2F2; }
+.progress-demo { height:8px; border-radius:4px; background:#F3F4F6; overflow:hidden; margin-top:6px; }
+.progress-demo-fill { height:100%; border-radius:4px; background:linear-gradient(90deg,#EF4444,#F59E0B); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="loyalty-page-header">
+  <h2><i class="fas fa-fire me-2"></i>Cart Incentives</h2>
+  <p class="mb-0 opacity-75">Drive larger baskets with animated progress bars. When a customer reaches a threshold, they unlock a Birr discount.</p>
+</div>
+
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{{ url_for('admin.loyalty_overview') }}">Loyalty</a></li>
+    <li class="breadcrumb-item active">Cart Incentives</li>
+  </ol>
+</nav>
+
+<div class="row g-4">
+  <div class="col-lg-4">
+    <div class="config-card">
+      <div class="config-card-header"><i class="fas fa-plus me-2"></i>Add Incentive</div>
+      <div class="config-card-body">
+        <form method="POST" action="{{ url_for('admin.loyalty_cart_incentives') }}">
+          <input type="hidden" name="action" value="create">
+          <div class="mb-3">
+            <label class="form-label fw-600">Cart Value Trigger (Birr)</label>
+            <input type="number" name="min_cart_value" class="form-control" required min="0" step="100" placeholder="e.g. 5000">
+            <small class="text-muted">Customer's cart must reach this value</small>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-600">Discount Offered (Birr)</label>
+            <input type="number" name="discount_offered" class="form-control" required min="0" step="10" placeholder="e.g. 200">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-600">Popup Message</label>
+            <input type="text" name="popup_text" class="form-control" placeholder="🎉 Add {needed} Birr more and save {savings} Birr!">
+            <small class="text-muted">Use {needed} and {savings} as placeholders</small>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-600">Animation Style</label>
+            <select name="animation" class="form-select">
+              <option value="confetti">🎉 Confetti</option>
+              <option value="sparkle">✨ Sparkle</option>
+              <option value="bounce">🏀 Bounce</option>
+              <option value="none">— None</option>
+            </select>
+          </div>
+          <div class="form-check form-switch mb-3">
+            <input class="form-check-input" type="checkbox" name="is_active" id="incActive" checked>
+            <label class="form-check-label" for="incActive">Active</label>
+          </div>
+          <button type="submit" class="btn btn-danger w-100 rounded-pill fw-600">
+            <i class="fas fa-plus me-2"></i>Add Incentive
+          </button>
+        </form>
+      </div>
+    </div>
+    <!-- Progress Bar Demo -->
+    <div class="config-card mt-3 p-3">
+      <div class="fw-600 mb-2" style="color:#374151;"><i class="fas fa-chart-bar me-2"></i>Progress Bar Preview</div>
+      <div class="d-flex justify-content-between small text-muted mb-1">
+        <span>Current Cart: 3,500 Birr</span>
+        <span>Goal: 5,000 Birr</span>
+      </div>
+      <div class="progress-demo">
+        <div class="progress-demo-fill" style="width:70%;"></div>
+      </div>
+      <div class="d-flex justify-content-between small mt-2">
+        <span class="text-muted">70%</span>
+        <span class="text-danger fw-600">Save 200 Birr at 5,000</span>
+      </div>
+      <div class="mt-2 p-2 rounded-2 small" style="background:#FFF5F5; color:#DC2626;">
+        🔥 Add only 1,500 Birr more and save 200 Birr!
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-8">
+    <div class="config-card">
+      <div class="config-card-header d-flex justify-content-between align-items-center">
+        <span><i class="fas fa-list me-2"></i>Configured Incentives</span>
+        <span class="badge bg-danger">{{ incentives | length }} incentives</span>
+      </div>
+      <div class="config-card-body">
+        {% if incentives %}
+          {% for inc in incentives %}
+          <div class="incentive-row">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+              <div class="d-flex align-items-center gap-3">
+                <div>
+                  <div class="incentive-trigger">At {{ "{:,.0f}".format(inc.min_cart_value | float) }} Birr</div>
+                  <small class="text-muted">{{ inc.popup_text or 'No message set' }}</small>
+                </div>
+              </div>
+              <div class="d-flex align-items-center gap-2">
+                <span class="incentive-reward">Save {{ "{:,.0f}".format(inc.discount_offered | float) }} Birr</span>
+                <span class="anim-badge">{{ inc.animation }}</span>
+                {% if inc.is_active %}<span class="badge bg-success-subtle text-success">Active</span>
+                {% else %}<span class="badge bg-secondary-subtle text-secondary">Off</span>{% endif %}
+                <button class="btn btn-outline-danger btn-sm" data-bs-toggle="collapse" data-bs-target="#editInc{{ inc.id }}">
+                  <i class="fas fa-edit"></i>
+                </button>
+                <form method="POST" onsubmit="return confirm('Delete?');" class="d-inline">
+                  <input type="hidden" name="action" value="delete">
+                  <input type="hidden" name="id" value="{{ inc.id }}">
+                  <button type="submit" class="btn-danger-outline"><i class="fas fa-trash"></i></button>
+                </form>
+              </div>
+            </div>
+            <!-- Edit Collapse -->
+            <div class="collapse mt-3" id="editInc{{ inc.id }}">
+              <form method="POST" class="row g-2 p-3 bg-light rounded-3">
+                <input type="hidden" name="action" value="edit">
+                <input type="hidden" name="id" value="{{ inc.id }}">
+                <div class="col-md-3">
+                  <label class="form-label small fw-600">Trigger (Birr)</label>
+                  <input type="number" name="min_cart_value" class="form-control form-control-sm" value="{{ inc.min_cart_value | float | int }}">
+                </div>
+                <div class="col-md-2">
+                  <label class="form-label small fw-600">Save (Birr)</label>
+                  <input type="number" name="discount_offered" class="form-control form-control-sm" value="{{ inc.discount_offered | float }}">
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label small fw-600">Message</label>
+                  <input type="text" name="popup_text" class="form-control form-control-sm" value="{{ inc.popup_text or '' }}">
+                </div>
+                <div class="col-md-2">
+                  <label class="form-label small fw-600">Animation</label>
+                  <select name="animation" class="form-select form-select-sm">
+                    <option value="confetti" {{ 'selected' if inc.animation=='confetti' }}>Confetti</option>
+                    <option value="sparkle" {{ 'selected' if inc.animation=='sparkle' }}>Sparkle</option>
+                    <option value="bounce" {{ 'selected' if inc.animation=='bounce' }}>Bounce</option>
+                    <option value="none" {{ 'selected' if inc.animation=='none' }}>None</option>
+                  </select>
+                </div>
+                <div class="col-auto align-self-end">
+                  <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" name="is_active" {{ 'checked' if inc.is_active }}>
+                    <label class="form-check-label small">Active</label>
+                  </div>
+                </div>
+                <div class="col-12">
+                  <button type="submit" class="btn btn-danger btn-sm">Save Changes</button>
+                </div>
+              </form>
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+        <div class="text-center py-5">
+          <div style="font-size:3rem;opacity:.3;">🔥</div>
+          <p class="text-muted mt-3">No cart incentives yet. Add one to motivate larger baskets.</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

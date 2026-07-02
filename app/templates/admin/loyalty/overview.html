@@ -1,0 +1,490 @@
+{% extends 'admin/base_admin.html' %}
+{% block title %}Loyalty Overview — Liyu Kids Mart{% endblock %}
+{% block page_title %}Loyalty Overview{% endblock %}
+
+{% block extra_css %}
+<style>
+  :root {
+    --loyalty-primary: #6C3FC5;
+    --loyalty-accent:  #F59E0B;
+    --loyalty-success: #10B981;
+    --loyalty-dark:    #4A2D8A;
+    --loyalty-glass:   rgba(255,255,255,0.92);
+  }
+  .loyalty-hero {
+    background: linear-gradient(135deg, #4A2D8A 0%, #6C3FC5 50%, #9B59B6 100%);
+    border-radius: 20px;
+    padding: 36px 40px;
+    color: white;
+    margin-bottom: 28px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(108,63,197,0.35);
+  }
+  .loyalty-hero::before {
+    content: '';
+    position: absolute; top: -60px; right: -60px;
+    width: 220px; height: 220px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 50%;
+  }
+  .loyalty-hero::after {
+    content: '';
+    position: absolute; bottom: -40px; right: 80px;
+    width: 140px; height: 140px;
+    background: rgba(245,158,11,0.15);
+    border-radius: 50%;
+  }
+  .loyalty-hero .crown-icon {
+    font-size: 3.2rem;
+    margin-bottom: 12px;
+    display: block;
+    filter: drop-shadow(0 2px 8px rgba(245,158,11,0.5));
+    animation: floatCrown 3s ease-in-out infinite;
+  }
+  @keyframes floatCrown {
+    0%,100% { transform: translateY(0); }
+    50%      { transform: translateY(-6px); }
+  }
+  .loyalty-hero h1 { font-size: 2rem; font-weight: 800; margin: 0 0 6px; }
+  .loyalty-hero p  { font-size: 1rem; opacity: 0.85; margin: 0; }
+  .loyalty-hero .hero-meta { display: flex; gap: 24px; margin-top: 20px; flex-wrap: wrap; }
+  .loyalty-hero .hero-meta-item { background: rgba(255,255,255,0.15); border-radius: 12px; padding: 10px 18px; }
+  .loyalty-hero .hero-meta-item span { display: block; font-size: .7rem; opacity: .75; text-transform: uppercase; letter-spacing: .08em; }
+  .loyalty-hero .hero-meta-item strong { font-size: 1.3rem; font-weight: 800; }
+
+  .glass-card {
+    background: var(--loyalty-glass);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-radius: 16px;
+    border: 1px solid rgba(108,63,197,0.12);
+    box-shadow: 0 4px 20px rgba(108,63,197,0.08);
+    overflow: hidden;
+    margin-bottom: 24px;
+  }
+  .glass-card-header {
+    padding: 18px 24px;
+    border-bottom: 1px solid rgba(108,63,197,0.1);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .glass-card-header h5 { margin: 0; font-size: 1rem; font-weight: 700; color: #1a1a2e; }
+  .glass-card-body { padding: 24px; }
+
+  .loyalty-stat {
+    background: var(--loyalty-glass);
+    backdrop-filter: blur(16px);
+    border-radius: 16px;
+    padding: 22px 20px;
+    border: 1px solid rgba(108,63,197,0.12);
+    box-shadow: 0 4px 20px rgba(108,63,197,0.07);
+    position: relative; overflow: hidden;
+    transition: transform .2s, box-shadow .2s;
+  }
+  .loyalty-stat:hover { transform: translateY(-3px); box-shadow: 0 8px 28px rgba(108,63,197,0.15); }
+  .loyalty-stat .stat-accent {
+    position: absolute; top: -16px; right: -16px;
+    width: 72px; height: 72px; border-radius: 50%;
+    opacity: 0.15;
+  }
+  .loyalty-stat .ls-icon { font-size: 1.6rem; margin-bottom: 10px; }
+  .loyalty-stat .ls-label { font-size: .73rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #6c757d; margin-bottom: 4px; }
+  .loyalty-stat .ls-value { font-size: 1.9rem; font-weight: 800; line-height: 1; color: #1a1a2e; }
+  .loyalty-stat .ls-sub { font-size: .78rem; color: #6c757d; margin-top: 4px; }
+
+  .tier-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    border-radius: 100px; padding: 4px 14px;
+    font-size: .78rem; font-weight: 700;
+    border: 2px solid transparent;
+  }
+  .no-tier-badge { background: #f0f0f0; color: #666; border-color: #ddd; }
+
+  .spender-rank { width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: .75rem; font-weight: 800; }
+  .rank-1 { background: linear-gradient(135deg,#F59E0B,#D97706); color: white; }
+  .rank-2 { background: linear-gradient(135deg,#94A3B8,#64748B); color: white; }
+  .rank-3 { background: linear-gradient(135deg,#CD7F32,#A0522D); color: white; }
+  .rank-other { background: #f0f0f0; color: #666; }
+
+  .breadcrumb-nav { margin-bottom: 20px; }
+  .breadcrumb-nav a { color: var(--loyalty-primary); text-decoration: none; font-size: .85rem; font-weight: 600; }
+  .breadcrumb-nav a:hover { text-decoration: underline; }
+  .breadcrumb-nav .sep { color: #aaa; margin: 0 8px; font-size: .8rem; }
+  .breadcrumb-nav .cur { color: #6c757d; font-size: .85rem; }
+
+  .savings-highlight {
+    background: linear-gradient(135deg, #10B981, #059669);
+    border-radius: 14px; padding: 20px 24px; color: white;
+    display: flex; align-items: center; gap: 16px;
+    box-shadow: 0 4px 16px rgba(16,185,129,0.3);
+  }
+  .savings-highlight .sh-icon { font-size: 2.4rem; }
+  .savings-highlight .sh-label { font-size: .8rem; opacity: .85; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
+  .savings-highlight .sh-value { font-size: 1.8rem; font-weight: 800; }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Breadcrumb -->
+<div class="breadcrumb-nav">
+  <a href="{{ url_for('admin.dashboard') }}"><i class="fas fa-home me-1"></i>Dashboard</a>
+  <span class="sep"><i class="fas fa-chevron-right"></i></span>
+  <span class="cur">Loyalty Overview</span>
+</div>
+
+<!-- Hero Header -->
+<div class="loyalty-hero">
+  <span class="crown-icon">👑</span>
+  <h1>Loyalty Management</h1>
+  <p>Manage tiers, rewards, points, achievements and customer incentives for Liyu Kids Mart.</p>
+  <div class="hero-meta">
+    <div class="hero-meta-item">
+      <span>Total Customers</span>
+      <strong id="heroTotalCustomers">{{ total_customers }}</strong>
+    </div>
+    <div class="hero-meta-item">
+      <span>Active Tiers</span>
+      <strong>{{ levels|selectattr('is_active')|list|length }}</strong>
+    </div>
+    <div class="hero-meta-item">
+      <span>No-Tier Customers</span>
+      <strong>{{ no_tier }}</strong>
+    </div>
+    <div class="hero-meta-item">
+      <span>Loyalty Status</span>
+      <strong>{% if settings and settings.is_enabled %}<i class="fas fa-check-circle"></i> Active{% else %}<i class="fas fa-times-circle"></i> Off{% endif %}</strong>
+    </div>
+  </div>
+</div>
+
+<!-- Stat Cards Row -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-xl-3">
+    <div class="loyalty-stat">
+      <div class="stat-accent" style="background:#6C3FC5;"></div>
+      <div class="ls-icon" style="color:#6C3FC5;">👥</div>
+      <div class="ls-label">Total Members</div>
+      <div class="ls-value" id="statTotalCustomers">{{ total_customers }}</div>
+      <div class="ls-sub">enrolled customers</div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="loyalty-stat">
+      <div class="stat-accent" style="background:#F59E0B;"></div>
+      <div class="ls-icon" style="color:#F59E0B;">🏅</div>
+      <div class="ls-label">Tier Levels</div>
+      <div class="ls-value">{{ levels|length }}</div>
+      <div class="ls-sub">{{ levels|selectattr('is_active')|list|length }} active</div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="loyalty-stat">
+      <div class="stat-accent" style="background:#10B981;"></div>
+      <div class="ls-icon" style="color:#10B981;">💰</div>
+      <div class="ls-label">Total Savings Given</div>
+      <div class="ls-value" style="font-size:1.4rem;" id="statSavings">ETB {{ "{:,.0f}".format(total_savings_given|float) }}</div>
+      <div class="ls-sub">to loyal customers</div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="loyalty-stat">
+      <div class="stat-accent" style="background:#3B82F6;"></div>
+      <div class="ls-icon" style="color:#3B82F6;">📊</div>
+      <div class="ls-label">Untiered Customers</div>
+      <div class="ls-value">{{ no_tier }}</div>
+      <div class="ls-sub">yet to qualify</div>
+    </div>
+  </div>
+</div>
+
+<!-- Savings Highlight -->
+<div class="savings-highlight mb-4">
+  <div class="sh-icon">🎁</div>
+  <div>
+    <div class="sh-label">Total Loyalty Savings Granted to Customers</div>
+    <div class="sh-value">ETB {{ "{:,.0f}".format(total_savings_given|float) }}</div>
+  </div>
+  <div class="ms-auto d-flex gap-2 flex-wrap">
+    <a href="{{ url_for('admin.loyalty_settings') }}" class="btn btn-light btn-sm fw-600"><i class="fas fa-cog me-1"></i>Settings</a>
+    <a href="{{ url_for('admin.loyalty_levels') }}" class="btn btn-light btn-sm fw-600"><i class="fas fa-layer-group me-1"></i>Manage Tiers</a>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- Tier Distribution Chart -->
+  <div class="col-lg-5">
+    <div class="glass-card h-100">
+      <div class="glass-card-header">
+        <h5><i class="fas fa-chart-pie me-2" style="color:#6C3FC5;"></i>Tier Distribution</h5>
+        <span class="badge" style="background:#6C3FC5;">{{ total_customers }} total</span>
+      </div>
+      <div class="glass-card-body">
+        {% if tier_dist or no_tier %}
+        <div style="position:relative; height:240px;">
+          <canvas id="tierPieChart"></canvas>
+        </div>
+        <div class="mt-3" id="tierLegend"></div>
+        {% else %}
+        <div class="text-center py-5 text-muted">
+          <i class="fas fa-chart-pie fa-3x mb-3 opacity-25"></i>
+          <p class="mb-0">No tier data available yet.</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Tier Counts Bar + Cards -->
+  <div class="col-lg-7">
+    <div class="glass-card h-100">
+      <div class="glass-card-header">
+        <h5><i class="fas fa-layer-group me-2" style="color:#F59E0B;"></i>Tier Breakdown</h5>
+        <a href="{{ url_for('admin.loyalty_levels') }}" class="btn btn-sm" style="background:#6C3FC5;color:white;border-radius:8px;font-size:.8rem;font-weight:600;">Manage Tiers</a>
+      </div>
+      <div class="glass-card-body p-0">
+        {% if levels %}
+        <div class="p-3">
+          {% for level in levels %}
+          {% set level_count = tier_dist.get(level.name, 0) if tier_dist else 0 %}
+          {% set pct = ((level_count / total_customers * 100) | round(1)) if total_customers > 0 else 0 %}
+          <div class="mb-3">
+            <div class="d-flex align-items-center justify-content-between mb-1">
+              <div class="d-flex align-items-center gap-2">
+                <span style="font-size:1.2rem;">{{ level.badge_icon or '🏅' }}</span>
+                <span class="tier-badge" style="background:{{ level.color_hex or '#6C3FC5' }}22; color:{{ level.color_hex or '#6C3FC5' }}; border-color:{{ level.color_hex or '#6C3FC5' }}44;">
+                  {{ level.name }}
+                </span>
+                {% if not level.is_active %}<span class="badge bg-secondary" style="font-size:.65rem;">Inactive</span>{% endif %}
+              </div>
+              <div class="text-end">
+                <span class="fw-700" style="color:{{ level.color_hex or '#6C3FC5' }};">{{ level_count }}</span>
+                <span class="text-muted small ms-1">({{ pct }}%)</span>
+              </div>
+            </div>
+            <div class="progress" style="height:8px; border-radius:100px; background:rgba(108,63,197,0.1);">
+              <div class="progress-bar" role="progressbar"
+                   style="width:{{ pct }}%; background:linear-gradient(90deg,{{ level.color_hex or '#6C3FC5' }},{{ level.color_hex or '#9B59B6' }}); border-radius:100px;"
+                   aria-valuenow="{{ pct }}" aria-valuemin="0" aria-valuemax="100">
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+          <!-- No Tier Row -->
+          {% if no_tier %}
+          {% set pct_no = ((no_tier / total_customers * 100) | round(1)) if total_customers > 0 else 0 %}
+          <div class="mb-3">
+            <div class="d-flex align-items-center justify-content-between mb-1">
+              <div class="d-flex align-items-center gap-2">
+                <span style="font-size:1.2rem;">⭕</span>
+                <span class="tier-badge no-tier-badge">No Tier</span>
+              </div>
+              <div class="text-end">
+                <span class="fw-700 text-muted">{{ no_tier }}</span>
+                <span class="text-muted small ms-1">({{ pct_no }}%)</span>
+              </div>
+            </div>
+            <div class="progress" style="height:8px; border-radius:100px; background:rgba(108,63,197,0.1);">
+              <div class="progress-bar" role="progressbar"
+                   style="width:{{ pct_no }}%; background:#adb5bd; border-radius:100px;"
+                   aria-valuenow="{{ pct_no }}" aria-valuemin="0" aria-valuemax="100">
+              </div>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+        {% else %}
+        <div class="text-center py-5 text-muted">
+          <i class="fas fa-layer-group fa-3x mb-3 opacity-25"></i>
+          <p class="mb-1 fw-600">No loyalty tiers created yet.</p>
+          <a href="{{ url_for('admin.loyalty_level_create') }}" class="btn btn-sm mt-2" style="background:#6C3FC5;color:white;">Create First Tier</a>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Top Spenders Table -->
+<div class="glass-card mt-4">
+  <div class="glass-card-header">
+    <h5><i class="fas fa-trophy me-2" style="color:#F59E0B;"></i>Top Spenders</h5>
+    <a href="{{ url_for('admin.loyalty_customers') }}" class="btn btn-sm" style="background:rgba(108,63,197,0.1);color:#6C3FC5;border-radius:8px;font-size:.8rem;font-weight:600;border:1px solid rgba(108,63,197,0.2);">View All Customers</a>
+  </div>
+  <div class="table-responsive">
+    {% if top_spenders %}
+    <table class="table admin-table mb-0">
+      <thead>
+        <tr>
+          <th style="width:50px;">Rank</th>
+          <th>Customer</th>
+          <th>Tier</th>
+          <th>Total Spent</th>
+          <th>Orders</th>
+          <th>Points</th>
+          <th>Joined</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for customer in top_spenders %}
+        <tr>
+          <td>
+            <span class="spender-rank {% if loop.index == 1 %}rank-1{% elif loop.index == 2 %}rank-2{% elif loop.index == 3 %}rank-3{% else %}rank-other{% endif %}">
+              {{ loop.index }}
+            </span>
+          </td>
+          <td>
+            <div class="fw-600">{{ customer.full_name or customer.username or 'Unknown' }}</div>
+            <div class="text-muted" style="font-size:.75rem;">
+              {% if customer.telegram_username %}@{{ customer.telegram_username }}{% else %}{{ customer.phone or '' }}{% endif %}
+            </div>
+          </td>
+          <td>
+            {% if customer.loyalty_level %}
+            <span class="tier-badge" style="background:{{ customer.loyalty_level.color_hex or '#6C3FC5' }}22;color:{{ customer.loyalty_level.color_hex or '#6C3FC5' }};border-color:{{ customer.loyalty_level.color_hex or '#6C3FC5' }}55;font-size:.75rem;">
+              {{ customer.loyalty_level.badge_icon or '🏅' }} {{ customer.loyalty_level.name }}
+            </span>
+            {% else %}
+            <span class="tier-badge no-tier-badge" style="font-size:.75rem;">⭕ No Tier</span>
+            {% endif %}
+          </td>
+          <td class="fw-700" style="color:#10B981;">ETB {{ "{:,.0f}".format(customer.total_spent|float if customer.total_spent else 0) }}</td>
+          <td><span class="badge" style="background:rgba(108,63,197,0.12);color:#6C3FC5;font-weight:700;">{{ customer.order_count or 0 }}</span></td>
+          <td>
+            <span class="fw-600" style="color:#F59E0B;">
+              <i class="fas fa-star fa-xs me-1"></i>
+              {{ customer.loyalty_points or 0 }}
+            </span>
+          </td>
+          <td class="text-muted" style="font-size:.8rem;">
+            {{ customer.created_at.strftime('%b %d, %Y') if customer.created_at else '—' }}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="fas fa-trophy fa-3x mb-3 opacity-25"></i>
+      <p class="mb-0">No spending data available yet.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row g-3 mt-2">
+  <div class="col-12">
+    <div class="glass-card mb-0">
+      <div class="glass-card-header"><h5><i class="fas fa-bolt me-2" style="color:#F59E0B;"></i>Quick Actions</h5></div>
+      <div class="glass-card-body">
+        <div class="d-flex gap-3 flex-wrap">
+          <a href="{{ url_for('admin.loyalty_level_create') }}" class="btn fw-600" style="background:linear-gradient(135deg,#6C3FC5,#9B59B6);color:white;border-radius:10px;padding:10px 20px;">
+            <i class="fas fa-plus-circle me-2"></i>New Tier Level
+          </a>
+          <a href="{{ url_for('admin.loyalty_thresholds') }}" class="btn fw-600" style="background:linear-gradient(135deg,#F59E0B,#D97706);color:white;border-radius:10px;padding:10px 20px;">
+            <i class="fas fa-sliders-h me-2"></i>Spending Thresholds
+          </a>
+          <a href="{{ url_for('admin.loyalty_achievements') }}" class="btn fw-600" style="background:linear-gradient(135deg,#10B981,#059669);color:white;border-radius:10px;padding:10px 20px;">
+            <i class="fas fa-trophy me-2"></i>Achievements
+          </a>
+          <a href="{{ url_for('admin.loyalty_settings') }}" class="btn fw-600" style="background:linear-gradient(135deg,#3B82F6,#1D4ED8);color:white;border-radius:10px;padding:10px 20px;">
+            <i class="fas fa-cog me-2"></i>Points Settings
+          </a>
+          <a href="{{ url_for('admin.loyalty_cart_incentives') }}" class="btn fw-600" style="background:linear-gradient(135deg,#EC4899,#BE185D);color:white;border-radius:10px;padding:10px 20px;">
+            <i class="fas fa-fire me-2"></i>Cart Incentives
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+(function() {
+  // Tier distribution data from server
+  var tierData = {
+    {% if tier_dist %}
+    {% for name, count in tier_dist.items() %}
+    "{{ name }}": {{ count }},
+    {% endfor %}
+    {% endif %}
+    "_no_tier": {{ no_tier or 0 }}
+  };
+
+  var levels = [
+    {% for level in levels %}
+    { name: "{{ level.name }}", color: "{{ level.color_hex or '#6C3FC5' }}", icon: "{{ level.badge_icon or '🏅' }}" },
+    {% endfor %}
+  ];
+
+  var labels = [];
+  var data   = [];
+  var colors = [];
+
+  levels.forEach(function(l) {
+    var cnt = tierData[l.name] || 0;
+    labels.push(l.icon + ' ' + l.name);
+    data.push(cnt);
+    colors.push(l.color);
+  });
+
+  var noTierCount = tierData['_no_tier'] || 0;
+  if (noTierCount > 0) {
+    labels.push('⭕ No Tier');
+    data.push(noTierCount);
+    colors.push('#adb5bd');
+  }
+
+  var ctx = document.getElementById('tierPieChart');
+  if (ctx && data.some(function(d){ return d > 0; })) {
+    new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: data,
+          backgroundColor: colors.map(function(c){ return c + 'CC'; }),
+          borderColor: colors,
+          borderWidth: 2,
+          hoverOffset: 8
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '62%',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function(ctx) {
+                var total = ctx.dataset.data.reduce(function(a,b){ return a+b; }, 0);
+                var pct = total > 0 ? ((ctx.parsed / total)*100).toFixed(1) : 0;
+                return ' ' + ctx.label + ': ' + ctx.parsed + ' (' + pct + '%)';
+              }
+            }
+          }
+        }
+      }
+    });
+
+    // Build legend
+    var legend = document.getElementById('tierLegend');
+    if (legend) {
+      legend.innerHTML = labels.map(function(l, i) {
+        return '<span class="d-inline-flex align-items-center gap-1 me-3 mb-2" style="font-size:.82rem;font-weight:600;">' +
+          '<span style="width:12px;height:12px;border-radius:3px;background:' + colors[i] + ';display:inline-block;flex-shrink:0;"></span>' +
+          '<span>' + l + '</span>' +
+          '<span class="text-muted">(' + data[i] + ')</span>' +
+        '</span>';
+      }).join('');
+    }
+  } else if (ctx) {
+    ctx.parentElement.innerHTML = '<div class="text-center py-4 text-muted"><i class="fas fa-chart-pie fa-2x mb-2 opacity-25 d-block"></i>No distribution data yet.</div>';
+  }
+})();
+</script>
+{% endblock %}

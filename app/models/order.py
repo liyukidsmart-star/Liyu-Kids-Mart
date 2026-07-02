@@ -135,6 +135,12 @@ class Order(db.Model):
     coupon_id = db.Column(db.Integer, db.ForeignKey('coupons.id'), nullable=True)
     # Snapshot for address in case it changes later
     delivery_address_snapshot = db.Column(db.Text, nullable=True)
+    # ── Loyalty snapshots ──────────────────────────────────────────
+    savings_amount = db.Column(db.Numeric(10, 2), default=0)        # Birr saved on this order
+    reward_earned = db.Column(db.Integer, default=0)                # points awarded
+    loyalty_level_id_after = db.Column(db.Integer, db.ForeignKey('loyalty_levels.id'), nullable=True)
+    lifetime_total_after = db.Column(db.Numeric(14, 2), nullable=True)  # running lifetime total
+    total_items = db.Column(db.Integer, default=0)                  # number of items in this order
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc),
                            onupdate=lambda: datetime.now(timezone.utc))
@@ -146,6 +152,7 @@ class Order(db.Model):
     coupon = db.relationship('Coupon', back_populates='orders')
     payment = db.relationship('Payment', back_populates='order', uselist=False, cascade='all, delete-orphan')
     delivery = db.relationship('Delivery', back_populates='order', uselist=False, cascade='all, delete-orphan')
+    reward_transactions = db.relationship('RewardTransaction', back_populates='order', lazy='dynamic')
 
     STATUS_LABELS = {
         'pending': 'Pending',

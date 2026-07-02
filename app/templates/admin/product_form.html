@@ -72,7 +72,35 @@
             <textarea name="description_am" class="form-control" rows="6"
                       placeholder="ሙሉ መግለጫ, ጠቀሜታ...">{{ product.description_am if product and product.description_am else '' }}</textarea>
           </div>
-          <div class="col-12">
+          <div class="col-12 mt-4">
+            <h6 class="fw-700 text-primary border-bottom pb-2" style="color:#7C3AED !important;"><i class="fas fa-crown me-2"></i>Loyalty & Premium Access</h6>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-600">Lock Until Tier</label>
+            <select name="min_loyalty_level_id" class="form-select">
+              <option value="">-- No Restriction --</option>
+              {% for lvl in loyalty_levels %}
+              <option value="{{ lvl.id }}" {% if product and product.min_loyalty_level_id == lvl.id %}selected{% endif %}>{{ lvl.badge_icon }} {{ lvl.name }}</option>
+              {% endfor %}
+            </select>
+            <small class="text-muted">Users below this tier cannot buy.</small>
+          </div>
+          <div class="col-md-4 align-self-center">
+            <div class="form-check form-switch mt-2">
+              <input class="form-check-input" type="checkbox" name="is_premium" id="isPremium"
+                     {% if product and product.is_premium %}checked{% endif %}/>
+              <label class="form-check-label fw-600" for="isPremium">Premium Product 💎</label>
+            </div>
+          </div>
+          <div class="col-md-4 align-self-center">
+            <div class="form-check form-switch mt-2">
+              <input class="form-check-input" type="checkbox" name="price_hidden" id="priceHidden"
+                     {% if product and product.price_hidden %}checked{% endif %}/>
+              <label class="form-check-label fw-600" for="priceHidden">Hide Price</label>
+            </div>
+          </div>
+
+          <div class="col-12 mt-4">
             <label class="form-label fw-600">Product Images</label>
             <input type="file" name="images" class="form-control" multiple accept="image/*"/>
             <div class="form-text">First image will be the primary/cover image. Accepts: JPG, PNG, WEBP, GIF</div>

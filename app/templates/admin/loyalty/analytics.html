@@ -1,0 +1,215 @@
+{% extends 'admin/base_admin.html' %}
+{% block title %}Loyalty Analytics — Liyu Kids Mart{% endblock %}
+{% block page_title %}📈 Loyalty Analytics{% endblock %}
+
+{% block extra_css %}
+<style>
+.loyalty-page-header { background:linear-gradient(135deg,#1E40AF,#7C3AED); border-radius:16px; padding:1.5rem 2rem; color:white; margin-bottom:2rem; }
+.loyalty-page-header h2 { margin:0; font-weight:700; font-size:1.6rem; }
+.stat-card { background:white; border-radius:16px; padding:1.5rem; box-shadow:0 4px 20px rgba(0,0,0,.06); border:1px solid #F3F4F6; height:100%; }
+.stat-value { font-size:2rem; font-weight:700; }
+.stat-label { font-size:.82rem; color:#6B7280; font-weight:500; text-transform:uppercase; letter-spacing:.05em; }
+.analytics-card { background:white; border-radius:16px; box-shadow:0 4px 20px rgba(0,0,0,.06); overflow:hidden; }
+.analytics-card-header { padding:1rem 1.5rem; font-weight:700; background:linear-gradient(135deg,#F8F5FF,#EDE9FE); border-bottom:1px solid #DDD6FE; color:#4C1D95; display:flex; align-items:center; justify-content:space-between; }
+.analytics-card-body { padding:1.5rem; }
+.customer-row { display:flex; align-items:center; gap:.75rem; padding:.65rem 0; border-bottom:1px solid #F9FAFB; }
+.customer-row:last-child { border-bottom:none; }
+.customer-avatar { width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; color:white; flex-shrink:0; }
+.tier-pill { padding:3px 10px; border-radius:20px; font-size:.75rem; font-weight:700; }
+.rank-number { width:28px; height:28px; border-radius:50%; background:#F3F4F6; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:.85rem; color:#374151; flex-shrink:0; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="loyalty-page-header">
+  <h2><i class="fas fa-chart-line me-2"></i>Loyalty Analytics</h2>
+  <p class="mb-0 opacity-75">Track retention, tier distribution, lifetime value, and savings performance.</p>
+</div>
+
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{{ url_for('admin.loyalty_overview') }}">Loyalty</a></li>
+    <li class="breadcrumb-item active">Analytics</li>
+  </ol>
+</nav>
+
+<!-- KPI Cards -->
+<div class="row g-4 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="stat-card text-center">
+      <div class="stat-value" style="color:#7C3AED;">{{ stats.total_customers | int }}</div>
+      <div class="stat-label">Total Customers</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card text-center">
+      <div class="stat-value" style="color:#10B981;">{{ "{:,.0f}".format(stats.total_savings_given) }}</div>
+      <div class="stat-label">Birr Saved (Total)</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card text-center">
+      <div class="stat-value" style="color:#F59E0B;">{{ "{:,.0f}".format(stats.avg_order_value) }}</div>
+      <div class="stat-label">Avg Order Value (Birr)</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card text-center">
+      <div class="stat-value" style="color:#06B6D4;">{{ stats.customers_with_level | int }}</div>
+      <div class="stat-label">Customers with Tier</div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- Tier Distribution Chart -->
+  <div class="col-md-5">
+    <div class="analytics-card">
+      <div class="analytics-card-header">
+        <span><i class="fas fa-chart-pie me-2"></i>Tier Distribution</span>
+      </div>
+      <div class="analytics-card-body">
+        <canvas id="tierChart" height="200"></canvas>
+        <div class="mt-3">
+          {% for td in tier_dist %}
+          <div class="d-flex align-items-center justify-content-between py-1">
+            <div class="d-flex align-items-center gap-2">
+              <div style="width:12px;height:12px;border-radius:3px;background:{{ td.level.color_hex }}"></div>
+              <span class="small fw-600">{{ td.level.badge_icon }} {{ td.level.name }}</span>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+              <div style="width:80px; height:6px; background:#F3F4F6; border-radius:3px;">
+                <div style="height:6px;border-radius:3px;background:{{ td.level.color_hex }};width:{{ [td.count / [stats.total_customers,1]|max * 100, 100]|min | int }}%;"></div>
+              </div>
+              <span class="small text-muted fw-600">{{ td.count }}</span>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Top Spenders -->
+  <div class="col-md-7">
+    <div class="analytics-card">
+      <div class="analytics-card-header">
+        <span><i class="fas fa-trophy me-2" style="color:#F59E0B;"></i>Top Spenders</span>
+        <a href="{{ url_for('admin.loyalty_customers') }}" class="btn btn-sm btn-outline-primary rounded-pill">View All</a>
+      </div>
+      <div class="analytics-card-body">
+        {% for u in top_spenders %}
+        <div class="customer-row">
+          <span class="rank-number">{{ loop.index }}</span>
+          <div class="customer-avatar" style="background:linear-gradient(135deg,#7C3AED,#C026D3);">
+            {{ (u.full_name or u.telegram_username or '?')[0].upper() }}
+          </div>
+          <div class="flex-grow-1">
+            <div class="fw-600">{{ u.full_name or 'Unknown' }}</div>
+            <div class="small text-muted">@{{ u.telegram_username or '—' }} · {{ u.total_orders }} orders</div>
+          </div>
+          <div class="text-end">
+            <div class="fw-700" style="color:#7C3AED;">{{ "{:,.0f}".format(u.total_money_spent | float) }} Birr</div>
+            {% if u.loyalty_level %}
+            <span class="tier-pill" style="background:{{ u.loyalty_level.color_hex }}22; color:{{ u.loyalty_level.color_hex }};">
+              {{ u.loyalty_level.badge_icon }} {{ u.loyalty_level.name }}
+            </span>
+            {% endif %}
+          </div>
+          <a href="{{ url_for('admin.loyalty_customer_profile', user_id=u.id) }}" class="btn btn-sm btn-outline-secondary ms-2">
+            <i class="fas fa-eye"></i>
+          </a>
+        </div>
+        {% endfor %}
+        {% if not top_spenders %}
+        <div class="text-center py-4 text-muted">No spending data yet.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Top Savers -->
+<div class="analytics-card mt-4">
+  <div class="analytics-card-header">
+    <span><i class="fas fa-piggy-bank me-2" style="color:#10B981;"></i>Top Savers (Lifetime Savings)</span>
+  </div>
+  <div class="analytics-card-body">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>#</th>
+            <th>Customer</th>
+            <th>Tier</th>
+            <th>Orders</th>
+            <th>Total Spent</th>
+            <th>Total Saved</th>
+            <th>Savings Rate</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in top_savers %}
+          <tr>
+            <td class="fw-700 text-muted">{{ loop.index }}</td>
+            <td>
+              <div class="fw-600">{{ u.full_name or 'Unknown' }}</div>
+              <small class="text-muted">@{{ u.telegram_username or '—' }}</small>
+            </td>
+            <td>
+              {% if u.loyalty_level %}
+              <span class="tier-pill" style="background:{{ u.loyalty_level.color_hex }}22; color:{{ u.loyalty_level.color_hex }};">
+                {{ u.loyalty_level.badge_icon }} {{ u.loyalty_level.name }}
+              </span>
+              {% else %}—{% endif %}
+            </td>
+            <td>{{ u.total_orders }}</td>
+            <td class="fw-600">{{ "{:,.0f}".format(u.total_money_spent | float) }} Birr</td>
+            <td class="fw-700 text-success">{{ "{:,.0f}".format(u.lifetime_savings | float) }} Birr</td>
+            <td>
+              {% set rate = (u.lifetime_savings | float / [u.total_money_spent | float, 1] | max * 100) | round(1) %}
+              <span class="badge bg-success-subtle text-success">{{ rate }}%</span>
+            </td>
+            <td>
+              <a href="{{ url_for('admin.loyalty_customer_profile', user_id=u.id) }}" class="btn btn-sm btn-outline-primary">
+                <i class="fas fa-user"></i>
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+          {% if not top_savers %}
+          <tr><td colspan="8" class="text-center text-muted py-4">No data yet.</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+const tierData = {
+  labels: [{% for td in tier_dist %}'{{ td.level.badge_icon }} {{ td.level.name }}',{% endfor %}],
+  datasets: [{
+    data: [{% for td in tier_dist %}{{ td.count }},{% endfor %}],
+    backgroundColor: [{% for td in tier_dist %}'{{ td.level.color_hex }}',{% endfor %}],
+    borderWidth: 2, borderColor: '#fff',
+  }]
+};
+new Chart(document.getElementById('tierChart'), {
+  type: 'doughnut',
+  data: tierData,
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { label: (ctx) => ` ${ctx.label}: ${ctx.raw} customers` } }
+    },
+    cutout: '65%',
+  }
+});
+</script>
+{% endblock %}

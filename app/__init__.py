@@ -55,6 +55,12 @@ def create_app(config_name='development'):
         try:
             with app.app_context():
                 db.create_all()
+                # Seed loyalty defaults on first boot (no-op if already seeded)
+                try:
+                    from app.services.loyalty_service import seed_default_loyalty_data
+                    seed_default_loyalty_data()
+                except Exception:
+                    app.logger.exception('Loyalty seed failed')
         except Exception:
             app.logger.exception('Automatic table creation failed')
 

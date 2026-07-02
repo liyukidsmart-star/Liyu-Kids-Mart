@@ -1,0 +1,596 @@
+"""
+loyalty_service.py — Central business logic for the Loyalty & Rewards Ecosystem.
+
+All business rules are fetched from the database (admin-configurable).
+No values are hardcoded here.
+"""
+import json
+import secrets
+import string
+from datetime import datetime, timezone
+from typing import Optional
+
+from app.extensions import db
+from app.models.loyalty import (
+    LoyaltyLevel, SpendingThreshold, QuantityDiscount,
+    CartIncentive, Achievement, UserAchievement, RewardTransaction,
+    LoyaltySettings, CustomerStatus, RewardTransactionType,
+)
+
+
+# ─────────────────────────────────────────────────────────────
+# Helpers
+# ─────────────────────────────────────────────────────────────
+
+def _get_settings() -> LoyaltySettings:
+    """Fetch (or create default) global loyalty settings row."""
+    settings = LoyaltySettings.query.first()
+    if not settings:
+        settings = LoyaltySettings()
+        db.session.add(settings)
+        db.session.commit()
+    return settings
+
+
+def _get_active_levels():
+    """Return all active loyalty levels ordered low → high by sort_order."""
+    return LoyaltyLevel.query.filter_by(is_active=True).order_by(LoyaltyLevel.sort_order.asc()).all()
+
+
+def _get_active_thresholds():
+    """Return active spending thresholds ordered by min_amount asc."""
+    return SpendingThreshold.query.filter_by(is_active=True).order_by(SpendingThreshold.min_amount.asc()).all()
+
+
+def _get_active_quantity_discounts():
+    """Return active quantity discounts ordered by min_items asc."""
+    return QuantityDiscount.query.filter_by(is_active=True).order_by(QuantityDiscount.min_items.asc()).all()
+
+
+def _get_active_cart_incentives():
+    """Return active cart incentives ordered by min_cart_value asc."""
+    return CartIncentive.query.filter_by(is_active=True).order_by(CartIncentive.min_cart_value.asc()).all()
+
+
+def _generate_referral_code(length=8):
+    alphabet = string.ascii_uppercase + string.digits
+    return ''.join(secrets.choice(alphabet) for _ in range(length))
+
+
+# ─────────────────────────────────────────────────────────────
+# Tier Resolution
+# ─────────────────────────────────────────────────────────────
+
+def resolve_loyalty_level(total_spent: float, total_orders: int) -> Optional[LoyaltyLevel]:
+    """
+    Given lifetime spending and total orders, return the highest
+    LoyaltyLevel the user qualifies for, or None if they don't meet
+    the minimum threshold of any level.
+    """
+    levels = _get_active_levels()
+    matched = None
+    for level in levels:
+        if total_spent >= float(level.min_spending) and total_orders >= level.min_orders:
+            matched = level
+    return matched
+
+
+# ─────────────────────────────────────────────────────────────
+# Discount Calculation
+# ─────────────────────────────────────────────────────────────
+
+def calculate_loyalty_discount(user, cart_subtotal: float) -> dict:
+    """
+    Calculate the complete discount breakdown for a cart.
+
+    Returns a dict with:
+      loyalty_discount_pct    — loyalty tier % (e.g. 4.0)
+      loyalty_discount_amount — Birr saved from tier
+      spending_discount_pct   — per-order spending threshold %
+      spending_discount_amount— Birr saved from purchase size
+      qty_discount_amount     — Birr saved from quantity rules
+      total_discount_amount   — sum of all discounts
+      total_discount_pct      — effective %
+      savings_breakdown       — human-readable list of savings
+    """
+    loyalty_disc_pct = 0.0
+    loyalty_disc_amt = 0.0
+    spending_disc_pct = 0.0
+    spending_disc_amt = 0.0
+    qty_disc_amt = 0.0
+    savings_breakdown = []
+
+    # 1. Loyalty tier discount
+    if user and user.loyalty_level:
+        loyalty_disc_pct = float(user.loyalty_level.discount_percentage)
+        loyalty_disc_amt = round(cart_subtotal * loyalty_disc_pct / 100, 2)
+        if loyalty_disc_amt > 0:
+            savings_breakdown.append({
+                'label': f'{user.loyalty_level.name} Loyalty Discount',
+                'amount': loyalty_disc_amt,
+                'pct': loyalty_disc_pct,
+            })
+
+    # 2. Per-order spending threshold discount
+    thresholds = _get_active_thresholds()
+    for t in reversed(thresholds):   # highest threshold first
+        if cart_subtotal >= float(t.min_amount):
+            spending_disc_pct = float(t.discount_percentage)
+            spending_disc_amt = round(cart_subtotal * spending_disc_pct / 100, 2)
+            if spending_disc_amt > 0:
+                savings_breakdown.append({
+                    'label': f'Large Purchase Discount ({t.label or f"{t.min_amount:.0f}+ Birr"})',
+                    'amount': spending_disc_amt,
+                    'pct': spending_disc_pct,
+                })
+            break
+
+    # 3. Quantity discount (based on total items in cart)
+    total_items = 0
+    if hasattr(user, '_cart_item_count'):
+        total_items = user._cart_item_count  # set by caller for performance
+    qty_discounts = _get_active_quantity_discounts()
+    for qd in reversed(qty_discounts):
+        if total_items >= qd.min_items:
+            qty_disc_amt = round(float(qd.discount_amount), 2)
+            if qty_disc_amt > 0:
+                savings_breakdown.append({
+                    'label': qd.label or f'{qd.min_items} Items Discount',
+                    'amount': qty_disc_amt,
+                    'pct': None,
+                })
+            break
+
+    # Ensure discounts don't exceed cart value
+    total_disc = min(loyalty_disc_amt + spending_disc_amt + qty_disc_amt, cart_subtotal)
+    total_pct = round(total_disc / cart_subtotal * 100, 2) if cart_subtotal > 0 else 0.0
+
+    return {
+        'loyalty_discount_pct': loyalty_disc_pct,
+        'loyalty_discount_amount': loyalty_disc_amt,
+        'spending_discount_pct': spending_disc_pct,
+        'spending_discount_amount': spending_disc_amt,
+        'qty_discount_amount': qty_disc_amt,
+        'total_discount_amount': total_disc,
+        'total_discount_pct': total_pct,
+        'savings_breakdown': savings_breakdown,
+    }
+
+
+# ─────────────────────────────────────────────────────────────
+# Cart Incentive
+# ─────────────────────────────────────────────────────────────
+
+def get_cart_incentive_context(cart_subtotal: float) -> dict:
+    """
+    Return the next cart incentive the customer should aim for,
+    progress percentage, and messaging.
+    """
+    incentives = _get_active_cart_incentives()
+    if not incentives:
+        return {}
+
+    # Find the next threshold the cart hasn't reached yet
+    next_incentive = None
+    for inc in incentives:
+        if cart_subtotal < float(inc.min_cart_value):
+            next_incentive = inc
+            break
+
+    # Find the current unlocked incentive
+    current_incentive = None
+    for inc in reversed(incentives):
+        if cart_subtotal >= float(inc.min_cart_value):
+            current_incentive = inc
+            break
+
+    ctx = {
+        'current_savings': float(current_incentive.discount_offered) if current_incentive else 0.0,
+        'next_incentive': next_incentive.to_dict() if next_incentive else None,
+        'current_incentive': current_incentive.to_dict() if current_incentive else None,
+        'cart_subtotal': cart_subtotal,
+    }
+
+    if next_incentive:
+        target = float(next_incentive.min_cart_value)
+        needed = max(0.0, target - cart_subtotal)
+        progress_pct = round(min(cart_subtotal / target * 100, 100), 1) if target > 0 else 100.0
+        ctx.update({
+            'amount_needed': needed,
+            'progress_pct': progress_pct,
+            'potential_savings': float(next_incentive.discount_offered),
+            'smart_message': _build_smart_message(needed, float(next_incentive.discount_offered), current_incentive),
+        })
+    else:
+        ctx.update({
+            'amount_needed': 0.0,
+            'progress_pct': 100.0,
+            'potential_savings': 0.0,
+            'smart_message': _max_tier_message(current_incentive),
+        })
+
+    return ctx
+
+
+def _build_smart_message(needed: float, savings: float, current_inc) -> str:
+    if needed <= 0:
+        return f'🎁 Amazing! You saved {savings:,.0f} Birr today!'
+    if needed <= 500:
+        return f'🔥 You\'re so close! Add just {needed:,.0f} Birr more and save {savings:,.0f} Birr!'
+    return f'🎉 Add only {needed:,.0f} Birr more and save {savings:,.0f} Birr.'
+
+
+def _max_tier_message(inc) -> str:
+    if inc:
+        return f'🏆 Congratulations! You unlocked the maximum reward — saving {inc.discount_offered:,.0f} Birr!'
+    return '🛒 Keep shopping to unlock rewards!'
+
+
+# ─────────────────────────────────────────────────────────────
+# Points Calculation
+# ─────────────────────────────────────────────────────────────
+
+def calculate_points_for_order(order_total: float) -> int:
+    """Calculate how many reward points a purchase earns."""
+    settings = _get_settings()
+    if not settings.is_enabled:
+        return 0
+    return int((order_total / 100) * settings.points_per_100_birr)
+
+
+def award_points(user, points: int, transaction_type: RewardTransactionType,
+                 description: str, order=None, expires_at=None):
+    """Add points to user and write a ledger entry."""
+    if points == 0:
+        return
+    user.reward_points = (user.reward_points or 0) + points
+    user.lifetime_points_earned = (user.lifetime_points_earned or 0) + max(0, points)
+    txn = RewardTransaction(
+        user_id=user.id,
+        order_id=order.id if order else None,
+        transaction_type=transaction_type,
+        points=points,
+        balance_after=user.reward_points,
+        description=description,
+        expires_at=expires_at,
+    )
+    db.session.add(txn)
+
+
+# ─────────────────────────────────────────────────────────────
+# Order Post-Processing (call after order is confirmed)
+# ─────────────────────────────────────────────────────────────
+
+def process_order_rewards(user, order, savings_amount: float = 0.0):
+    """
+    Called after a successful order is placed.
+    - Updates lifetime spending, orders, items, savings
+    - Upgrades loyalty tier if needed
+    - Awards points
+    - Checks achievement unlocks
+    - Generates referral code if missing
+    - Updates customer status
+    """
+    now = datetime.now(timezone.utc)
+    settings = _get_settings()
+
+    # Aggregate stats
+    order_total = float(order.total)
+    item_count = sum(i.quantity for i in order.items)
+    user.total_money_spent = float(user.total_money_spent or 0) + order_total
+    user.total_orders = (user.total_orders or 0) + 1
+    user.total_items_purchased = (user.total_items_purchased or 0) + item_count
+    user.lifetime_savings = float(user.lifetime_savings or 0) + savings_amount
+    user.last_purchase_date = now
+    if not user.first_purchase_date:
+        user.first_purchase_date = now
+
+    # Generate referral code if not set
+    if not user.referral_code:
+        code = _generate_referral_code()
+        while db.session.query(db.exists().where(
+            db.text("users.referral_code = :code")
+        ).params(code=code)).scalar():
+            code = _generate_referral_code()
+        user.referral_code = code
+
+    # Tier upgrade
+    new_level = resolve_loyalty_level(float(user.total_money_spent), user.total_orders)
+    old_level_id = user.loyalty_level_id
+    if new_level:
+        user.loyalty_level_id = new_level.id
+
+    # Update customer status based on new level / orders
+    if new_level:
+        rights = new_level.get_access_rights()
+        if 'elite' in new_level.name.lower() or user.total_orders >= 100:
+            user.customer_status = CustomerStatus.elite
+        elif 'vip' in new_level.name.lower() or user.total_orders >= 50:
+            user.customer_status = CustomerStatus.vip
+        elif user.total_orders >= 5:
+            user.customer_status = CustomerStatus.loyal
+        else:
+            user.customer_status = CustomerStatus.active
+    elif user.total_orders > 0:
+        user.customer_status = CustomerStatus.active
+
+    # Award points for this order
+    points = calculate_points_for_order(order_total)
+    # Large order bonus
+    if settings.is_enabled and order_total >= float(settings.bonus_large_order_threshold):
+        points += settings.bonus_large_order_points
+
+    if points > 0 and settings.is_enabled:
+        award_points(
+            user=user, points=points,
+            transaction_type=RewardTransactionType.earn_purchase,
+            description=f'Purchase reward — Order #{order.order_number}',
+            order=order,
+        )
+        user.loyalty_score = (user.loyalty_score or 0) + points
+
+    # Update order snapshot
+    order.savings_amount = savings_amount
+    order.reward_earned = points
+    order.loyalty_level_id_after = user.loyalty_level_id
+    order.lifetime_total_after = user.total_money_spent
+    order.total_items = item_count
+
+    # Check achievements
+    newly_unlocked = _check_and_award_achievements(user)
+
+    db.session.flush()
+
+    return {
+        'tier_changed': new_level and new_level.id != old_level_id,
+        'new_level': new_level.to_dict() if new_level else None,
+        'points_earned': points,
+        'new_achievements': [ua.to_dict() for ua in newly_unlocked],
+        'lifetime_savings': float(user.lifetime_savings),
+    }
+
+
+# ─────────────────────────────────────────────────────────────
+# Achievements
+# ─────────────────────────────────────────────────────────────
+
+def _check_and_award_achievements(user) -> list:
+    """Check all achievements and award any newly unlocked ones."""
+    achievements = Achievement.query.filter_by(is_active=True).all()
+    already_unlocked = {ua.achievement_id for ua in user.achievements.all()}
+    newly_unlocked = []
+
+    for ach in achievements:
+        if ach.id in already_unlocked:
+            continue
+        if _achievement_met(user, ach):
+            ua = UserAchievement(user_id=user.id, achievement_id=ach.id)
+            db.session.add(ua)
+            # Award points for achievement
+            if ach.points_awarded > 0:
+                award_points(
+                    user=user, points=ach.points_awarded,
+                    transaction_type=RewardTransactionType.earn_achievement,
+                    description=f'Achievement unlocked: {ach.name}',
+                )
+            newly_unlocked.append(ua)
+
+    return newly_unlocked
+
+
+def _achievement_met(user, achievement: Achievement) -> bool:
+    t = achievement.trigger_type
+    v = float(achievement.trigger_value)
+    if t == 'orders_count':
+        return (user.total_orders or 0) >= v
+    if t == 'spending_total':
+        return float(user.total_money_spent or 0) >= v
+    if t == 'items_count':
+        return (user.total_items_purchased or 0) >= v
+    if t == 'review_count':
+        return user.reviews.count() >= v
+    if t == 'reward_points':
+        return (user.reward_points or 0) >= v
+    return False
+
+
+# ─────────────────────────────────────────────────────────────
+# Customer Profile — for Mini App rewards dashboard
+# ─────────────────────────────────────────────────────────────
+
+def get_customer_loyalty_profile(user) -> dict:
+    """
+    Return a complete loyalty profile for the Mini App dashboard.
+    """
+    levels = _get_active_levels()
+    current_level = user.loyalty_level
+    next_level = None
+    for lvl in levels:
+        if not current_level or lvl.sort_order > current_level.sort_order:
+            next_level = lvl
+            break
+
+    spending = float(user.total_money_spent or 0)
+
+    # Progress to next level
+    progress = {}
+    if next_level:
+        target_spending = float(next_level.min_spending)
+        needed_spending = max(0.0, target_spending - spending)
+        needed_orders = max(0, next_level.min_orders - (user.total_orders or 0))
+        pct = round(min(spending / target_spending * 100, 100), 1) if target_spending > 0 else 100.0
+        progress = {
+            'next_level': next_level.to_dict(),
+            'needed_spending': needed_spending,
+            'needed_orders': needed_orders,
+            'progress_pct': pct,
+            'spending_gap_label': f'{needed_spending:,.0f} Birr',
+        }
+
+    # Unlocked & locked achievements
+    unlocked_ids = {ua.achievement_id for ua in user.achievements.all()}
+    all_achievements = Achievement.query.filter_by(is_active=True).order_by(Achievement.sort_order).all()
+    unlocked = [a.to_dict() for a in all_achievements if a.id in unlocked_ids]
+    locked = [a.to_dict() for a in all_achievements if a.id not in unlocked_ids]
+
+    # Recent reward transactions
+    recent_txns = (
+        RewardTransaction.query
+        .filter_by(user_id=user.id)
+        .order_by(RewardTransaction.created_at.desc())
+        .limit(20)
+        .all()
+    )
+
+    return {
+        'user_id': user.id,
+        'full_name': user.full_name,
+        'telegram_username': user.telegram_username,
+        'customer_status': user.customer_status.value,
+        'current_level': current_level.to_dict() if current_level else None,
+        'reward_points': user.reward_points or 0,
+        'lifetime_points_earned': user.lifetime_points_earned or 0,
+        'total_money_spent': spending,
+        'lifetime_savings': float(user.lifetime_savings or 0),
+        'total_orders': user.total_orders or 0,
+        'total_items_purchased': user.total_items_purchased or 0,
+        'first_purchase_date': user.first_purchase_date.isoformat() if user.first_purchase_date else None,
+        'last_purchase_date': user.last_purchase_date.isoformat() if user.last_purchase_date else None,
+        'referral_code': user.referral_code,
+        'progress': progress,
+        'unlocked_achievements': unlocked,
+        'locked_achievements': locked,
+        'recent_transactions': [t.to_dict() for t in recent_txns],
+        'all_levels': [l.to_dict() for l in levels],
+    }
+
+
+# ─────────────────────────────────────────────────────────────
+# Product Visibility Check
+# ─────────────────────────────────────────────────────────────
+
+def can_user_see_product(user, product) -> dict:
+    """
+    Returns dict: {can_see: bool, can_see_price: bool, can_purchase: bool,
+                   lock_message: str}
+    """
+    # Non-premium products always visible
+    if not product.is_premium and not product.min_loyalty_level_id:
+        return {
+            'can_see': True,
+            'can_see_price': not product.price_hidden,
+            'can_purchase': True,
+            'lock_message': None,
+        }
+
+    user_level_order = user.loyalty_level.sort_order if (user and user.loyalty_level) else -1
+    required_level = product.min_loyalty_level
+
+    if required_level and user_level_order < required_level.sort_order:
+        return {
+            'can_see': True,  # we show the product as "locked" to entice
+            'can_see_price': False,
+            'can_purchase': False,
+            'lock_message': (
+                f'Unlock this product by reaching {required_level.badge_icon} '
+                f'{required_level.name} status. '
+                f'Shop for {required_level.min_spending:,.0f} Birr to qualify!'
+            ),
+        }
+
+    return {
+        'can_see': True,
+        'can_see_price': not product.price_hidden,
+        'can_purchase': True,
+        'lock_message': None,
+    }
+
+
+# ─────────────────────────────────────────────────────────────
+# Seed Defaults (called once on first boot if tables are empty)
+# ─────────────────────────────────────────────────────────────
+
+def seed_default_loyalty_data():
+    """
+    Create sensible defaults so the admin dashboard is not empty.
+    All defaults are stored in the DB and fully editable by admin.
+    Only runs if tables are empty.
+    """
+    if LoyaltyLevel.query.count() == 0:
+        defaults = [
+            dict(name='Bronze', name_am='ብሮንዝ', sort_order=1, min_spending=5000, min_orders=1,
+                 discount_percentage=2, badge_icon='🥉', color_hex='#CD7F32',
+                 access_rights=json.dumps(['see_prices', 'purchase_regular'])),
+            dict(name='Silver', name_am='ብር', sort_order=2, min_spending=25000, min_orders=3,
+                 discount_percentage=4, badge_icon='🥈', color_hex='#C0C0C0',
+                 access_rights=json.dumps(['see_prices', 'purchase_regular'])),
+            dict(name='Gold', name_am='ወርቅ', sort_order=3, min_spending=60000, min_orders=6,
+                 discount_percentage=6, badge_icon='🥇', color_hex='#FFD700',
+                 access_rights=json.dumps(['see_prices', 'purchase_regular', 'see_premium'])),
+            dict(name='VIP', name_am='VIP', sort_order=4, min_spending=100000, min_orders=10,
+                 discount_percentage=8, badge_icon='💎', color_hex='#9B59B6',
+                 access_rights=json.dumps(['see_prices', 'purchase_regular', 'see_premium', 'purchase_premium'])),
+            dict(name='Elite', name_am='ኤሊት', sort_order=5, min_spending=150000, min_orders=15,
+                 discount_percentage=10, badge_icon='👑', color_hex='#E74C3C',
+                 access_rights=json.dumps(['see_prices', 'purchase_regular', 'see_premium', 'purchase_premium', 'priority_support'])),
+        ]
+        for d in defaults:
+            db.session.add(LoyaltyLevel(**d))
+
+    if SpendingThreshold.query.count() == 0:
+        thresholds = [
+            (5000, 1.0, '5,000+ Birr'), (10000, 1.5, '10,000+ Birr'),
+            (20000, 2.0, '20,000+ Birr'), (40000, 2.5, '40,000+ Birr'),
+            (60000, 3.0, '60,000+ Birr'), (80000, 3.5, '80,000+ Birr'),
+            (100000, 4.0, '100,000+ Birr'), (150000, 5.0, '150,000+ Birr'),
+        ]
+        for i, (amt, pct, lbl) in enumerate(thresholds):
+            db.session.add(SpendingThreshold(min_amount=amt, discount_percentage=pct, label=lbl, sort_order=i))
+
+    if QuantityDiscount.query.count() == 0:
+        qty_defaults = [
+            (2, 100, 'Buy 2+ items'), (5, 250, 'Buy 5+ items'),
+            (10, 700, 'Buy 10+ items'), (20, 1500, 'Buy 20+ items'),
+        ]
+        for i, (items, disc, lbl) in enumerate(qty_defaults):
+            db.session.add(QuantityDiscount(min_items=items, discount_amount=disc, label=lbl, sort_order=i))
+
+    if CartIncentive.query.count() == 0:
+        incentives = [
+            (1000, 50, '🎉 Add {needed} Birr more and save {savings} Birr!', 'sparkle'),
+            (5000, 200, '🔥 Almost there! Save {savings} Birr!', 'confetti'),
+            (10000, 500, '⭐ Big spender! You save {savings} Birr!', 'confetti'),
+            (25000, 1500, '🏆 Elite shopper! Save {savings} Birr!', 'confetti'),
+        ]
+        for i, (val, disc, txt, anim) in enumerate(incentives):
+            db.session.add(CartIncentive(min_cart_value=val, discount_offered=disc,
+                                         popup_text=txt, animation=anim, sort_order=i))
+
+    if Achievement.query.count() == 0:
+        ach_defaults = [
+            dict(name='First Purchase', name_am='ፈጠራ ግዢ', description='Made your first order!',
+                 badge_icon='🌟', color_hex='#F39C12', trigger_type='orders_count',
+                 trigger_value=1, points_awarded=100, sort_order=1),
+            dict(name='Getting Started', name_am='ጀምሮ', description='Completed 5 orders',
+                 badge_icon='🚀', color_hex='#3498DB', trigger_type='orders_count',
+                 trigger_value=5, points_awarded=250, sort_order=2),
+            dict(name='Regular Shopper', name_am='መደበኛ ሸቀጠኛ', description='Completed 10 orders',
+                 badge_icon='🛍️', color_hex='#27AE60', trigger_type='orders_count',
+                 trigger_value=10, points_awarded=500, sort_order=3),
+            dict(name='Toy Collector', name_am='አሻንጉሊት ሰብሳቢ', description='Purchased 50 items',
+                 badge_icon='🧸', color_hex='#E91E63', trigger_type='items_count',
+                 trigger_value=50, points_awarded=300, sort_order=4),
+            dict(name='Big Spender', name_am='ትልቅ ሸቀጠኛ', description='Spent 25,000 Birr lifetime',
+                 badge_icon='💰', color_hex='#FF9800', trigger_type='spending_total',
+                 trigger_value=25000, points_awarded=1000, sort_order=5),
+            dict(name='VIP Member', name_am='VIP አባል', description='Spent 100,000 Birr lifetime',
+                 badge_icon='💎', color_hex='#9B59B6', trigger_type='spending_total',
+                 trigger_value=100000, points_awarded=5000, sort_order=6),
+        ]
+        for d in ach_defaults:
+            db.session.add(Achievement(**d))
+
+    if LoyaltySettings.query.count() == 0:
+        db.session.add(LoyaltySettings())
+
+    db.session.commit()

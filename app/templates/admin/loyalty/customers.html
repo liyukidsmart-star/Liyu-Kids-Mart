@@ -1,0 +1,168 @@
+{% extends 'admin/base_admin.html' %}
+{% block title %}Customer Profiles — Liyu Kids Mart{% endblock %}
+{% block page_title %}👥 Customer Loyalty Profiles{% endblock %}
+
+{% block extra_css %}
+<style>
+.loyalty-page-header { background:linear-gradient(135deg,#374151,#1F2937); border-radius:16px; padding:1.5rem 2rem; color:white; margin-bottom:2rem; }
+.loyalty-page-header h2 { margin:0; font-weight:700; font-size:1.6rem; }
+.search-bar { background:white; border-radius:14px; padding:1rem 1.5rem; box-shadow:0 2px 12px rgba(0,0,0,.06); margin-bottom:1.5rem; }
+.customer-card { background:white; border-radius:16px; box-shadow:0 4px 20px rgba(0,0,0,.06); overflow:hidden; }
+.customer-table thead th { font-size:.78rem; text-transform:uppercase; letter-spacing:.06em; color:#6B7280; background:#F9FAFB; font-weight:700; border:none; padding:.9rem 1rem; }
+.customer-table tbody td { padding:.85rem 1rem; vertical-align:middle; border-color:#F3F4F6; }
+.customer-avatar { width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; color:white; font-size:1rem; flex-shrink:0; }
+.tier-pill { padding:4px 10px; border-radius:20px; font-size:.78rem; font-weight:700; }
+.status-badge { padding:3px 10px; border-radius:12px; font-size:.75rem; font-weight:600; }
+.form-control, .form-select { border-radius:10px; border:1.5px solid #E5E7EB; padding:.5rem .9rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="loyalty-page-header">
+  <h2><i class="fas fa-users me-2"></i>Customer Loyalty Profiles</h2>
+  <p class="mb-0 opacity-75">Search customers, view their loyalty tier, spending history, and manually adjust points.</p>
+</div>
+
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{{ url_for('admin.loyalty_overview') }}">Loyalty</a></li>
+    <li class="breadcrumb-item active">Customer Profiles</li>
+  </ol>
+</nav>
+
+<!-- Search & Filter -->
+<div class="search-bar">
+  <form method="GET" action="{{ url_for('admin.loyalty_customers') }}" class="row g-2 align-items-end">
+    <div class="col-md-4">
+      <label class="form-label small fw-600">Search</label>
+      <input type="text" name="q" class="form-control" placeholder="Name, username, or phone…" value="{{ q }}">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label small fw-600">Filter by Tier</label>
+      <select name="level_id" class="form-select">
+        <option value="">All Tiers</option>
+        {% for level in levels %}
+        <option value="{{ level.id }}" {{ 'selected' if level_filter == level.id | string }}>
+          {{ level.badge_icon }} {{ level.name }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label small fw-600">Filter by Status</label>
+      <select name="status" class="form-select">
+        <option value="">All Statuses</option>
+        <option value="new" {{ 'selected' if status_filter == 'new' }}>🆕 New</option>
+        <option value="active" {{ 'selected' if status_filter == 'active' }}>✅ Active</option>
+        <option value="loyal" {{ 'selected' if status_filter == 'loyal' }}>❤️ Loyal</option>
+        <option value="vip" {{ 'selected' if status_filter == 'vip' }}>💎 VIP</option>
+        <option value="elite" {{ 'selected' if status_filter == 'elite' }}>👑 Elite</option>
+      </select>
+    </div>
+    <div class="col-md-2">
+      <button type="submit" class="btn btn-primary w-100 rounded-pill">
+        <i class="fas fa-search me-1"></i>Search
+      </button>
+    </div>
+  </form>
+</div>
+
+<div class="customer-card">
+  {% if customers %}
+  <div class="table-responsive">
+    <table class="table table-hover customer-table mb-0">
+      <thead>
+        <tr>
+          <th>Customer</th>
+          <th>Status</th>
+          <th>Tier</th>
+          <th>Orders</th>
+          <th>Total Spent</th>
+          <th>Lifetime Saved</th>
+          <th>Points</th>
+          <th>Last Purchase</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for customer in customers %}
+        <tr>
+          <td>
+            <div class="d-flex align-items-center gap-2">
+              <div class="customer-avatar" style="background:linear-gradient(135deg,#7C3AED,#C026D3);">
+                {{ (customer.full_name or customer.telegram_username or '?')[0].upper() }}
+              </div>
+              <div>
+                <div class="fw-600">{{ customer.full_name or 'Unknown' }}</div>
+                <small class="text-muted">@{{ customer.telegram_username or '—' }}</small>
+              </div>
+            </div>
+          </td>
+          <td>
+            {% set status_colors = {'new':'secondary','active':'primary','loyal':'success','vip':'warning','elite':'danger'} %}
+            {% set status_icons = {'new':'🆕','active':'✅','loyal':'❤️','vip':'💎','elite':'👑'} %}
+            {% set cs = customer.customer_status.value %}
+            <span class="status-badge bg-{{ status_colors.get(cs,'secondary') }}-subtle text-{{ status_colors.get(cs,'secondary') }}">
+              {{ status_icons.get(cs,'') }} {{ cs | title }}
+            </span>
+          </td>
+          <td>
+            {% if customer.loyalty_level %}
+            <span class="tier-pill" style="background:{{ customer.loyalty_level.color_hex }}22; color:{{ customer.loyalty_level.color_hex }};">
+              {{ customer.loyalty_level.badge_icon }} {{ customer.loyalty_level.name }}
+            </span>
+            {% else %}<span class="text-muted small">—</span>{% endif %}
+          </td>
+          <td class="fw-600">{{ customer.total_orders }}</td>
+          <td class="fw-600" style="color:#7C3AED;">{{ "{:,.0f}".format(customer.total_money_spent | float) }} Birr</td>
+          <td class="fw-600 text-success">{{ "{:,.0f}".format(customer.lifetime_savings | float) }} Birr</td>
+          <td>
+            <span class="badge" style="background:#F5F3FF; color:#7C3AED;">{{ customer.reward_points }} pts</span>
+          </td>
+          <td class="text-muted small">
+            {{ customer.last_purchase_date.strftime('%b %d, %Y') if customer.last_purchase_date else '—' }}
+          </td>
+          <td>
+            <a href="{{ url_for('admin.loyalty_customer_profile', user_id=customer.id) }}" class="btn btn-sm btn-outline-primary rounded-pill">
+              <i class="fas fa-eye me-1"></i>View
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  {% if pagination.pages > 1 %}
+  <div class="d-flex justify-content-center py-3">
+    <nav>
+      <ul class="pagination pagination-sm mb-0">
+        {% if pagination.has_prev %}
+        <li class="page-item"><a class="page-link" href="?page={{ pagination.prev_num }}&q={{ q }}&level_id={{ level_filter }}&status={{ status_filter }}">‹</a></li>
+        {% endif %}
+        {% for p in pagination.iter_pages() %}
+          {% if p %}
+          <li class="page-item {{ 'active' if p == pagination.page }}">
+            <a class="page-link" href="?page={{ p }}&q={{ q }}&level_id={{ level_filter }}&status={{ status_filter }}">{{ p }}</a>
+          </li>
+          {% else %}
+          <li class="page-item disabled"><span class="page-link">…</span></li>
+          {% endif %}
+        {% endfor %}
+        {% if pagination.has_next %}
+        <li class="page-item"><a class="page-link" href="?page={{ pagination.next_num }}&q={{ q }}&level_id={{ level_filter }}&status={{ status_filter }}">›</a></li>
+        {% endif %}
+      </ul>
+    </nav>
+  </div>
+  {% endif %}
+
+  {% else %}
+  <div class="text-center py-5">
+    <div style="font-size:3.5rem;opacity:.3;">👥</div>
+    <p class="text-muted mt-3">No customers found matching your search.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

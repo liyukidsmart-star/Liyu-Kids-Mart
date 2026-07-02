@@ -1,0 +1,191 @@
+{% extends 'admin/base_admin.html' %}
+{% block title %}Points Settings — Liyu Kids Mart{% endblock %}
+{% block page_title %}⚙️ Loyalty Points Settings{% endblock %}
+
+{% block extra_css %}
+<style>
+.loyalty-page-header { background:linear-gradient(135deg,#06B6D4,#0284C7); border-radius:16px; padding:1.5rem 2rem; color:white; margin-bottom:2rem; }
+.loyalty-page-header h2 { margin:0; font-weight:700; font-size:1.6rem; }
+.settings-card { background:white; border-radius:16px; box-shadow:0 4px 24px rgba(0,0,0,.07); overflow:hidden; margin-bottom:1.5rem; }
+.settings-section-header { padding:1rem 1.5rem; font-weight:700; color:#0E7490; background:linear-gradient(135deg,#ECFEFF,#CFFAFE); border-bottom:1px solid #A5F3FC; display:flex; align-items:center; gap:.5rem; }
+.settings-body { padding:1.5rem; }
+.form-control, .form-select { border-radius:10px; border:1.5px solid #E5E7EB; padding:.6rem 1rem; }
+.form-control:focus,.form-select:focus { border-color:#06B6D4; box-shadow:0 0 0 3px rgba(6,182,212,.12); }
+.setting-row { display:flex; align-items:center; justify-content:space-between; padding:.75rem 0; border-bottom:1px solid #F3F4F6; }
+.setting-row:last-child { border-bottom:none; }
+.setting-label { font-weight:600; color:#374151; }
+.setting-desc { font-size:.8rem; color:#9CA3AF; }
+.setting-input { width:140px; }
+.points-preview {
+  background:linear-gradient(135deg,#06B6D4,#0284C7);
+  border-radius:14px; padding:1.5rem; color:white; text-align:center;
+}
+.points-preview .big { font-size:2.5rem; font-weight:700; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="loyalty-page-header">
+  <h2><i class="fas fa-cog me-2"></i>Points & Rewards Settings</h2>
+  <p class="mb-0 opacity-75">Control how customers earn points, when they expire, and how much each point is worth.</p>
+</div>
+
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{{ url_for('admin.loyalty_overview') }}">Loyalty</a></li>
+    <li class="breadcrumb-item active">Points Settings</li>
+  </ol>
+</nav>
+
+<form method="POST" action="{{ url_for('admin.loyalty_settings') }}">
+  <div class="row g-4">
+    <div class="col-lg-8">
+      <!-- Points Earning -->
+      <div class="settings-card">
+        <div class="settings-section-header"><i class="fas fa-coins"></i>Points Earning</div>
+        <div class="settings-body">
+          <div class="setting-row">
+            <div>
+              <div class="setting-label">Points per 100 Birr Spent</div>
+              <div class="setting-desc">How many points customers earn per 100 Birr purchase</div>
+            </div>
+            <input type="number" name="points_per_100_birr" class="form-control setting-input" min="0" value="{{ settings.points_per_100_birr }}">
+          </div>
+        </div>
+      </div>
+
+      <!-- Bonus Points -->
+      <div class="settings-card">
+        <div class="settings-section-header"><i class="fas fa-star"></i>Bonus Points Events</div>
+        <div class="settings-body">
+          <div class="setting-row">
+            <div>
+              <div class="setting-label">Review Bonus Points</div>
+              <div class="setting-desc">Points awarded when a customer writes a product review</div>
+            </div>
+            <input type="number" name="bonus_review_points" class="form-control setting-input" min="0" value="{{ settings.bonus_review_points }}">
+          </div>
+          <div class="setting-row">
+            <div>
+              <div class="setting-label">Referral Bonus Points</div>
+              <div class="setting-desc">Points awarded when a referred user makes their first purchase</div>
+            </div>
+            <input type="number" name="bonus_referral_points" class="form-control setting-input" min="0" value="{{ settings.bonus_referral_points }}">
+          </div>
+          <div class="setting-row">
+            <div>
+              <div class="setting-label">Daily Visit Points</div>
+              <div class="setting-desc">Points for opening the app each day (max once per day)</div>
+            </div>
+            <input type="number" name="bonus_daily_visit_points" class="form-control setting-input" min="0" value="{{ settings.bonus_daily_visit_points }}">
+          </div>
+          <div class="setting-row">
+            <div>
+              <div class="setting-label">Large Order Threshold (Birr)</div>
+              <div class="setting-desc">Single-order amount that triggers the large order bonus</div>
+            </div>
+            <input type="number" name="bonus_large_order_threshold" class="form-control setting-input" min="0" step="100" value="{{ settings.bonus_large_order_threshold | float | int }}">
+          </div>
+          <div class="setting-row">
+            <div>
+              <div class="setting-label">Large Order Bonus Points</div>
+              <div class="setting-desc">Extra points awarded when order exceeds the threshold above</div>
+            </div>
+            <input type="number" name="bonus_large_order_points" class="form-control setting-input" min="0" value="{{ settings.bonus_large_order_points }}">
+          </div>
+        </div>
+      </div>
+
+      <!-- Redemption -->
+      <div class="settings-card">
+        <div class="settings-section-header"><i class="fas fa-gift"></i>Redemption Rules</div>
+        <div class="settings-body">
+          <div class="setting-row">
+            <div>
+              <div class="setting-label">1 Point = X Birr</div>
+              <div class="setting-desc">Monetary value of each reward point when redeemed</div>
+            </div>
+            <input type="number" name="point_value_birr" class="form-control setting-input" min="0" step="0.01" value="{{ settings.point_value_birr | float }}">
+          </div>
+          <div class="setting-row">
+            <div>
+              <div class="setting-label">Minimum Points to Redeem</div>
+              <div class="setting-desc">Customer must have at least this many points before redeeming</div>
+            </div>
+            <input type="number" name="min_redemption_points" class="form-control setting-input" min="0" value="{{ settings.min_redemption_points }}">
+          </div>
+          <div class="setting-row">
+            <div>
+              <div class="setting-label">Points Expiry (Days)</div>
+              <div class="setting-desc">Days before unused points expire. 0 = never expire.</div>
+            </div>
+            <input type="number" name="points_expiry_days" class="form-control setting-input" min="0" value="{{ settings.points_expiry_days }}">
+          </div>
+        </div>
+      </div>
+
+      <!-- System Toggle -->
+      <div class="settings-card">
+        <div class="settings-section-header"><i class="fas fa-power-off"></i>System Status</div>
+        <div class="settings-body">
+          <div class="setting-row">
+            <div>
+              <div class="setting-label">Loyalty System Enabled</div>
+              <div class="setting-desc">Disable to pause all loyalty earning and discounts globally</div>
+            </div>
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" name="is_enabled" id="sysEnabled" role="switch"
+                style="width:3rem; height:1.5rem;" {{ 'checked' if settings.is_enabled }}>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn px-5 rounded-pill fw-600 text-white" style="background:linear-gradient(135deg,#06B6D4,#0284C7);">
+          <i class="fas fa-save me-2"></i>Save All Settings
+        </button>
+        <a href="{{ url_for('admin.loyalty_overview') }}" class="btn btn-outline-secondary px-4 rounded-pill">Cancel</a>
+      </div>
+    </div>
+
+    <!-- Preview Panel -->
+    <div class="col-lg-4">
+      <div class="sticky-top" style="top:80px;">
+        <div class="settings-card">
+          <div class="settings-section-header"><i class="fas fa-calculator"></i>Points Calculator</div>
+          <div class="settings-body">
+            <div class="points-preview mb-3">
+              <div class="opacity-75 small">On a 10,000 Birr order:</div>
+              <div class="big">{{ (settings.points_per_100_birr * 100) | int }} pts</div>
+              <div class="small opacity-75">= {{ "{:.2f}".format(settings.points_per_100_birr * 100 * settings.point_value_birr | float) }} Birr value</div>
+            </div>
+            <div class="small">
+              <div class="d-flex justify-content-between py-1 border-bottom">
+                <span class="text-muted">Per 100 Birr</span>
+                <strong>{{ settings.points_per_100_birr }} pts</strong>
+              </div>
+              <div class="d-flex justify-content-between py-1 border-bottom">
+                <span class="text-muted">Review bonus</span>
+                <strong>+{{ settings.bonus_review_points }} pts</strong>
+              </div>
+              <div class="d-flex justify-content-between py-1 border-bottom">
+                <span class="text-muted">Referral bonus</span>
+                <strong>+{{ settings.bonus_referral_points }} pts</strong>
+              </div>
+              <div class="d-flex justify-content-between py-1 border-bottom">
+                <span class="text-muted">1 point =</span>
+                <strong>{{ settings.point_value_birr | float }} Birr</strong>
+              </div>
+              <div class="d-flex justify-content-between py-1">
+                <span class="text-muted">Min to redeem</span>
+                <strong>{{ settings.min_redemption_points }} pts</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</form>
+{% endblock %}

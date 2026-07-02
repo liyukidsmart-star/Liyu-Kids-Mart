@@ -63,6 +63,11 @@ class Product(db.Model):
     is_new_arrival = db.Column(db.Boolean, default=False)
     view_count = db.Column(db.Integer, default=0)
     sales_count = db.Column(db.Integer, default=0)
+    # ── Loyalty Visibility ──────────────────────────────────────
+    is_premium = db.Column(db.Boolean, default=False)  # admin marks as premium
+    price_hidden = db.Column(db.Boolean, default=False)  # hide price until unlocked
+    # minimum loyalty level required to see & purchase this product
+    min_loyalty_level_id = db.Column(db.Integer, db.ForeignKey('loyalty_levels.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc),
                            onupdate=lambda: datetime.now(timezone.utc))
@@ -78,6 +83,8 @@ class Product(db.Model):
     reviews = db.relationship('Review', back_populates='product', lazy='dynamic', cascade='all, delete-orphan')
     embedding = db.relationship('ProductEmbedding', back_populates='product', uselist=False,
                                 cascade='all, delete-orphan')
+    min_loyalty_level = db.relationship('LoyaltyLevel', back_populates='products_requiring',
+                                        foreign_keys=[min_loyalty_level_id])
 
     def _resolved_images(self):
         return get_product_image_urls(self.id)
@@ -130,6 +137,10 @@ class Product(db.Model):
             'is_featured': self.is_featured,
             'is_new_arrival': self.is_new_arrival,
             'is_active': self.is_active,
+            'is_premium': self.is_premium,
+            'price_hidden': self.price_hidden,
+            'min_loyalty_level_id': self.min_loyalty_level_id,
+            'min_loyalty_level_name': self.min_loyalty_level.name if self.min_loyalty_level else None,
             'view_count': self.view_count,
             'sales_count': self.sales_count,
             'primary_image': self.primary_image(),

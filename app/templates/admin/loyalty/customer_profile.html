@@ -1,0 +1,212 @@
+{% extends 'admin/base_admin.html' %}
+{% block title %}{{ user.full_name or user.telegram_username }} — Loyalty Profile{% endblock %}
+{% block page_title %}👤 Customer Loyalty Profile{% endblock %}
+
+{% block extra_css %}
+<style>
+.profile-hero { background:linear-gradient(135deg,#7C3AED,#C026D3); border-radius:20px; padding:2rem; color:white; margin-bottom:2rem; position:relative; overflow:hidden; }
+.profile-hero::before { content:''; position:absolute; right:-40px; top:-40px; width:200px; height:200px; border-radius:50%; background:rgba(255,255,255,.05); }
+.profile-avatar { width:72px; height:72px; border-radius:50%; background:rgba(255,255,255,.25); display:flex; align-items:center; justify-content:center; font-size:2rem; font-weight:700; border:3px solid rgba(255,255,255,.5); }
+.profile-card { background:white; border-radius:16px; box-shadow:0 4px 24px rgba(0,0,0,.07); overflow:hidden; margin-bottom:1.5rem; }
+.profile-card-header { padding:1rem 1.5rem; font-weight:700; border-bottom:1px solid #F3F4F6; display:flex; align-items:center; gap:.5rem; color:#374151; }
+.profile-card-body { padding:1.5rem; }
+.info-row { display:flex; justify-content:space-between; padding:.6rem 0; border-bottom:1px solid #F9FAFB; }
+.info-row:last-child { border-bottom:none; }
+.info-label { color:#6B7280; font-size:.875rem; }
+.info-value { font-weight:600; color:#111827; }
+.tier-card { border-radius:14px; padding:1.2rem; color:white; text-align:center; }
+.progress-tier { height:10px; border-radius:5px; background:#F3F4F6; overflow:hidden; }
+.progress-tier-fill { height:100%; border-radius:5px; transition:width .6s ease; }
+.txn-row { display:flex; justify-content:space-between; align-items:center; padding:.6rem 0; border-bottom:1px solid #F9FAFB; }
+.txn-row:last-child { border-bottom:none; }
+.txn-points-positive { color:#10B981; font-weight:700; }
+.txn-points-negative { color:#EF4444; font-weight:700; }
+.ach-chip { display:inline-flex; align-items:center; gap:6px; padding:6px 12px; border-radius:20px; font-size:.8rem; font-weight:600; margin:4px; }
+.ach-chip.unlocked { background:#F0FDF4; color:#065F46; border:1.5px solid #86EFAC; }
+.ach-chip.locked { background:#F9FAFB; color:#9CA3AF; border:1.5px solid #E5E7EB; filter:grayscale(1); }
+.order-row { display:flex; align-items:center; justify-content:space-between; padding:.7rem 0; border-bottom:1px solid #F9FAFB; }
+.order-row:last-child { border-bottom:none; }
+.form-control { border-radius:10px; border:1.5px solid #E5E7EB; padding:.6rem 1rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{{ url_for('admin.loyalty_overview') }}">Loyalty</a></li>
+    <li class="breadcrumb-item"><a href="{{ url_for('admin.loyalty_customers') }}">Customers</a></li>
+    <li class="breadcrumb-item active">{{ user.full_name or user.telegram_username }}</li>
+  </ol>
+</nav>
+
+<!-- Hero Banner -->
+<div class="profile-hero">
+  <div class="d-flex align-items-center gap-3">
+    <div class="profile-avatar">{{ (user.full_name or user.telegram_username or '?')[0].upper() }}</div>
+    <div>
+      <h2 class="mb-0 fw-700">{{ user.full_name or 'Unknown Customer' }}</h2>
+      <div class="opacity-80">@{{ user.telegram_username or '—' }} · {{ user.phone or 'No phone' }}</div>
+      <div class="mt-2">
+        {% if user.loyalty_level %}
+        <span style="background:rgba(255,255,255,.25); padding:4px 14px; border-radius:20px; font-size:.9rem; font-weight:700;">
+          {{ user.loyalty_level.badge_icon }} {{ user.loyalty_level.name }} Member
+        </span>
+        {% else %}
+        <span style="background:rgba(255,255,255,.2); padding:4px 14px; border-radius:20px; font-size:.9rem;">
+          No tier yet
+        </span>
+        {% endif %}
+      </div>
+    </div>
+    <div class="ms-auto text-end">
+      <div style="font-size:2rem; font-weight:700;">{{ user.reward_points }} <small style="font-size:.9rem; opacity:.75;">pts</small></div>
+      <div class="opacity-75 small">Reward Points</div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- Left Column -->
+  <div class="col-lg-4">
+    <!-- Tier Progress -->
+    <div class="profile-card">
+      <div class="profile-card-header"><i class="fas fa-crown me-2" style="color:#F59E0B;"></i>Tier Progress</div>
+      <div class="profile-card-body">
+        {% if user.loyalty_level %}
+        <div class="tier-card mb-3" style="background:linear-gradient(135deg,{{ user.loyalty_level.color_hex }},{{ user.loyalty_level.color_hex }}aa);">
+          <div style="font-size:2.5rem;">{{ user.loyalty_level.badge_icon }}</div>
+          <div class="fw-700 mt-1">{{ user.loyalty_level.name }}</div>
+          <div class="small opacity-75">{{ user.loyalty_level.discount_percentage }}% discount on all orders</div>
+        </div>
+        {% endif %}
+        {% if progress %}
+        <div class="mb-2 d-flex justify-content-between small">
+          <span class="text-muted">Progress to {{ progress.next_level.name }}</span>
+          <span class="fw-600">{{ progress.progress_pct }}%</span>
+        </div>
+        <div class="progress-tier mb-2">
+          <div class="progress-tier-fill" style="width:{{ progress.progress_pct }}%; background:{{ progress.next_level.color_hex }};"></div>
+        </div>
+        <div class="text-muted small">
+          Need <strong>{{ "{:,.0f}".format(progress.needed_spending) }} Birr</strong> more spending
+          {% if progress.needed_orders > 0 %} and <strong>{{ progress.needed_orders }}</strong> more orders{% endif %}
+          to reach {{ progress.next_level.badge_icon }} {{ progress.next_level.name }}.
+        </div>
+        {% else %}
+        <div class="text-center text-muted small py-2">🏆 Highest tier reached!</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Key Stats -->
+    <div class="profile-card">
+      <div class="profile-card-header"><i class="fas fa-chart-bar me-2" style="color:#7C3AED;"></i>Key Stats</div>
+      <div class="profile-card-body">
+        <div class="info-row"><span class="info-label">Total Spent</span><span class="info-value">{{ "{:,.0f}".format(user.total_money_spent | float) }} Birr</span></div>
+        <div class="info-row"><span class="info-label">Lifetime Saved</span><span class="info-value text-success">{{ "{:,.0f}".format(user.lifetime_savings | float) }} Birr</span></div>
+        <div class="info-row"><span class="info-label">Total Orders</span><span class="info-value">{{ user.total_orders }}</span></div>
+        <div class="info-row"><span class="info-label">Items Purchased</span><span class="info-value">{{ user.total_items_purchased }}</span></div>
+        <div class="info-row"><span class="info-label">Reward Points</span><span class="info-value" style="color:#7C3AED;">{{ user.reward_points }}</span></div>
+        <div class="info-row"><span class="info-label">Lifetime Points</span><span class="info-value">{{ user.lifetime_points_earned }}</span></div>
+        <div class="info-row"><span class="info-label">First Purchase</span><span class="info-value small">{{ user.first_purchase_date.strftime('%b %d, %Y') if user.first_purchase_date else '—' }}</span></div>
+        <div class="info-row"><span class="info-label">Last Purchase</span><span class="info-value small">{{ user.last_purchase_date.strftime('%b %d, %Y') if user.last_purchase_date else '—' }}</span></div>
+        <div class="info-row"><span class="info-label">Referral Code</span><span class="info-value small" style="font-family:monospace;">{{ user.referral_code or '—' }}</span></div>
+      </div>
+    </div>
+
+    <!-- Adjust Points -->
+    <div class="profile-card">
+      <div class="profile-card-header"><i class="fas fa-sliders-h me-2" style="color:#06B6D4;"></i>Adjust Points</div>
+      <div class="profile-card-body">
+        <form method="POST" action="{{ url_for('admin.loyalty_adjust_points', user_id=user.id) }}">
+          <div class="mb-2">
+            <label class="form-label small fw-600">Points (+ to add, - to deduct)</label>
+            <input type="number" name="points" class="form-control" placeholder="+500 or -200" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-600">Reason</label>
+            <input type="text" name="reason" class="form-control" placeholder="e.g. Goodwill gesture" required>
+          </div>
+          <button type="submit" class="btn btn-primary w-100 rounded-pill fw-600">Adjust Points</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Column -->
+  <div class="col-lg-8">
+    <!-- Achievements -->
+    <div class="profile-card">
+      <div class="profile-card-header"><i class="fas fa-medal me-2" style="color:#F59E0B;"></i>Achievements ({{ unlocked_achievements | length }} unlocked)</div>
+      <div class="profile-card-body">
+        {% for ua in unlocked_achievements %}
+        <span class="ach-chip unlocked">{{ ua.achievement.badge_icon }} {{ ua.achievement.name }}</span>
+        {% endfor %}
+        {% if not unlocked_achievements %}
+        <span class="text-muted small">No achievements yet.</span>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Recent Orders -->
+    <div class="profile-card">
+      <div class="profile-card-header"><i class="fas fa-box me-2" style="color:#10B981;"></i>Recent Orders</div>
+      <div class="profile-card-body">
+        {% if orders %}
+          {% for order in orders[:10] %}
+          <div class="order-row">
+            <div>
+              <div class="fw-600">#{{ order.order_number }}</div>
+              <div class="text-muted small">{{ order.created_at.strftime('%b %d, %Y') if order.created_at else '—' }}</div>
+            </div>
+            <div>
+              {% set status_map = {'pending':'secondary','confirmed':'info','processing':'warning','shipped':'primary','delivered':'success','cancelled':'danger'} %}
+              <span class="badge bg-{{ status_map.get(order.status.value, 'secondary') }}-subtle text-{{ status_map.get(order.status.value, 'secondary') }}">
+                {{ order.status.value | title }}
+              </span>
+            </div>
+            <div class="text-end">
+              <div class="fw-700">{{ "{:,.0f}".format(order.total | float) }} Birr</div>
+              {% if order.savings_amount and order.savings_amount > 0 %}
+              <div class="small text-success">Saved {{ "{:,.0f}".format(order.savings_amount | float) }} Birr</div>
+              {% endif %}
+            </div>
+            <a href="{{ url_for('admin.order_detail', order_id=order.id) }}" class="btn btn-sm btn-outline-secondary">
+              <i class="fas fa-eye"></i>
+            </a>
+          </div>
+          {% endfor %}
+          {% if orders | length > 10 %}
+          <div class="text-center mt-3 small text-muted">Showing 10 of {{ orders | length }} orders</div>
+          {% endif %}
+        {% else %}
+        <p class="text-muted text-center py-3">No orders yet.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Points Ledger -->
+    <div class="profile-card">
+      <div class="profile-card-header"><i class="fas fa-receipt me-2" style="color:#8B5CF6;"></i>Points Ledger</div>
+      <div class="profile-card-body">
+        {% if transactions %}
+          {% for txn in transactions %}
+          <div class="txn-row">
+            <div>
+              <div class="fw-600 small">{{ txn.description or txn.transaction_type.value | replace('_', ' ') | title }}</div>
+              <div class="text-muted" style="font-size:.75rem;">{{ txn.created_at.strftime('%b %d, %Y %H:%M') if txn.created_at else '—' }}</div>
+            </div>
+            <div class="{{ 'txn-points-positive' if txn.points > 0 else 'txn-points-negative' }}">
+              {{ '+' if txn.points > 0 else '' }}{{ txn.points }} pts
+            </div>
+            <div class="text-muted small">Balance: <strong>{{ txn.balance_after }}</strong></div>
+          </div>
+          {% endfor %}
+        {% else %}
+        <p class="text-muted text-center py-3">No reward transactions yet.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
