@@ -54,6 +54,13 @@ def create_app(config_name='development'):
     if os.getenv('AUTO_CREATE_TABLES', 'true').lower() in ('1', 'true', 'yes'):
         try:
             with app.app_context():
+                # Apply Alembic migrations automatically (adds missing columns to Supabase)
+                try:
+                    from flask_migrate import upgrade
+                    upgrade()
+                except Exception as e:
+                    app.logger.warning(f'Auto-migration failed: {e}')
+
                 db.create_all()
                 # Seed loyalty defaults on first boot (no-op if already seeded)
                 try:
