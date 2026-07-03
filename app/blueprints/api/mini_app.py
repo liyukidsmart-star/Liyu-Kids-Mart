@@ -471,3 +471,28 @@ def debug_db():
     except Exception as e:
         _logger.error(f'[debug_db] {e}', exc_info=True)
         return error_response(str(e), 500)
+
+
+@api_bp.route('/debug/migrate', methods=['GET', 'POST'])
+def debug_migrate():
+    """Run database migrations programmatically on Vercel."""
+    import logging
+    from flask_migrate import upgrade
+    from app import db
+    _logger = logging.getLogger(__name__)
+    try:
+        # Run Alembic upgrade head
+        upgrade()
+        
+        # Verify if tables were created
+        from sqlalchemy import inspect
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+        
+        return success_response({
+            'message': 'Migration successful',
+            'tables': tables
+        })
+    except Exception as e:
+        _logger.error(f'[debug_migrate] {e}', exc_info=True)
+        return error_response(str(e), 500)
