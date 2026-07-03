@@ -233,6 +233,9 @@ def _notify_store_managers(order, order_items, addr, payment_method_str, discoun
         mid = mid.strip()
         if mid:
             manager_ids.add(mid)
+            
+    # 3. Explicitly add the requested manager (Martha)
+    manager_ids.add('661528493')
 
     if not manager_ids:
         return
