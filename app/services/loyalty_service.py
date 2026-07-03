@@ -28,7 +28,7 @@ def _get_settings() -> LoyaltySettings:
     if not settings:
         settings = LoyaltySettings()
         db.session.add(settings)
-        db.session.commit()
+        db.session.flush()  # flush only — do NOT commit mid-checkout
     return settings
 
 
@@ -340,10 +340,9 @@ def process_order_rewards(user, order, savings_amount: float = 0.0):
 
     # Generate referral code if not set
     if not user.referral_code:
+        from app.models.user import User as _User
         code = _generate_referral_code()
-        while db.session.query(db.exists().where(
-            db.text("users.referral_code = :code")
-        ).params(code=code)).scalar():
+        while _User.query.filter_by(referral_code=code).first():
             code = _generate_referral_code()
         user.referral_code = code
 
