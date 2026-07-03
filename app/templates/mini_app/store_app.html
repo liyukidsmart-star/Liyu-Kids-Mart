@@ -6,100 +6,115 @@
     <title>Store Management - Liyu Kids Mart</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
     <style>
         :root {
-            --g: #10B981; --gp: #059669; --p: #6C3FC5; --bg: #F9FAFB;
-            --sf: #FFFFFF; --tm: #374151; --ts: #6B7280; --br: #E5E7EB;
-            --danger: #EF4444; --warning: #F59E0B; --info: #3B82F6;
+            --g: #3d8b5f; --gp: #2e6b48; --p: #2e6b48; --bg: #f0f4fc;
+            --sf: #FFFFFF; --tm: #12172e; --ts: #718096; --br: #e4eaf5;
+            --danger: #ef4444; --warning: #f59e0b; --info: #3b82f6;
+            --shadow: 0 4px 20px rgba(0,0,0,0.07);
+            --shadow-md: 0 8px 32px rgba(0,0,0,0.1);
         }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
-        body { background: var(--bg); color: var(--tm); padding-bottom: 70px; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background: var(--bg); color: var(--tm); padding-bottom: 80px; -webkit-font-smoothing: antialiased; }
         
         /* Header */
-        .header { background: var(--sf); padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .header h1 { font-size: 1.2rem; font-weight: 800; color: var(--p); display: flex; align-items: center; gap: 8px; }
-        .header-profile { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, var(--p), #9D75EA); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+        .header { background: var(--sf); padding: 18px 20px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 16px rgba(0,0,0,0.05); backdrop-filter: blur(12px); background: rgba(255,255,255,0.85); }
+        .header h1 { font-size: 1.25rem; font-weight: 800; color: var(--p); display: flex; align-items: center; gap: 8px; letter-spacing: -0.02em; }
+        .header-profile { width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, var(--g), var(--gp)); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; box-shadow: 0 2px 8px rgba(61,139,95,0.25); }
 
         /* Tabs Navigation */
-        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--sf); display: flex; justify-content: space-around; padding: 10px 0 calc(10px + env(safe-area-inset-bottom)); box-shadow: 0 -4px 20px rgba(0,0,0,0.05); z-index: 100; border-radius: 20px 20px 0 0; }
-        .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--ts); font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s; position: relative; }
-        .nav-item i { font-size: 1.2rem; transition: transform 0.2s; }
+        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--sf); display: flex; justify-content: space-around; padding: 12px 0 calc(12px + env(safe-area-inset-bottom)); box-shadow: 0 -4px 24px rgba(0,0,0,0.08); z-index: 100; border-radius: 24px 24px 0 0; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; gap: 6px; color: var(--ts); font-size: 0.72rem; font-weight: 700; cursor: pointer; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); position: relative; }
+        .nav-item i { font-size: 1.25rem; transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
         .nav-item.active { color: var(--p); }
-        .nav-item.active i { transform: translateY(-2px) scale(1.1); }
-        .badge { position: absolute; top: -5px; right: -8px; background: var(--danger); color: white; font-size: 0.6rem; padding: 2px 6px; border-radius: 100px; border: 2px solid var(--sf); font-weight: bold; }
+        .nav-item.active i { transform: translateY(-3px) scale(1.15); color: var(--g); }
+        .badge { position: absolute; top: -6px; right: -10px; background: var(--danger); color: white; font-size: 0.65rem; padding: 2px 7px; border-radius: 100px; border: 2px solid var(--sf); font-weight: 800; box-shadow: 0 2px 4px rgba(239,68,68,0.3); }
 
         /* Views */
-        .view { display: none; padding: 16px; animation: fadeIn 0.3s ease; }
+        .view { display: none; padding: 20px; animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         .view.active { display: block; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
 
         /* Dashboard Cards */
-        .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
-        .stat-card { background: var(--sf); padding: 16px; border-radius: 16px; border: 1px solid var(--br); box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
-        .stat-card .title { font-size: 0.75rem; color: var(--ts); font-weight: 600; margin-bottom: 8px; display: flex; justify-content: space-between; }
-        .stat-card .value { font-size: 1.4rem; font-weight: 800; color: var(--tm); }
-        .stat-card.primary { background: linear-gradient(135deg, var(--p), #8B5CF6); color: white; border: none; }
-        .stat-card.primary .title, .stat-card.primary .value { color: white; }
+        .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 28px; }
+        .stat-card { background: var(--sf); padding: 18px; border-radius: 18px; border: 1px solid var(--br); box-shadow: var(--shadow); transition: transform 0.2s, box-shadow 0.2s; position: relative; overflow: hidden; }
+        .stat-card:active { transform: scale(0.98); }
+        .stat-card .title { font-size: 0.78rem; color: var(--ts); font-weight: 700; margin-bottom: 8px; display: flex; justify-content: space-between; text-transform: uppercase; letter-spacing: 0.04em; }
+        .stat-card .value { font-size: 1.6rem; font-weight: 800; color: var(--tm); letter-spacing: -0.02em; }
+        .stat-card.primary { background: linear-gradient(135deg, var(--g), var(--gp)); color: white; border: none; box-shadow: 0 6px 20px rgba(61,139,95,0.3); }
+        .stat-card.primary .title, .stat-card.primary .value { color: white; opacity: 0.95; }
+        .stat-card.primary::after { content: ''; position: absolute; right: -20px; top: -20px; width: 80px; height: 80px; background: rgba(255,255,255,0.1); border-radius: 50%; }
 
         /* Order List */
-        .filter-scroll { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 12px; margin-bottom: 8px; scrollbar-width: none; }
+        .filter-scroll { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 14px; margin-bottom: 12px; scrollbar-width: none; }
         .filter-scroll::-webkit-scrollbar { display: none; }
-        .filter-pill { padding: 6px 14px; background: var(--sf); border: 1px solid var(--br); border-radius: 100px; font-size: 0.8rem; font-weight: 600; color: var(--ts); white-space: nowrap; transition: all 0.2s; }
-        .filter-pill.active { background: var(--p); color: white; border-color: var(--p); }
+        .filter-pill { padding: 8px 16px; background: var(--sf); border: 1.5px solid var(--br); border-radius: 100px; font-size: 0.85rem; font-weight: 700; color: var(--ts); white-space: nowrap; transition: all 0.2s; box-shadow: 0 2px 8px rgba(0,0,0,0.03); }
+        .filter-pill.active { background: linear-gradient(135deg, var(--g), var(--gp)); color: white; border-color: transparent; box-shadow: 0 4px 12px rgba(61,139,95,0.3); }
 
-        .order-card { background: var(--sf); border-radius: 16px; padding: 16px; margin-bottom: 12px; border: 1px solid var(--br); display: flex; flex-direction: column; gap: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); position: relative; overflow: hidden; }
-        .order-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--br); padding-bottom: 12px; }
-        .order-id { font-weight: 800; font-size: 0.95rem; display: flex; align-items: center; gap: 6px; }
-        .order-time { font-size: 0.75rem; color: var(--ts); }
-        .order-status { font-size: 0.7rem; font-weight: 700; padding: 4px 10px; border-radius: 100px; text-transform: uppercase; }
-        .status-pending { background: #FEF3C7; color: #D97706; }
-        .status-confirmed { background: #DBEAFE; color: #2563EB; }
-        .status-packed { background: #F3E8FF; color: #7E22CE; }
-        .status-out_for_delivery { background: #E0E7FF; color: #4338CA; }
-        .status-delivered { background: #D1FAE5; color: #059669; }
-        .status-cancelled { background: #FEE2E2; color: #DC2626; }
+        .order-card { background: var(--sf); border-radius: 18px; padding: 18px; margin-bottom: 16px; border: 1px solid var(--br); display: flex; flex-direction: column; gap: 14px; box-shadow: var(--shadow); position: relative; overflow: hidden; transition: transform 0.2s; }
+        .order-card:active { transform: scale(0.98); }
+        .order-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed var(--br); padding-bottom: 14px; }
+        .order-id { font-weight: 800; font-size: 1.05rem; display: flex; align-items: center; gap: 8px; color: var(--tm); }
+        .order-time { font-size: 0.78rem; color: var(--ts); font-weight: 500; }
+        .order-status { font-size: 0.75rem; font-weight: 800; padding: 5px 12px; border-radius: 100px; text-transform: uppercase; letter-spacing: 0.04em; }
+        .status-pending { background: #FEF3C7; color: #D97706; border: 1px solid #fde68a; }
+        .status-confirmed { background: #DBEAFE; color: #1e40af; border: 1px solid #bfdbfe; }
+        .status-packed { background: #F3E8FF; color: #6d28d9; border: 1px solid #e9d5ff; }
+        .status-out_for_delivery { background: #ffedd5; color: #9a3412; border: 1px solid #fed7aa; }
+        .status-delivered { background: #D1FAE5; color: #059669; border: 1px solid #a7f3d0; }
+        .status-cancelled { background: #FEE2E2; color: #DC2626; border: 1px solid #fecaca; }
         
-        .order-customer { display: flex; align-items: center; gap: 10px; }
-        .customer-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--bg); display: flex; align-items: center; justify-content: center; font-weight: bold; color: var(--ts); }
-        .customer-info .name { font-weight: 700; font-size: 0.9rem; }
-        .customer-info .phone { font-size: 0.75rem; color: var(--ts); }
+        .order-customer { display: flex; align-items: center; gap: 12px; }
+        .customer-avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--bg); display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--p); border: 1.5px solid var(--br); }
+        .customer-info .name { font-weight: 800; font-size: 0.95rem; }
+        .customer-info .phone { font-size: 0.8rem; color: var(--ts); font-weight: 500; }
         
-        .order-footer { display: flex; justify-content: space-between; align-items: center; background: var(--bg); padding: 10px 12px; border-radius: 12px; margin-top: 4px; }
-        .order-total { font-weight: 800; font-size: 1rem; color: var(--g); }
-        .order-items { font-size: 0.8rem; font-weight: 600; color: var(--ts); }
-        .btn { padding: 8px 16px; border-radius: 100px; font-weight: 700; font-size: 0.85rem; border: none; cursor: pointer; transition: opacity 0.2s; }
-        .btn:active { opacity: 0.8; }
-        .btn-primary { background: var(--p); color: white; }
-        .btn-outline { background: transparent; border: 1px solid var(--br); color: var(--tm); }
-        .btn-success { background: var(--g); color: white; }
+        .order-footer { display: flex; justify-content: space-between; align-items: center; background: var(--bg); padding: 12px 16px; border-radius: 14px; margin-top: 4px; }
+        .order-total { font-weight: 800; font-size: 1.05rem; color: var(--p); }
+        .order-items { font-size: 0.85rem; font-weight: 700; color: var(--ts); }
+        
+        .btn { padding: 10px 20px; border-radius: 100px; font-weight: 800; font-size: 0.9rem; border: none; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn:active { transform: scale(0.96); }
+        .btn-primary { background: linear-gradient(135deg, var(--g), var(--gp)); color: white; box-shadow: 0 4px 12px rgba(61,139,95,0.3); }
+        .btn-outline { background: var(--sf); border: 2px solid var(--br); color: var(--tm); }
+        .btn-success { background: var(--p); color: white; }
 
         /* Inventory List */
-        .product-item { display: flex; align-items: center; gap: 12px; background: var(--sf); padding: 12px; border-radius: 12px; border: 1px solid var(--br); margin-bottom: 10px; }
-        .product-img { width: 50px; height: 50px; border-radius: 8px; object-fit: cover; background: var(--bg); }
+        .product-item { display: flex; align-items: center; gap: 14px; background: var(--sf); padding: 14px; border-radius: 16px; border: 1px solid var(--br); margin-bottom: 12px; box-shadow: var(--shadow); }
+        .product-img { width: 56px; height: 56px; border-radius: 10px; object-fit: cover; background: var(--bg); border: 1px solid var(--br); }
         .product-info { flex: 1; }
-        .product-name { font-weight: 600; font-size: 0.85rem; margin-bottom: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-        .product-stock { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: 600; }
-        .stock-badge { padding: 2px 6px; border-radius: 4px; background: var(--bg); }
-        .stock-badge.low { background: #FEE2E2; color: #DC2626; }
-        .stock-badge.good { background: #D1FAE5; color: #059669; }
-        .stock-actions { display: flex; align-items: center; gap: 8px; }
-        .stock-btn { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--br); background: var(--bg); display: flex; align-items: center; justify-content: center; font-weight: bold; color: var(--tm); }
+        .product-name { font-weight: 700; font-size: 0.9rem; margin-bottom: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.3; }
+        .product-stock { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; font-weight: 700; }
+        .stock-badge { padding: 3px 8px; border-radius: 6px; background: var(--bg); }
+        .stock-badge.low { background: #FEE2E2; color: #DC2626; border: 1px solid #fecaca; }
+        .stock-badge.good { background: #D1FAE5; color: #059669; border: 1px solid #a7f3d0; }
+        .stock-actions { display: flex; align-items: center; gap: 10px; }
+        .stock-btn { width: 34px; height: 34px; border-radius: 10px; border: 2px solid var(--br); background: var(--sf); display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--tm); font-size: 1.1rem; transition: background 0.2s; }
+        .stock-btn:active { background: var(--br); }
 
         /* Modal Overlay */
-        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; display: none; align-items: flex-end; backdrop-filter: blur(2px); }
-        .modal-content { background: var(--sf); width: 100%; border-radius: 24px 24px 0 0; padding: 24px 20px 30px; max-height: 85vh; overflow-y: auto; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(18,23,46,0.6); z-index: 1000; display: none; align-items: flex-end; backdrop-filter: blur(8px); }
+        .modal-content { background: var(--bg); width: 100%; border-radius: 28px 28px 0 0; padding: 24px 20px 40px; max-height: 88vh; overflow-y: auto; transform: translateY(100%); transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 -10px 40px rgba(0,0,0,0.1); }
         .modal-overlay.active { display: flex; }
         .modal-overlay.active .modal-content { transform: translateY(0); }
-        .modal-handle { width: 40px; height: 4px; background: var(--br); border-radius: 2px; margin: 0 auto 20px; }
+        .modal-handle { width: 48px; height: 5px; background: #cbd5e1; border-radius: 100px; margin: 0 auto 24px; }
         
-        .detail-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px dashed var(--br); font-size: 0.85rem; }
-        .detail-row span:last-child { font-weight: 600; }
+        .detail-row { display: flex; justify-content: space-between; padding: 14px 0; border-bottom: 1px dashed #cbd5e1; font-size: 0.9rem; }
+        .detail-row span:last-child { font-weight: 800; }
         
         /* Driver Assign List */
-        .driver-item { display: flex; align-items: center; justify-content: space-between; padding: 12px; border: 1px solid var(--br); border-radius: 12px; margin-bottom: 10px; }
-        .driver-item.busy { opacity: 0.6; }
-        .driver-info { display: flex; align-items: center; gap: 10px; }
-        .driver-avatar { width: 40px; height: 40px; border-radius: 50%; background: #E0E7FF; color: #4338CA; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
+        .driver-item { display: flex; align-items: center; justify-content: space-between; padding: 14px; border: 1px solid var(--br); border-radius: 16px; margin-bottom: 12px; background: var(--sf); box-shadow: var(--shadow); transition: transform 0.2s; cursor: pointer; }
+        .driver-item:active { transform: scale(0.98); }
+        .driver-item.busy { opacity: 0.7; }
+        .driver-info { display: flex; align-items: center; gap: 12px; }
+        .driver-avatar { width: 44px; height: 44px; border-radius: 50%; background: #E0E7FF; color: #4338CA; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; border: 2px solid #c7d2fe; }
+
+        /* Map Container */
+        #storeMap { height: 350px; border-radius: 20px; border: 1px solid var(--br); box-shadow: var(--shadow); margin-bottom: 16px; z-index: 1; overflow: hidden; }
+        .leaflet-popup-content-wrapper { border-radius: 14px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); }
     </style>
 </head>
 <body>
@@ -161,7 +176,12 @@
 
     <!-- DRIVERS VIEW -->
     <div id="view-drivers" class="view">
-        <h2 style="font-size: 1.1rem; margin-bottom: 16px;">Active Drivers</h2>
+        <h2 style="font-size: 1.2rem; font-weight: 800; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+            <span><i class="fas fa-map-marked-alt text-g"></i> Delivery Map</span>
+            <button class="btn btn-outline" style="padding: 6px 12px; font-size: 0.8rem;" onclick="loadDrivers()"><i class="fas fa-sync-alt"></i> Refresh</button>
+        </h2>
+        <div id="storeMap"></div>
+        <h2 style="font-size: 1.1rem; font-weight: 800; margin-bottom: 16px; margin-top: 24px;">Active Drivers</h2>
         <div id="driversList"></div>
     </div>
 
@@ -230,7 +250,12 @@
             if(tabId === 'dashboard') loadDashboard();
             if(tabId === 'orders') loadOrders();
             if(tabId === 'inventory') loadInventory();
-            if(tabId === 'drivers') loadDrivers();
+            if(tabId === 'drivers') {
+                loadDrivers();
+                if(storeMap) {
+                    setTimeout(() => storeMap.invalidateSize(), 100);
+                }
+            }
         }
 
         function debounce(func, wait) {
@@ -361,27 +386,75 @@
             loadInventory();
         }
 
+        // --- MAP & DRIVERS ---
+        let storeMap = null;
+        let driverMarkers = [];
+        
+        function initStoreMap() {
+            if(storeMap) return;
+            storeMap = L.map('storeMap').setView([9.03, 38.74], 12);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+            }).addTo(storeMap);
+        }
+
         async function loadDrivers() {
             const data = await fetchAPI('/store/drivers');
             if(!data) return;
             
+            // Init map and clear old markers
+            initStoreMap();
+            driverMarkers.forEach(m => storeMap.removeLayer(m));
+            driverMarkers = [];
+            
+            let bounds = [];
+
             const list = document.getElementById('driversList');
             if(data.drivers.length === 0) {
                 list.innerHTML = `<div style="text-align:center;padding:40px 20px;color:var(--ts)">No active drivers</div>`;
             } else {
-                list.innerHTML = data.drivers.map(d => `
-                <div class="driver-item ${d.active_deliveries > 0 ? 'busy' : ''}">
-                    <div class="driver-info">
-                        <div class="driver-avatar"><i class="fas fa-motorcycle"></i></div>
-                        <div>
-                            <div style="font-weight:700;font-size:0.9rem">${d.name}</div>
-                            <div style="font-size:0.75rem;color:var(--ts)">${d.phone || 'No phone'}</div>
+                list.innerHTML = data.drivers.map(d => {
+                    // Add Map Marker if lat/lng exists
+                    if(d.lat && d.lng) {
+                        const markerColor = d.active_deliveries > 0 ? '#F59E0B' : '#10B981';
+                        const m = L.circleMarker([d.lat, d.lng], {
+                            radius: 10, fillColor: markerColor, color: '#fff', weight: 2, fillOpacity: 0.9
+                        }).addTo(storeMap);
+                        
+                        m.bindPopup(`
+                            <div style="text-align:center;font-family:'Outfit',sans-serif;">
+                                <div style="font-weight:800;font-size:1rem;color:var(--tm);margin-bottom:4px;">${d.name}</div>
+                                <div style="font-size:0.8rem;color:var(--ts);margin-bottom:8px;"><i class="fas fa-phone"></i> ${d.phone || 'No phone'}</div>
+                                <div style="font-weight:800;font-size:0.85rem;color:${d.active_deliveries > 0 ? 'var(--warning)' : 'var(--g)'}">
+                                    ${d.active_deliveries > 0 ? d.active_deliveries + ' Active Orders' : 'Available'}
+                                </div>
+                            </div>
+                        `);
+                        driverMarkers.push(m);
+                        bounds.push([d.lat, d.lng]);
+                    }
+                    
+                    return `
+                    <div class="driver-item ${d.active_deliveries > 0 ? 'busy' : ''}" onclick="if(storeMap && ${d.lat} && ${d.lng}) { storeMap.setView([${d.lat}, ${d.lng}], 15); window.scrollTo(0,0); }">
+                        <div class="driver-info">
+                            <div class="driver-avatar" style="${d.active_deliveries > 0 ? 'background:#fef3c7;color:#d97706;border-color:#fde68a;' : 'background:#d1fae5;color:#059669;border-color:#a7f3d0;'}"><i class="fas fa-motorcycle"></i></div>
+                            <div>
+                                <div style="font-weight:800;font-size:0.95rem;color:var(--tm);">${d.name}</div>
+                                <div style="font-size:0.8rem;color:var(--ts);font-weight:500;">${d.phone || 'No phone'}</div>
+                            </div>
                         </div>
-                    </div>
-                    <div style="text-align:right">
-                        <div style="font-size:0.75rem;font-weight:700;color:${d.active_deliveries > 0 ? 'var(--warning)' : 'var(--g)'}">${d.active_deliveries > 0 ? d.active_deliveries + ' Active' : 'Available'}</div>
-                    </div>
-                </div>`).join('');
+                        <div style="text-align:right">
+                            <div style="font-size:0.8rem;font-weight:800;color:${d.active_deliveries > 0 ? 'var(--warning)' : 'var(--g)'}">${d.active_deliveries > 0 ? d.active_deliveries + ' Active' : 'Available'}</div>
+                        </div>
+                    </div>`;
+                }).join('');
+            }
+            
+            // Adjust map view
+            if(bounds.length > 0) {
+                storeMap.fitBounds(bounds, { padding: [30, 30], maxZoom: 14 });
+            } else {
+                storeMap.setView([9.03, 38.74], 12); // Default Addis Ababa
             }
         }
 

@@ -184,10 +184,25 @@ def mini_app_checkout():
     db.session.commit()
 
     # ── Notify store managers ─────────────────────────────────────
+    import threading, logging
+    _logger = logging.getLogger(__name__)
     try:
-        _notify_store_managers(order, order_items, addr, payment_method_str, discount_amount, payment_receipt_url)
-    except Exception:
-        pass
+        # Run in a daemon thread so we don't block the response AND
+        # so Vercel serverless doesn't kill it before it fires.
+        def _notify(oid):
+            try:
+                from flask import current_app
+                with current_app._get_current_object().app_context():
+                    o = Order.query.get(oid)
+                    if o:
+                        _notify_store_managers(o, order_items, addr, payment_method_str, discount_amount, payment_receipt_url)
+            except Exception as exc:
+                _logger.error(f'[order_notify] Failed: {exc}', exc_info=True)
+
+        t = threading.Thread(target=_notify, args=(order.id,), daemon=True)
+        t.start()
+    except Exception as exc:
+        _logger.error(f'[order_notify] Could not start thread: {exc}')
 
     return success_response({
         'order_number': order_number,
