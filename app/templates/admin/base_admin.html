@@ -103,7 +103,11 @@
     <button class="sidebar-toggle-btn" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
     <div class="topbar-title">{% block page_title %}Dashboard{% endblock %}</div>
     <div class="topbar-right">
-      <span class="text-muted small me-3">{{ current_user.full_name }}</span>
+      <button class="topbar-notif" title="Pending orders">
+        <i class="fas fa-bell"></i>
+        <span class="notif-dot"></span>
+      </button>
+      <span class="text-muted small me-1">{{ current_user.full_name }}</span>
       <span class="admin-role-badge">{{ current_user.role.value|upper }}</span>
     </div>
   </div>

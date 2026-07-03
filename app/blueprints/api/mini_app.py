@@ -1,8 +1,9 @@
 """
 Mini App dedicated API endpoints for Liyu Kids Mart Telegram Mini App.
-Handles in-app checkout, orders, and wishlist for Telegram users.
+Handles in-app checkout, orders, wishlist, and receipt uploads for Telegram users.
 """
 import json
+import os
 from flask import request
 from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
 from app.blueprints.api import api_bp
@@ -10,7 +11,7 @@ from app.extensions import db
 from app.models.product import Product
 from app.models.order import (Cart, Order, OrderItem, Address,
                                OrderStatus, PaymentMethod)
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.utils import success_response, error_response, generate_order_number
 
 
@@ -45,6 +46,7 @@ def mini_app_checkout():
     delivery = data.get('delivery', {})
     payment_method_str = data.get('payment_method', 'cod')
     telegram_id = data.get('telegram_id')
+    payment_receipt_url = data.get('payment_receipt_url', '')
 
     if not cart_items_data:
         return error_response('Cart is empty', 400)
@@ -128,6 +130,11 @@ def mini_app_checkout():
     db.session.add(addr)
     db.session.flush()
 
+    # Build notes — include receipt URL for TeleBirr
+    notes = data.get('notes', 'Placed via Telegram Mini App')
+    if payment_receipt_url and payment_method_str == 'telebirr':
+        notes = f"{notes} | TeleBirr Receipt: {payment_receipt_url}"
+
     # Create order
     order_number = generate_order_number()
     order = Order(
@@ -140,7 +147,7 @@ def mini_app_checkout():
         total=total,
         payment_method=payment_method,
         payment_status='pending',
-        notes=data.get('notes', 'Placed via Telegram Mini App'),
+        notes=notes,
         address_id=addr.id,
     )
     db.session.add(order)
@@ -178,7 +185,7 @@ def mini_app_checkout():
 
     # ── Notify store managers ─────────────────────────────────────
     try:
-        _notify_store_managers(order, order_items, addr, payment_method_str, discount_amount)
+        _notify_store_managers(order, order_items, addr, payment_method_str, discount_amount, payment_receipt_url)
     except Exception:
         pass
 
@@ -194,60 +201,152 @@ def mini_app_checkout():
     }, 'Order placed successfully')
 
 
-def _notify_store_managers(order, order_items, addr, payment_method_str, discount_amount):
+def _notify_store_managers(order, order_items, addr, payment_method_str, discount_amount, payment_receipt_url=''):
     """Send rich order notification to all store managers via Telegram."""
-    import os
     import httpx as _httpx
     token = os.getenv('TELEGRAM_BOT_TOKEN', '')
     app_url = os.getenv('APP_URL', 'http://localhost:5000')
-    manager_ids_raw = os.getenv('MANAGER_TG_IDS', '')
-    if not token or not manager_ids_raw:
+    if not token:
         return
 
-    manager_ids = [m.strip() for m in manager_ids_raw.split(',') if m.strip()]
+    # 1. Collect manager Telegram IDs from the database
+    manager_ids = set()
+    try:
+        db_managers = User.query.filter(
+            User.role.in_([UserRole.admin, UserRole.manager]),
+            User.telegram_id.isnot(None),
+            User.is_active == True,
+        ).all()
+        for m in db_managers:
+            if m.telegram_id and m.telegram_id.strip():
+                manager_ids.add(m.telegram_id.strip())
+    except Exception:
+        pass
+
+    # 2. Also add IDs from environment variable as fallback
+    manager_ids_raw = os.getenv('MANAGER_TG_IDS', '')
+    for mid in manager_ids_raw.split(','):
+        mid = mid.strip()
+        if mid:
+            manager_ids.add(mid)
+
     if not manager_ids:
         return
 
     # Build items text
-    items_text = ''
+    items_lines = []
     for oi in order_items:
         p = oi['product']
-        items_text += f"  • {p.name[:35]} x{oi['qty']} — ETB {oi['item_total']:,.0f}\n"
+        items_lines.append(
+            f"  • <b>{p.name[:40]}</b>  ×{oi['qty']}  —  <b>ETB {oi['item_total']:,.0f}</b>"
+        )
+    items_text = '\n'.join(items_lines)
 
-    pm_labels = {'cod': 'Cash on Delivery', 'telebirr': 'TeleBirr', 'chapa': 'Chapa'}
+    pm_labels = {
+        'cod':      '💵 Cash on Delivery',
+        'telebirr': '📱 TeleBirr',
+        'chapa':    '💳 Chapa',
+    }
     pm_label = pm_labels.get(payment_method_str, payment_method_str.upper())
     subtotal = float(order.subtotal)
     delivery_fee = float(order.delivery_fee)
+    total = float(order.total)
 
     store_url = f'{app_url}/telegram/store-app'
-    msg = (
-        f"🛍️ *NEW ORDER #{order.order_number}*\n\n"
-        f"👤 Customer: {order.user.full_name or 'Customer'}\n"
-        f"📞 Phone: {addr.phone}\n"
-        f"📍 Location: {addr.specific_location or 'Not specified'}\n\n"
-        f"📦 *Items:*\n{items_text}\n"
-        f"💰 Subtotal: ETB {subtotal:,.0f}\n"
-    )
+
+    # Google Maps link for the delivery location
+    maps_link = ''
+    if addr.lat and addr.lng:
+        maps_link = f'\n🗺 <a href="https://maps.google.com/?q={addr.lat},{addr.lng}">View on Map</a>'
+
+    discount_line = ''
     if discount_amount > 0:
-        msg += f"🎁 Discount: -ETB {discount_amount:,.0f}\n"
-    msg += (
-        f"🚚 Delivery: ETB {delivery_fee:,.0f}\n"
-        f"💳 *Total: ETB {float(order.total):,.0f}*\n"
-        f"💳 Payment: {pm_label}\n\n"
-        f"[📋 View Order in Store Portal]({store_url})"
+        discount_line = f'\n🎁 <b>Discount:</b>  -ETB {discount_amount:,.0f}'
+
+    receipt_line = ''
+    if payment_receipt_url and payment_method_str == 'telebirr':
+        receipt_line = f'\n🧾 <a href="{payment_receipt_url}">View TeleBirr Receipt</a>'
+
+    msg = (
+        f"🛍️ <b>NEW ORDER #{order.order_number}</b>\n\n"
+        f"👤 <b>Customer:</b>  {order.user.full_name or 'Customer'}\n"
+        f"📞 <b>Phone:</b>  {addr.phone}\n"
+        f"📍 <b>Location:</b>  {addr.specific_location or 'Not specified'}{maps_link}\n\n"
+        f"📦 <b>Items:</b>\n{items_text}\n\n"
+        f"💰 <b>Subtotal:</b>  ETB {subtotal:,.0f}"
+        f"{discount_line}\n"
+        f"🚚 <b>Delivery:</b>  ETB {delivery_fee:,.0f}\n"
+        f"━━━━━━━━━━━━━━━\n"
+        f"💳 <b>TOTAL:  ETB {total:,.0f}</b>\n"
+        f"💳 <b>Payment:</b>  {pm_label}"
+        f"{receipt_line}"
     )
+
+    reply_markup = {
+        'inline_keyboard': [[
+            {'text': '📋 Open Store Portal', 'url': store_url}
+        ]]
+    }
 
     for manager_id in manager_ids:
         try:
             _httpx.post(
                 f'https://api.telegram.org/bot{token}/sendMessage',
-                json={'chat_id': manager_id, 'text': msg, 'parse_mode': 'Markdown'},
-                timeout=5
+                json={
+                    'chat_id': manager_id,
+                    'text': msg,
+                    'parse_mode': 'HTML',
+                    'disable_web_page_preview': True,
+                    'reply_markup': reply_markup,
+                },
+                timeout=8
             )
         except Exception:
             pass
 
 
+@api_bp.route('/mini-app/upload-receipt', methods=['POST'])
+def mini_app_upload_receipt():
+    """
+    Upload a TeleBirr payment receipt image.
+    The image is forwarded to the Telegram media channel and the file_id is returned.
+    """
+    telegram_id = request.form.get('telegram_id') or (request.get_json(silent=True) or {}).get('telegram_id')
+    if 'receipt' not in request.files:
+        return error_response('No receipt file provided', 400)
+
+    file = request.files['receipt']
+    if not file or not file.filename:
+        return error_response('Invalid file', 400)
+
+    token = os.getenv('TELEGRAM_BOT_TOKEN', '')
+    media_channel_id = os.getenv('TELEGRAM_MEDIA_CHAT_ID', '')
+
+    if not token or not media_channel_id:
+        return error_response('Media service not configured', 503)
+
+    import httpx as _httpx
+    try:
+        file_bytes = file.read()
+        filename = file.filename or 'receipt.jpg'
+        resp = _httpx.post(
+            f'https://api.telegram.org/bot{token}/sendPhoto',
+            data={'chat_id': media_channel_id, 'caption': f'TeleBirr receipt from tg:{telegram_id}'},
+            files={'photo': (filename, file_bytes, file.content_type or 'image/jpeg')},
+            timeout=30,
+        )
+        data = resp.json()
+        if data.get('ok'):
+            # Extract the largest photo file_id
+            photos = data['result'].get('photo', [])
+            if photos:
+                file_id = photos[-1]['file_id']
+                from app.services.image_delivery import media_url_for_file_id
+                receipt_url = media_url_for_file_id(file_id)
+                return success_response({'receipt_url': receipt_url})
+        return error_response('Failed to upload receipt', 500)
+    except Exception as e:
+        return error_response(f'Upload error: {str(e)}', 500)
 
 
 @api_bp.route('/mini-app/wishlist', methods=['GET'])

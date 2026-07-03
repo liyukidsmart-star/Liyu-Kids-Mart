@@ -1117,10 +1117,14 @@ const i18n = {
     o_orders: "My Orders",
     ck_rev: "Order Review", ck_del: "Delivery Information", ck_pm: "Payment Method",
     f_nm: "Full Name *", f_ph: "Phone Number *", f_sc: "Sub-City", f_loc: "Specific Location *", f_not: "Delivery Notes",
-    p_cod: "Cash on Delivery", p_cod_s: "Pay when order arrives",
-    p_tb: "Telebirr", p_tb_s: "Pay via Telebirr wallet",
+    p_cod: "Cash on Delivery", p_cod_s: "Pay when your order arrives",
+    p_tb: "TeleBirr", p_tb_s: "Pay via TeleBirr — send money & upload receipt",
+    p_tb_number: "Send to: +251 91 162 3758", p_tb_name: "Martha Aynalem",
+    p_tb_instr: "Send the total amount to the number above, then upload your receipt below.",
+    p_tb_upload: "Upload Payment Receipt", p_tb_uploading: "Uploading…", p_tb_done: "✅ Receipt uploaded",
+    p_tb_required: "Please upload your TeleBirr receipt before placing the order.",
     p_ch: "Chapa", p_ch_s: "Credit/Debit via Chapa",
-    plc_btn: "Place Order",
+    plc_btn: "Place Order", plc_placing: "Placing order…",
     sh_add: "+ Add", sh_out: "Out of Stock", sh_qty: "Quantity",
     empty_p: "No products found", empty_o: "No orders yet",
     sl_pen: "⏳ Pending", sl_con: "✅ Confirmed", sl_pac: "📦 Packed", sl_out: "🚚 On the Way", sl_del: "🎉 Delivered", sl_can: "❌ Cancelled", sl_ret: "↩️ Returned",
@@ -1143,10 +1147,14 @@ const i18n = {
     o_orders: "የእኔ ትዕዛዞች",
     ck_rev: "የትዕዛዝ ግምገማ", ck_del: "የመላኪያ መረጃ", ck_pm: "የክፍያ ዘዴ",
     f_nm: "ሙሉ ስም *", f_ph: "ስልክ ቁጥር *", f_sc: "ክፍለ ከተማ", f_loc: "ልዩ ቦታ *", f_not: "ተጨማሪ መረጃ",
-    p_cod: "በደረሰኝ ላይ ይክፈሉ", p_cod_s: "ትዕዛዝ ሲደርስ ይክፈሉ",
-    p_tb: "ቴሌብር", p_tb_s: "በቴሌብር ይክፈሉ",
+    p_cod: "በጥሬ ገንዘብ ክፈሉ", p_cod_s: "ትዕዛዝዎ ሲደርስ ይክፈሉ",
+    p_tb: "ቴሌብር", p_tb_s: "በቴሌብር ይክፈሉ — ገንዘብ ላኩ እና ደረሰኝ ያቅርቡ",
+    p_tb_number: "ወደዚህ ይላኩ: +251 91 162 3758", p_tb_name: "ማርታ አይናለም",
+    p_tb_instr: "አጠቃላይ ክፍያውን ወደ ላይ ወደ ተዘረዘረው ቁጥር ይላኩ፤ ከዚያም ደረሰኝዎን ከታች ያቅርቡ።",
+    p_tb_upload: "ደረሰኝ ስዕል ያስገቡ", p_tb_uploading: "እየተጫነ ነው…", p_tb_done: "✅ ደረሰኝ ተጭኗል",
+    p_tb_required: "ትዕዛዝ ከማስቀመጥዎ በፊት እባክዎ የቴሌብር ደረሰኝዎን ያቅርቡ።",
     p_ch: "ቻፓ", p_ch_s: "በካርድ ወይም በባንክ ይክፈሉ",
-    plc_btn: "ትዕዛዝ ያስገቡ",
+    plc_btn: "ትዕዛዝ ያስገቡ", plc_placing: "ትዕዛዝ እየተላከ ነው…",
     sh_add: "+ ጨምር", sh_out: "አልቋል", sh_qty: "ብዛት",
     empty_p: "ምንም እቃ አልተገኘም", empty_o: "ምንም ትዕዛዝ የለዎትም",
     sl_pen: "⏳ በመጠባበቅ ላይ", sl_con: "✅ ተረጋግጧል", sl_pac: "📦 ታሽጎል", sl_out: "🚚 በመንገድ ላይ", sl_del: "🎉 ደርሷል", sl_can: "❌ ተሰርዟል", sl_ret: "↩️ ተመልሷል",
@@ -1904,6 +1912,9 @@ function selPayment(m){
     document.getElementById('pm_'+x)?.classList.toggle('on',x===m);
     const r=document.getElementById('r_'+x); if(r)r.checked=(x===m);
   });
+  // Show/hide TeleBirr details panel
+  const tbPanel = document.getElementById('tb_details');
+  if(tbPanel) tbPanel.style.display = m==='telebirr' ? 'block' : 'none';
 }
 
 function renderCK(){
@@ -2044,14 +2055,73 @@ function renderCK(){
             <label for="r_telebirr"><strong>${tr("p_tb")}</strong><br><span style="font-size:.75rem;color:var(--ts)">${tr('p_tb_s')}</span></label>
           </div>
         </div>
+        
+        <!-- TeleBirr Details Panel (hidden unless telebirr selected) -->
+        <div id="tb_details" style="display:none;margin-top:14px;background:linear-gradient(135deg,#FFF8E1,#FFF3CD);border:1.5px solid #F59E0B;border-radius:14px;padding:16px">
+          <div style="font-weight:800;font-size:.95rem;color:#92400E;margin-bottom:8px">📱 ${tr('p_tb')}</div>
+          <div style="font-size:.85rem;color:#78350F;margin-bottom:4px">${tr('p_tb_instr')}</div>
+          <div style="background:#fff;border-radius:10px;padding:12px;margin:10px 0;border:1px solid #FCD34D">
+            <div style="font-size:.75rem;color:#6B7280;margin-bottom:2px">${tr('p_tb_name')}</div>
+            <div style="font-size:1.15rem;font-weight:900;color:#1a1a2e;letter-spacing:.04em">+251 91 162 3758</div>
+          </div>
+          <div style="font-size:.8rem;color:#92400E;margin-bottom:10px">${tr('p_tb_number')}</div>
+          <label style="display:block;font-weight:700;font-size:.85rem;color:#78350F;margin-bottom:6px">${tr('p_tb_upload')}</label>
+          <div style="border:2px dashed #F59E0B;border-radius:10px;padding:12px;text-align:center;cursor:pointer;position:relative" onclick="document.getElementById('receiptInput').click()">
+            <input type="file" id="receiptInput" accept="image/*" style="display:none" onchange="handleReceiptUpload(this)"/>
+            <div id="receiptPreview">
+              <i class="fas fa-camera" style="font-size:1.5rem;color:#F59E0B"></i>
+              <div style="font-size:.8rem;color:#92400E;margin-top:6px">${curLang==='am'?'ፎቶ ለመምረጥ ይንኩ':'Tap to choose photo'}</div>
+            </div>
+          </div>
+          <div id="receiptStatus" style="font-size:.8rem;margin-top:8px;text-align:center"></div>
+        </div>
       </div>
       
       <button class="place-btn" id="placeBtn" onclick="placeOrder()">
-        <i class="fas fa-check-circle"></i> Place Order — ETB ${Math.round(finalTot).toLocaleString()}
+        <i class="fas fa-check-circle"></i> ${tr('plc_btn')} — ETB ${Math.round(finalTot).toLocaleString()}
       </button>
     `;
     return;
   }
+}
+
+/* ── TeleBirr receipt upload ───────────────────────── */
+let tbReceiptUrl = '';
+let tbUploading = false;
+
+async function handleReceiptUpload(input){
+  const file = input.files[0];
+  if(!file) return;
+  const preview = document.getElementById('receiptPreview');
+  const status  = document.getElementById('receiptStatus');
+  // Show local preview immediately
+  const reader = new FileReader();
+  reader.onload = e => {
+    preview.innerHTML = `<img src="${e.target.result}" style="max-width:100%;max-height:160px;border-radius:8px;object-fit:contain"/>`;
+  };
+  reader.readAsDataURL(file);
+  // Upload to backend
+  if(tbUploading) return;
+  tbUploading = true;
+  if(status) status.innerHTML = `<span style="color:#F59E0B">${tr('p_tb_uploading')}</span>`;
+  try{
+    const fd = new FormData();
+    fd.append('receipt', file);
+    if(TGID) fd.append('telegram_id', TGID);
+    const r = await fetch('/api/v1/mini-app/upload-receipt', {method:'POST', body:fd});
+    const d = await r.json();
+    if(d.success && d.data?.receipt_url){
+      tbReceiptUrl = d.data.receipt_url;
+      if(status) status.innerHTML = `<span style="color:#059669;font-weight:700">${tr('p_tb_done')}</span>`;
+    } else {
+      if(status) status.innerHTML = `<span style="color:#DC2626">${curLang==='am'?'ስዕሉን መጫን አልተሳካም':'Upload failed — please retry'}</span>`;
+      tbReceiptUrl = '';
+    }
+  } catch {
+    if(status) status.innerHTML = `<span style="color:#DC2626">${curLang==='am'?'ኔትወርክ ችግር ነው':'Network error during upload'}</span>`;
+    tbReceiptUrl = '';
+  }
+  tbUploading = false;
 }
 
 async function placeOrder(){
@@ -2060,10 +2130,15 @@ async function placeOrder(){
   const cp=window.ckFormData.cp;
   const cl=window.ckFormData.cl;
   const cno=window.ckFormData.cno;
-  if(!ckLat||!ckLng){toast('Please drop a pin on the map first','err');return;}
+  if(!ckLat||!ckLng){toast(tr(curLang==='am'?'ck_pin_first':'ck_pin_first'),'err');return;}
+  // Require TeleBirr receipt
+  if(selPM==='telebirr' && !tbReceiptUrl){
+    toast(tr('p_tb_required'),'err');
+    return;
+  }
   placing=true;
   const btn=document.getElementById('placeBtn');
-  if(btn){btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Placing order…';}
+  if(btn){btn.disabled=true;btn.innerHTML=`<i class="fas fa-spinner fa-spin"></i> ${tr('plc_placing')}`;}
   try{
     const discParams = calcClientDiscount();
     const r=await fetch('/api/v1/mini-app/checkout',{method:'POST',headers:{'Content-Type':'application/json'},
@@ -2074,6 +2149,7 @@ async function placeOrder(){
         cart_items:cart.map(i=>({id:i.id,qty:i.qty})),
         delivery:{name:cn,phone:cp,sub_city:'',specific_location:cl,city:'Addis Ababa',lat:ckLat,lng:ckLng,delivery_fee:ckDeliveryFee},
         payment_method:selPM,
+        payment_receipt_url:tbReceiptUrl||'',
         loyalty_discount_amount: discParams.loyaltyDiscAmt,
         spending_discount_amount: discParams.threshDiscAmt,
         cart_incentive_discount: discParams.incentiveDiscAmt,
@@ -2085,16 +2161,17 @@ async function placeOrder(){
       localStorage.setItem('lkm_cn', cn);
       localStorage.setItem('lkm_cp', cp);
       localStorage.setItem('lkm_cl', cl);
+      tbReceiptUrl = '';
       lastON=d.data?.order_number||'LKM-0001';
       cart=[];saveCart();ckStep='success';renderCK();
       try{tg?.HapticFeedback?.notificationOccurred('success');}catch{}
     }else{
       toast(d.message||(curLang==='am'?'ትዕዛዝ መላክ አልተሳካም። እባክዎ እንደገና ይሞክሩ።':'Order failed. Please try again.'),'err');
-      if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-check-circle"></i> '+(curLang==='am'?'ትዕዛዝ ያስገቡ':'Place Order');}
+      if(btn){btn.disabled=false;btn.innerHTML=`<i class="fas fa-check-circle"></i> ${tr('plc_btn')}`;}
     }
   }catch{
     toast(curLang==='am'?'የኔትወርክ ችግር ተፈጥሯል። እባክዎ እንደገና ይሞክሩ።':'Network error. Please try again.','err');
-    if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-check-circle"></i> Place Order';}
+    if(btn){btn.disabled=false;btn.innerHTML=`<i class="fas fa-check-circle"></i> ${tr('plc_btn')}`;}
   }
   placing=false;
 }
