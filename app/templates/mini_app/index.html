@@ -2185,7 +2185,7 @@ async function loadOrders(){
   el.innerHTML='<div class="ldr"><div class="spin"></div></div>';
   if(!TGID){el.innerHTML='<div class="empty"><div class="ei">📦</div><p>'+(curLang==='am'?'ትዕዛዞችን ለማየት በTelegram ውስጥ ይክፈቱ':'Open in Telegram to view orders.')+'</p></div>';return;}
   try{
-    const d=await(await fetch('/api/v1/orders/my?telegram_id='+TGID)).json();
+    const d=await(await fetch(`/api/v1/orders/my?telegram_id=${TGID}&t=${Date.now()}`)).json();
     const os=d.data?.orders||[];
     if(!os.length){
       el.innerHTML=`<div class="empty"><div class="ei">📭</div><p>${tr("empty_o")}</p>
