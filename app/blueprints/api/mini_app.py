@@ -184,25 +184,14 @@ def mini_app_checkout():
     db.session.commit()
 
     # ── Notify store managers ─────────────────────────────────────
-    import threading, logging
+    import logging
     _logger = logging.getLogger(__name__)
     try:
-        # Run in a daemon thread so we don't block the response AND
-        # so Vercel serverless doesn't kill it before it fires.
-        def _notify(oid):
-            try:
-                from flask import current_app
-                with current_app._get_current_object().app_context():
-                    o = Order.query.get(oid)
-                    if o:
-                        _notify_store_managers(o, order_items, addr, payment_method_str, discount_amount, payment_receipt_url)
-            except Exception as exc:
-                _logger.error(f'[order_notify] Failed: {exc}', exc_info=True)
-
-        t = threading.Thread(target=_notify, args=(order.id,), daemon=True)
-        t.start()
+        # Run synchronously because Vercel serverless instantly kills background threads
+        # once the response is returned.
+        _notify_store_managers(order, order_items, addr, payment_method_str, discount_amount, payment_receipt_url)
     except Exception as exc:
-        _logger.error(f'[order_notify] Could not start thread: {exc}')
+        _logger.error(f'[order_notify] Failed to notify managers: {exc}', exc_info=True)
 
     return success_response({
         'order_number': order_number,
@@ -303,9 +292,12 @@ def _notify_store_managers(order, order_items, addr, payment_method_str, discoun
         ]]
     }
 
+    import logging
+    _logger = logging.getLogger(__name__)
+
     for manager_id in manager_ids:
         try:
-            _httpx.post(
+            resp = _httpx.post(
                 f'https://api.telegram.org/bot{token}/sendMessage',
                 json={
                     'chat_id': manager_id,
@@ -316,8 +308,9 @@ def _notify_store_managers(order, order_items, addr, payment_method_str, discoun
                 },
                 timeout=8
             )
-        except Exception:
-            pass
+            resp.raise_for_status()
+        except Exception as e:
+            _logger.error(f'[order_notify] Failed to send to {manager_id}: {e}', exc_info=True)
 
 
 @api_bp.route('/mini-app/upload-receipt', methods=['POST'])
