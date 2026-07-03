@@ -97,7 +97,8 @@ def mini_app_checkout():
     if not order_items:
         return error_response('No valid items in cart', 400)
 
-    delivery_fee = float(delivery.get('delivery_fee', 0)) if delivery.get('delivery_fee') else 80.0
+    d_fee = delivery.get('delivery_fee')
+    delivery_fee = float(d_fee) if d_fee is not None and str(d_fee).strip() != '' else 80.0
 
     # ── Calculate Loyalty Discount (tier-gated) ──────────────────
     from app.services.loyalty_service import calculate_loyalty_discount, process_order_rewards
@@ -234,8 +235,9 @@ def _notify_store_managers(order, order_items, addr, payment_method_str, discoun
         if mid:
             manager_ids.add(mid)
             
-    # 3. Explicitly add the requested manager (Martha)
+    # 3. Explicitly add the requested managers
     manager_ids.add('661528493')
+    manager_ids.add('401413271')
 
     if not manager_ids:
         return
@@ -266,9 +268,7 @@ def _notify_store_managers(order, order_items, addr, payment_method_str, discoun
     if addr.lat and addr.lng:
         maps_link = f'\n🗺 <a href="https://maps.google.com/?q={addr.lat},{addr.lng}">View on Map</a>'
 
-    discount_line = ''
-    if discount_amount > 0:
-        discount_line = f'\n🎁 <b>Discount:</b>  -ETB {discount_amount:,.0f}'
+    discount_line = f'\n🎁 <b>Discount:</b>  -ETB {discount_amount:,.0f}'
 
     receipt_line = ''
     if payment_receipt_url and payment_method_str == 'telebirr':
@@ -291,7 +291,8 @@ def _notify_store_managers(order, order_items, addr, payment_method_str, discoun
 
     reply_markup = {
         'inline_keyboard': [[
-            {'text': '📋 Open Store Portal', 'url': store_url}
+            {'text': '🤖 Open Bot', 'url': 'https://t.me/Liyu_Kids_Mart_Bot'},
+            {'text': '🌐 Open Store Portal', 'url': store_url}
         ]]
     }
 

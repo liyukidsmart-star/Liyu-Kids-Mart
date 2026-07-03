@@ -1790,12 +1790,12 @@ async function ckUpdateLocation(lat,lng){
     fcSub.textContent=routeData?`~${routeData.durMin} min estimated delivery`:`${priceResp.data.distance_km} km from store`;
     if(proceedBtn){proceedBtn.disabled=false;proceedBtn.innerHTML=`Proceed <i class="fas fa-arrow-right"></i>`;}
   } else {
-    ckDeliveryFee=0;
+    ckDeliveryFee=80; // Default flat rate if calculation fails
     feeCard.className='ck-fee-card error';
-    fcIco.textContent='🚫';
-    fcVal.textContent='Error';
-    fcSub.textContent='Could not calculate fee';
-    if(proceedBtn){proceedBtn.disabled=true;proceedBtn.innerHTML='Error';}
+    fcIco.textContent='🛵';
+    fcVal.textContent='ETB 80';
+    fcSub.textContent='Standard Delivery Fee';
+    if(proceedBtn){proceedBtn.disabled=false;proceedBtn.innerHTML=`Proceed <i class="fas fa-arrow-right"></i>`;}
   }
 }
 
