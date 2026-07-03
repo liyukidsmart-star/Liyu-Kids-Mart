@@ -269,6 +269,7 @@
         async function fetchAPI(endpoint, options = {}) {
             const url = new URL('/api/v1' + endpoint, window.location.origin);
             if(managerId) url.searchParams.append('manager_id', managerId);
+            url.searchParams.append('t', Date.now());
             
             const reqOpts = { ...options };
             if(options.body) {
