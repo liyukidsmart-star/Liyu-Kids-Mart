@@ -183,11 +183,20 @@ def mini_app_checkout():
     except Exception:
         pass
 
-    db.session.commit()
-
-    # ── Notify store managers ─────────────────────────────────────
     import logging
     _logger = logging.getLogger(__name__)
+
+    # ── Commit everything to the database ────────────────────────
+    try:
+        _logger.info(f'[checkout] Committing order {order_number} for user_id={user.id} telegram_id={user.telegram_id}')
+        db.session.commit()
+        _logger.info(f'[checkout] Order {order_number} committed successfully. id={order.id}')
+    except Exception as db_exc:
+        _logger.error(f'[checkout] DB COMMIT FAILED for order {order_number}: {db_exc}', exc_info=True)
+        db.session.rollback()
+        return error_response(f'Failed to save order: {str(db_exc)}', 500)
+
+    # ── Notify store managers ─────────────────────────────────────
     try:
         notify_store_managers(order, order_items, addr, payment_method_str, discount_amount, payment_receipt_url)
     except Exception as exc:
@@ -432,3 +441,33 @@ def my_orders_api():
             for o in orders
         ]
     })
+
+
+@api_bp.route('/debug/db', methods=['GET'])
+def debug_db():
+    """Diagnostic: show what database the app is actually connected to."""
+    import logging
+    _logger = logging.getLogger(__name__)
+    try:
+        db_url = str(db.engine.url)
+        # Mask password
+        import re
+        masked = re.sub(r'(:)[^@]+(@)', r'\1***\2', db_url)
+        total_orders = Order.query.count()
+        total_users = User.query.count()
+        recent = Order.query.order_by(Order.id.desc()).limit(3).all()
+        recent_list = [
+            {'id': o.id, 'order_number': o.order_number, 'created_at': str(o.created_at)}
+            for o in recent
+        ]
+        return success_response({
+            'db_url': masked,
+            'total_orders': total_orders,
+            'total_users': total_users,
+            'recent_orders': recent_list,
+            'flask_env': os.getenv('FLASK_ENV', 'NOT SET'),
+            'database_url_set': bool(os.getenv('DATABASE_URL')),
+        })
+    except Exception as e:
+        _logger.error(f'[debug_db] {e}', exc_info=True)
+        return error_response(str(e), 500)

@@ -1,7 +1,8 @@
 import os
 from app import create_app
 
-config_name = os.getenv('FLASK_ENV', 'development')
+# On Vercel (serverless), FLASK_ENV is typically not set. Default to production.
+config_name = os.getenv('FLASK_ENV', os.getenv('APP_ENV', 'production'))
 app = create_app(config_name)
 
 if __name__ == '__main__':
