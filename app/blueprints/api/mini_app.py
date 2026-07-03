@@ -13,6 +13,7 @@ from app.models.order import (Cart, Order, OrderItem, Address,
                                OrderStatus, PaymentMethod)
 from app.models.user import User, UserRole
 from app.utils import success_response, error_response, generate_order_number
+from app.services.order_notifications import notify_store_managers
 
 
 def _resolve_mini_app_user():
@@ -188,9 +189,7 @@ def mini_app_checkout():
     import logging
     _logger = logging.getLogger(__name__)
     try:
-        # Run synchronously because Vercel serverless instantly kills background threads
-        # once the response is returned.
-        _notify_store_managers(order, order_items, addr, payment_method_str, discount_amount, payment_receipt_url)
+        notify_store_managers(order, order_items, addr, payment_method_str, discount_amount, payment_receipt_url)
     except Exception as exc:
         _logger.error(f'[order_notify] Failed to notify managers: {exc}', exc_info=True)
 

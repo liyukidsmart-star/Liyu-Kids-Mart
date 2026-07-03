@@ -228,7 +228,6 @@
 
         // Init
         document.addEventListener('DOMContentLoaded', () => {
-            loadDashboard();
             
             // Setup filters
             document.querySelectorAll('.filter-pill').forEach(pill => {
@@ -553,7 +552,6 @@
                     await fetchAPI(`/store/orders/${currentOrder.id}/status`, { method: 'POST', body: JSON.stringify({status}) });
                     closeOrderModal();
                     loadOrders();
-                    loadDashboard();
                 }
             });
         }

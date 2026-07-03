@@ -8,6 +8,7 @@ from app.models.product import Product, Category
 from app.models.user import User, UserRole
 from app.models.delivery import Driver
 from app.models.order import Cart, Order, OrderItem, Address, OrderStatus
+from app.services.order_notifications import notify_store_managers
 
 _app = None
 
@@ -16,7 +17,7 @@ def _get_app():
     global _app
     if _app is None:
         from app import create_app
-        config_name = os.getenv('FLASK_ENV', 'development')
+        config_name = os.getenv('APP_CONFIG') or os.getenv('FLASK_ENV') or 'production'
         _app = create_app(config_name)
     return _app
 
@@ -232,6 +233,22 @@ def place_order(telegram_id, phone, location):
 
     Cart.query.filter_by(user_id=user.id).delete()
     db.session.commit()
+
+    try:
+        order_items = []
+        for item in cart_items:
+            if not item.product:
+                continue
+            order_items.append({
+                'product': item.product,
+                'qty': item.quantity,
+                'unit_price': float(item.product.current_price()),
+                'item_total': float(item.product.current_price()) * item.quantity,
+            })
+        notify_store_managers(order, order_items, address, 'cod', 0)
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception('[order_notify] Failed to notify managers from bot checkout')
 
     return True, order_num
 
