@@ -13,6 +13,7 @@
 <link rel="dns-prefetch" href="https://liyu-kids-mart.liyukidsmart.workers.dev"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.4/dist/confetti.browser.min.js"></script>
 <style>
 :root{
   --g:#2D6A4F;--gm:#40916C;--gl:#74C69D;--gp:#D8F3DC;
@@ -27,6 +28,7 @@
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html{font-size:16px}
 body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--tx);overflow-x:hidden;overscroll-behavior:none;min-height:100dvh;padding-bottom:var(--nh)}
+body.launch-locked{padding-top:72px}
 button{font-family:inherit;cursor:pointer;border:none;outline:none;background:none}
 input{font-family:inherit;outline:none;border:none}
 img{display:block;max-width:100%}
@@ -331,6 +333,16 @@ ul{list-style:none}
 .suc-onum{background:var(--gp);color:var(--g);border-radius:var(--rs);padding:8px 20px;font-size:.9rem;font-weight:800}
 .suc-btn{width:100%;background:var(--g);color:#fff;border-radius:var(--rm);padding:14px;font-size:.95rem;font-weight:800;margin-top:8px}
 
+/* LAUNCH BANNER */
+.launch-banner{position:fixed;top:0;left:0;right:0;z-index:220;background:linear-gradient(135deg,#7C3AED,#A855F7,#EC4899);color:#fff;display:none;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;box-shadow:0 8px 30px rgba(124,58,237,.25)}
+.launch-banner.on{display:flex}
+.launch-banner .lb-text{flex:1;min-width:0}
+.launch-banner .lb-title{font-size:.8rem;font-weight:900;line-height:1.2}
+.launch-banner .lb-sub{font-size:.68rem;opacity:.9;margin-top:2px}
+.launch-banner .lb-pill{flex-shrink:0;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.22);border-radius:100px;padding:8px 12px;text-align:center;min-width:112px}
+.launch-banner .lb-time{font-size:1rem;font-weight:900;line-height:1.1}
+.launch-banner .lb-note{font-size:.6rem;font-weight:700;opacity:.9}
+
 /* TOAST */
 .tbox{position:fixed;bottom:calc(var(--nh) + 14px);left:50%;transform:translateX(-50%);z-index:500;pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:6px}
 .toast{background:rgba(26,26,46,.9);color:#fff;border-radius:100px;padding:9px 20px;font-size:.83rem;font-weight:600;white-space:nowrap;animation:tin .3s var(--spr);backdrop-filter:blur(8px)}
@@ -435,6 +447,7 @@ ul{list-style:none}
 
 <!-- TOAST -->
 <div class="tbox" id="tbox"></div>
+<div class="launch-banner" id="launchBanner"><div class="lb-text"><div class="lb-title" id="launchBannerTitle">Launching soon</div><div class="lb-sub" id="launchBannerSub">Prices are hidden until launch.</div></div><div class="lb-pill"><div class="lb-time" id="launchCountdown">--:--:--</div><div class="lb-note">COUNTDOWN</div></div></div>
 
 <!-- ═══ HOME TAB ═══ -->
 <div id="tab-home" class="tab on">
@@ -663,6 +676,92 @@ let spg=1,scat=0,ssort='popular',sq='',sHasMore=false,sDbt=null,sAll=[],sLoading
 
 function gid(){return Math.random().toString(36).slice(2)+Date.now().toString(36);}
 
+let launchDateVal = null;
+let isLaunchLocked = false;
+let launchTicker = null;
+let launchCelebrated = false;
+
+function formatMoney(value){
+  return 'ETB ' + Math.round(Number(value || 0)).toLocaleString();
+}
+
+function launchGuard(showToast=true){
+  if(!isLaunchLocked) return false;
+  if(showToast) toast('Ordering opens when the launch countdown ends.', 'err');
+  return true;
+}
+
+function celebrateLaunch(){
+  if(launchCelebrated) return;
+  launchCelebrated = true;
+  if(typeof confetti === 'function'){
+    confetti({particleCount: 180, spread: 82, origin: { y: 0.28 }});
+    setTimeout(() => confetti({particleCount: 110, spread: 70, origin: { y: 0.42 }}), 240);
+  }
+  toast('Launch is live. Prices are open!', 'ok');
+}
+
+function updateLaunchBanner(){
+  const banner = document.getElementById('launchBanner');
+  const title = document.getElementById('launchBannerTitle');
+  const sub = document.getElementById('launchBannerSub');
+  const countdown = document.getElementById('launchCountdown');
+  if(!banner || !launchDateVal){
+    banner?.classList.remove('on');
+    document.body.classList.remove('launch-locked');
+    return;
+  }
+
+  const diff = launchDateVal.getTime() - Date.now();
+  if(diff <= 0){
+    const wasLocked = isLaunchLocked;
+    isLaunchLocked = false;
+    banner.classList.remove('on');
+    document.body.classList.remove('launch-locked');
+    countdown.textContent = '00:00:00';
+    title.textContent = 'We are live';
+    sub.textContent = 'Prices are available and ordering is open.';
+    if(wasLocked) celebrateLaunch();
+    return;
+  }
+
+  isLaunchLocked = true;
+  banner.classList.add('on');
+  document.body.classList.add('launch-locked');
+  const totalSeconds = Math.floor(diff / 1000);
+  const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
+  const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
+  const seconds = String(totalSeconds % 60).padStart(2, '0');
+  countdown.textContent = `${hours}:${minutes}:${seconds}`;
+  title.textContent = 'Launch countdown active';
+  sub.textContent = 'Prices are hidden until the timer reaches zero.';
+}
+
+function refreshLaunchSensitiveUI(){
+  if(document.getElementById('tab-shop')?.classList.contains('on')) loadShop(true);
+  if(document.getElementById('tab-cart')?.classList.contains('on')) renderCart();
+  if(document.getElementById('chkov')?.classList.contains('on')) renderCK();
+  updateGlobalLoyaltyBar();
+}
+
+function applyLaunchState(state){
+  const prevLocked = isLaunchLocked;
+  launchDateVal = state?.launch_date ? new Date(state.launch_date) : null;
+  isLaunchLocked = Boolean(state?.launch_locked && launchDateVal);
+  launchCelebrated = launchCelebrated && !isLaunchLocked;
+  updateLaunchBanner();
+  if(prevLocked && !isLaunchLocked) {
+    celebrateLaunch();
+    refreshLaunchSensitiveUI();
+  }
+}
+
+if(launchTicker) clearInterval(launchTicker);
+launchTicker = setInterval(() => {
+  if(launchDateVal) updateLaunchBanner();
+}, 1000);
+
+
 /* ── Auth ─────────────────────────────────────── */
 async function auth(){
   if(!TGU)return;
@@ -785,6 +884,7 @@ function closeCartPopup() {
 }
 
 function addCart(id,name,price,img,qty=1){
+  if(launchGuard()) return;
   const ex=cart.find(i=>i.id===id);
   if(ex)ex.qty+=qty; else cart.push({id,name,price,img,qty});
   saveCart(); hap();
@@ -854,20 +954,22 @@ function pcard(p,v='grid'){
     p.compare_price>p.price?'<span class="bpill bsale">Sale</span>':'',
     p.sales_count>20?'<span class="bpill bhot">Hot</span>':'',
     isPremium?'<span class="bpill" style="background:linear-gradient(135deg,#7C3AED,#C084FC);color:#fff">💎 Premium</span>':''].join('');
-  const priceHTML=priceHidden&&isLocked
-    ?'<div class="pcard-price" style="color:#7C3AED;font-size:.78rem">💎 Members Only</div>'
-    :'<div class="pcard-price">ETB '+Math.round(p.price).toLocaleString()+'</div>';
-  const disc=p.compare_price>p.price&&!priceHidden?'<div class="pcard-cmp">ETB '+Math.round(p.compare_price).toLocaleString()+'</div>':'';
+  const priceHTML=isLaunchLocked
+    ?'<div class="pcard-price" style="color:#7C3AED;font-size:.78rem">ETB ***</div>'
+    :priceHidden&&isLocked
+      ?'<div class="pcard-price" style="color:#7C3AED;font-size:.78rem">Members Only</div>'
+      :'<div class="pcard-price">ETB '+Math.round(p.price).toLocaleString()+'</div>';
+  const disc=!isLaunchLocked && p.compare_price>p.price&&!priceHidden?'<div class="pcard-cmp">ETB '+Math.round(p.compare_price).toLocaleString()+'</div>':'';
   const pj=esc(JSON.stringify(p));
   if(v==='h') return `
     <div class="hcard" onclick="openSheet(this.dataset.p)" data-p="${pj}">
       <img src="${p.primary_image}" alt="${n}" loading="lazy" decoding="async" onerror="this.src='/static/images/placeholder.png'"/>
       <div class="hcard-body">
         <div class="hcard-name">${n}</div>
-        <div class="hcard-price">${priceHidden&&isLocked?'💎 Members Only':'ETB '+Math.round(p.price).toLocaleString()}</div>
-        <button class="hcard-add" data-pid="${p.id}"
-          onclick="event.stopPropagation();${isLocked?`showTab('tab-rewards')`:`addCart(${p.id},'${esc(n)}',${p.price},'${p.primary_image}')`}">
-          ${isLocked?'🔒 Unlock':'+ Add'}</button>
+        <div class="hcard-price">${isLaunchLocked?'ETB ***':priceHidden&&isLocked?'Members Only':'ETB ' + Math.round(p.price).toLocaleString()}</div>
+        <button class="hcard-add" data-pid="${p.id}" ${isLaunchLocked?'disabled':''}
+          onclick="event.stopPropagation();${isLaunchLocked?'':(isLocked?`showTab('tab-rewards')`:`addCart(${p.id},'${esc(n)}',${p.price},'${p.primary_image}')`)}">
+          ${isLaunchLocked?'Locked':isLocked?'Unlock':'+ Add'}</button>
       </div>
     </div>`;
   return `
@@ -882,8 +984,8 @@ function pcard(p,v='grid'){
         <div class="age-bdg">${p.age_label||''}</div>
         <div class="pcard-name">${n}</div>
         <div class="pcard-prices">${priceHTML}${disc}</div>
-        <button class="padd" data-pid="${p.id}" ${p.stock_qty===0||isLocked?'':''}style="${isLocked?'background:linear-gradient(135deg,#7C3AED,#C084FC);color:#fff':''}" onclick="event.stopPropagation();${isLocked?`showTab('tab-rewards')`:p.stock_qty===0?'':`addCart(${p.id},'${esc(n)}',${p.price},'${p.primary_image}')`}" ${isLocked||p.stock_qty===0?'':''}>
-          ${isLocked?'🔒 Unlock in Rewards':p.stock_qty===0?'Out of Stock':'+ Add'}
+        <button class="padd" data-pid="${p.id}" ${isLaunchLocked||p.stock_qty===0||isLocked?'disabled':''}style="${isLaunchLocked?'background:linear-gradient(135deg,#7C3AED,#C084FC);color:#fff':isLocked?'background:linear-gradient(135deg,#7C3AED,#C084FC);color:#fff':''}" onclick="event.stopPropagation();${isLaunchLocked?'':(isLocked?`showTab('tab-rewards')`:p.stock_qty===0?'':`addCart(${p.id},'${esc(n)}',${p.price},'${p.primary_image}')`)}" ${isLaunchLocked||isLocked||p.stock_qty===0?'disabled':''}>
+          ${isLaunchLocked?'Locked':isLocked?'Unlock in Rewards':p.stock_qty===0?'Out of Stock':'+ Add'}
         </button>
       </div>
     </div>`;
@@ -910,9 +1012,9 @@ function openSheet(pJson){
     document.getElementById('shPrice').innerHTML='<span style="color:#7C3AED;font-size:1rem;font-weight:900">💎 Price unlocks at '+lockLvlName+'</span>';
     document.getElementById('shCmp').style.display='none';
   } else {
-    document.getElementById('shPrice').textContent='ETB '+Math.round(p.price).toLocaleString();
+    document.getElementById('shPrice').textContent=isLaunchLocked?'ETB ***':'ETB '+Math.round(p.price).toLocaleString();
     const cmp=document.getElementById('shCmp');
-    if(p.compare_price>p.price){cmp.textContent='ETB '+Math.round(p.compare_price).toLocaleString();cmp.style.display='block';}
+    if(!isLaunchLocked && p.compare_price>p.price){cmp.textContent='ETB '+Math.round(p.compare_price).toLocaleString();cmp.style.display='block';}
     else cmp.style.display='none';
   }
   document.getElementById('shAge').textContent=p.age_label||'';
@@ -1084,6 +1186,11 @@ async function init(){
   if(TGU?.first_name)document.getElementById('hname').textContent=TGU.first_name;
   updBdg();
   await auth();
+  try{
+    const launchRes = await fetch('/api/v1/shop/init');
+    const launchData = await launchRes.json();
+    if(launchData.success) applyLaunchState(launchData.data);
+  }catch{}
   // Load loyalty profile early so product cards can use it and global bar can render
   const profUrl = TGID ? '/api/v1/loyalty/profile?telegram_id='+TGID : '/api/v1/loyalty/profile';
   fetch(profUrl)
@@ -1232,7 +1339,7 @@ function aiAppend(role,text,products=[]){
         <div class="ai-pc-inf">
           <div class="ai-pc-name">${n}</div>
           ${desc ? `<div class="ai-pc-desc">${desc}</div>` : ''}
-          <div class="ai-pc-price">ETB ${Math.round(p.price).toLocaleString()}</div>
+          <div class="ai-pc-price">${isLaunchLocked?'ETB ***':'ETB '+Math.round(p.price).toLocaleString()}</div>
           <button class="ai-pc-add" data-pid="${p.id}"
             onclick="event.stopPropagation();addCart(${p.id},'${esc(n)}',${p.price},'${p.primary_image}');this.style.display='none';this.nextElementSibling.style.display='block';">
             ${addLabel}</button>
@@ -1343,7 +1450,7 @@ function renderCart(){
         <img src="${item.img}" alt="${item.name}" loading="lazy" decoding="async" onerror="this.src='/static/images/placeholder.png'"/>
         <div class="ci-inf">
           <div class="ci-name">${item.name}</div>
-          <div class="ci-price">ETB ${Math.round(item.price).toLocaleString()}</div>
+          <div class="ci-price">${isLaunchLocked?'ETB ***':'ETB '+Math.round(item.price).toLocaleString()}</div>
           <div class="ci-ctrl">
             <button class="qbtn" onclick="cqty(${idx},-1)">−</button>
             <span class="qval">${item.qty}</span>
@@ -1353,14 +1460,14 @@ function renderCart(){
         </div>
       </div>`).join('')}
     <div class="csum">
-      <div class="csum-row"><span>${curLang==='am'?'አጠቃላይ':'Subtotal'} (${cart.reduce((s,i)=>s+i.qty,0)} items)</span><span>ETB ${Math.round(st).toLocaleString()}</span></div>
+      <div class="csum-row"><span>Subtotal (${cart.reduce((s,i)=>s+i.qty,0)} items)</span><span>${isLaunchLocked?'ETB ***':'ETB '+Math.round(st).toLocaleString()}</span></div>
       ${discRows}
-      <div class="csum-row tot"><span>${curLang==='am'?'ድምር':'Total'}</span><span>ETB ${Math.round(tot).toLocaleString()}</span></div>
+      <div class="csum-row tot"><span>Total</span><span>${isLaunchLocked?'ETB ***':'ETB '+Math.round(tot).toLocaleString()}</span></div>
       ${savingsBanner}
     </div>
     <div style="padding:0 14px 20px">
-      <button class="co-btn" onclick="openCheckout()">
-        <i class="fas fa-lock"></i> ${curLang==='am'?'ወደ ክፍያ ይቀጥሉ':'Checkout'} — ETB ${Math.round(tot).toLocaleString()}
+      <button class="co-btn" ${isLaunchLocked?'disabled':''} onclick="openCheckout()">
+        <i class="fas fa-lock"></i> ${tr('c_co')} ? ${isLaunchLocked?'ETB ***':'ETB '+Math.round(tot).toLocaleString()}
       </button>
     </div>
   </div>`;
@@ -1411,8 +1518,10 @@ async function fetchDiscountFromServer(){
     const incD = await incR.json();
     if(incD.success) {
       _loyIncentiveCache = incD.data;
-      // Add incentive savings to discount cache
-      if(_discountCache && _loyIncentiveCache?.current_savings > 0){
+      // Only apply incentive savings if the server says the user's tier is eligible.
+      // incentive_allowed comes from the /loyalty/discount response (raw.incentive_allowed).
+      const incentiveEligible = _discountCache?.raw?.incentive_allowed === true;
+      if(_discountCache && incentiveEligible && _loyIncentiveCache?.current_savings > 0){
         _discountCache.incentiveDiscAmt = Math.round(_loyIncentiveCache.current_savings);
         _discountCache.total += _discountCache.incentiveDiscAmt;
         _discountCache.total_discount_amount += _discountCache.incentiveDiscAmt;
@@ -1460,7 +1569,7 @@ function getSpendingThresholdProgress(st) {
 
 async function renderCartLoyaltyBanner(subtotal){
   await fetchLoyaltyCartContext(subtotal);
-  if(!loyaltyProfile) return '';
+  if(isLaunchLocked || !loyaltyProfile) return '';
 
   const prog = getSpendingThresholdProgress(subtotal);
   
@@ -1612,7 +1721,10 @@ function showRewardToast(msg) {
 
 function updateGlobalLoyaltyBar() {
   const barBox = document.getElementById('globalLoyaltyBar');
-  if(!barBox || !loyaltyProfile) return;
+  if(!barBox || !loyaltyProfile || isLaunchLocked){
+    barBox.style.display='none';
+    return;
+  }
   const st = sub();
   const prog = getSpendingThresholdProgress(st);
   
@@ -1874,6 +1986,7 @@ function initCkMap(){
 }
 
 function openCheckout(){
+  if(launchGuard()) return;
   if(!cart.length){toast('Your cart is empty!','err');return;}
   ckStep='form'; ckLat=null; ckLng=null; ckDeliveryFee=80;
   renderCK();
@@ -2017,7 +2130,7 @@ function renderCK(){
     document.getElementById('chkBody').style.padding='16px';
     document.getElementById('chkBody').style.height='auto';
     const d = calcClientDiscount();
-    const finalTot = tot - d.total + (ckDeliveryFee||0);
+    const finalTot = tot - d.total;
     document.getElementById('chkBody').innerHTML=`
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
         <button onclick="ckStep='map';renderCK();initCkMap();" 
@@ -2028,16 +2141,16 @@ function renderCK(){
       <div class="chk-sec">
         <h3><i class="fas fa-receipt" style="color:var(--g)"></i> ${tr('ck_summary')}</h3>
         <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:.9rem">
-          <span>${tr('c_sub')} (${cart.reduce((s,i)=>s+i.qty,0)} items)</span><span style="font-weight:700">ETB ${Math.round(st).toLocaleString()}</span>
+          <span>${tr('c_sub')} (${cart.reduce((s,i)=>s+i.qty,0)} items)</span><span style="font-weight:700">${isLaunchLocked?'ETB ***':'ETB '+Math.round(st).toLocaleString()}</span>
         </div>
         ${d.loyaltyDiscAmt > 0 ? `<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:.9rem;color:var(--g)"><span>${d.loyaltyLabel}</span><span style="font-weight:700">-ETB ${d.loyaltyDiscAmt.toLocaleString()}</span></div>` : ''}
         ${d.threshDiscAmt > 0 ? `<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:.9rem;color:var(--g)"><span>${d.threshLabel}</span><span style="font-weight:700">-ETB ${d.threshDiscAmt.toLocaleString()}</span></div>` : ''}
         ${d.incentiveDiscAmt > 0 ? `<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:.9rem;color:var(--g)"><span>${d.incentiveLabel}</span><span style="font-weight:700">-ETB ${d.incentiveDiscAmt.toLocaleString()}</span></div>` : ''}
         <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:.9rem;border-bottom:1px solid var(--br)">
-          <span>${tr('ck_fee')}</span><span style="font-weight:700;color:var(--g)">ETB ${Math.round(ckDeliveryFee||0).toLocaleString()}</span>
+          <span>${tr('ck_fee')}</span><span style="font-weight:700;color:var(--g)">${isLaunchLocked?'ETB ***':'ETB '+Math.round(ckDeliveryFee||0).toLocaleString()}</span>
         </div>
         <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:1.1rem;font-weight:900">
-          <span>${tr('c_tot')}</span><span style="color:var(--g)">ETB ${Math.round(finalTot).toLocaleString()}</span>
+          <span>${tr('c_tot')}</span><span style="color:var(--g)">${isLaunchLocked?'ETB ***':'ETB '+Math.round(finalTot).toLocaleString()}</span>
         </div>
       </div>
       
@@ -2125,6 +2238,7 @@ async function handleReceiptUpload(input){
 }
 
 async function placeOrder(){
+  if(launchGuard()) return;
   if(placing)return;
   const cn=window.ckFormData.cn;
   const cp=window.ckFormData.cp;

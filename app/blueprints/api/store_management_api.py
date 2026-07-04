@@ -13,6 +13,8 @@ from app.models.product import Product
 from app.models.delivery import Driver, Delivery, DeliveryStatus
 from app.models.user import User, UserRole
 from app.utils import success_response, error_response
+from app.models.loyalty import LoyaltySettings
+from app.services.loyalty_service import reverse_order_rewards, get_store_launch_state
 
 MANAGER_TG_IDS = [m.strip() for m in os.getenv('MANAGER_TG_IDS', '401413271').split(',') if m.strip()]
 
@@ -43,6 +45,13 @@ def _get_manager_from_request():
     return telegram_id if _is_authorized_manager(telegram_id) else None
 
 
+def _active_orders_since(start_dt):
+    return [
+        o for o in Order.query.filter(Order.created_at >= start_dt).all()
+        if o.status not in (OrderStatus.cancelled, OrderStatus.returned)
+    ]
+
+
 # ─────────────────────────────────────────────────────────────
 # Dashboard
 # ─────────────────────────────────────────────────────────────
@@ -57,15 +66,21 @@ def store_dashboard():
     now = datetime.now(timezone.utc)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     week_start = today_start - timedelta(days=7)
+    bi_weekly_start = today_start - timedelta(days=14)
+    monthly_start = today_start - timedelta(days=30)
 
     # Today's stats
-    today_orders = Order.query.filter(Order.created_at >= today_start).all()
-    week_orders = Order.query.filter(Order.created_at >= week_start).all()
+    today_orders = _active_orders_since(today_start)
+    week_orders = _active_orders_since(week_start)
+    bi_weekly_orders = _active_orders_since(bi_weekly_start)
+    monthly_orders = _active_orders_since(monthly_start)
     all_pending = Order.query.filter(Order.status == OrderStatus.pending).count()
     all_confirmed = Order.query.filter(Order.status == OrderStatus.confirmed).count()
 
     today_revenue = sum(float(o.total) for o in today_orders)
     week_revenue = sum(float(o.total) for o in week_orders)
+    bi_weekly_revenue = sum(float(o.total) for o in bi_weekly_orders)
+    monthly_revenue = sum(float(o.total) for o in monthly_orders)
 
     # Low stock products
     low_stock = Product.query.filter(Product.is_active == True, Product.stock_qty <= 5).order_by(Product.stock_qty.asc()).limit(5).all()
@@ -81,6 +96,14 @@ def store_dashboard():
         'week': {
             'orders': len(week_orders),
             'revenue': week_revenue,
+        },
+        'bi_weekly': {
+            'orders': len(bi_weekly_orders),
+            'revenue': bi_weekly_revenue,
+        },
+        'monthly': {
+            'orders': len(monthly_orders),
+            'revenue': monthly_revenue,
         },
         'pending_orders': all_pending,
         'confirmed_orders': all_confirmed,
@@ -242,8 +265,17 @@ def store_update_order_status(order_id):
     except KeyError:
         return error_response(f'Invalid status: {new_status_str}', 400)
 
+    previous_status = order.status
     order.status = new_status
     order.updated_at = datetime.now(timezone.utc)
+
+    reversal_result = None
+    if new_status in (OrderStatus.cancelled, OrderStatus.returned) and previous_status not in (OrderStatus.cancelled, OrderStatus.returned):
+        try:
+            reversal_result = reverse_order_rewards(order.user, order)
+        except Exception:
+            reversal_result = {'reversed': False, 'reason': 'reversal_failed'}
+
     db.session.commit()
 
     # Notify customer
@@ -252,7 +284,10 @@ def store_update_order_status(order_id):
     except Exception:
         pass
 
-    return success_response({'status': new_status.value, 'status_label': order.status_label()})
+    payload = {'status': new_status.value, 'status_label': order.status_label()}
+    if reversal_result is not None:
+        payload['reversal'] = reversal_result
+    return success_response(payload)
 
 
 def _notify_customer_status(order):
@@ -283,6 +318,82 @@ def _notify_customer_status(order):
 
 
 # ─────────────────────────────────────────────────────────────
+
+
+@api_bp.route('/store/settings', methods=['GET'])
+def store_settings():
+    """Return store-wide settings for the manager portal."""
+    manager_id = _get_manager_from_request()
+    if not manager_id:
+        return error_response('Unauthorized', 403)
+
+    settings = LoyaltySettings.query.first()
+    if not settings:
+        settings = LoyaltySettings()
+        db.session.add(settings)
+        db.session.flush()
+
+    payload = settings.to_dict()
+    payload.update(get_store_launch_state())
+    return success_response(payload)
+
+
+@api_bp.route('/store/launch-date', methods=['POST'])
+def store_set_launch_date():
+    """Set the global launch date used to gate ordering."""
+    manager_id = _get_manager_from_request()
+    if not manager_id:
+        return error_response('Unauthorized', 403)
+
+    data = request.get_json(silent=True) or {}
+    raw_launch = data.get('launch_date')
+    if not raw_launch:
+        return error_response('launch_date is required', 400)
+
+    if str(raw_launch).endswith('Z'):
+        raw_launch = str(raw_launch)[:-1] + '+00:00'
+    try:
+        launch_date = datetime.fromisoformat(str(raw_launch))
+    except ValueError:
+        try:
+            launch_date = datetime.strptime(str(raw_launch), '%Y-%m-%dT%H:%M')
+        except ValueError:
+            return error_response('Invalid launch_date format', 400)
+    if launch_date.tzinfo is None:
+        launch_date = launch_date.replace(tzinfo=timezone.utc)
+    launch_date = launch_date.astimezone(timezone.utc)
+
+    settings = LoyaltySettings.query.first()
+    if not settings:
+        settings = LoyaltySettings()
+        db.session.add(settings)
+    settings.launch_date = launch_date
+    db.session.commit()
+
+    payload = settings.to_dict()
+    payload.update(get_store_launch_state())
+    return success_response(payload, 'Launch date updated')
+
+
+@api_bp.route('/store/launch-date', methods=['DELETE'])
+def store_clear_launch_date():
+    """Clear the global launch date and reopen ordering."""
+    manager_id = _get_manager_from_request()
+    if not manager_id:
+        return error_response('Unauthorized', 403)
+
+    settings = LoyaltySettings.query.first()
+    if not settings:
+        settings = LoyaltySettings()
+        db.session.add(settings)
+    settings.launch_date = None
+    db.session.commit()
+
+    payload = settings.to_dict()
+    payload.update(get_store_launch_state())
+    return success_response(payload, 'Launch date cleared')
+
+
 # Products (Store View)
 # ─────────────────────────────────────────────────────────────
 

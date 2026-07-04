@@ -115,6 +115,32 @@
         /* Map Container */
         #storeMap { height: 350px; border-radius: 20px; border: 1px solid var(--br); box-shadow: var(--shadow); margin-bottom: 16px; z-index: 1; overflow: hidden; }
         .leaflet-popup-content-wrapper { border-radius: 14px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); }
+
+        .report-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0 28px; }
+        .report-card { background: var(--sf); padding: 18px 16px 16px; border-radius: 20px; border: 1px solid var(--br); box-shadow: var(--shadow); position: relative; overflow: hidden; transition: transform 0.2s; }
+        .report-card:active { transform: scale(0.97); }
+        .report-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; border-radius: 20px 20px 0 0; }
+        .report-card.week::before  { background: linear-gradient(90deg, #3d8b5f, #2e6b48); }
+        .report-card.biweek::before { background: linear-gradient(90deg, #3b82f6, #2563eb); }
+        .report-card.monthly::before { background: linear-gradient(90deg, #8b5cf6, #6d28d9); }
+        .report-card .label { font-size: 0.70rem; color: var(--ts); font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+        .report-card.week .label i  { color: var(--g); }
+        .report-card.biweek .label i { color: #3b82f6; }
+        .report-card.monthly .label i { color: #8b5cf6; }
+        .report-card .big { font-size: 1.2rem; font-weight: 800; color: var(--tm); letter-spacing: -0.02em; }
+        .report-card.week .big  { color: var(--g); }
+        .report-card.biweek .big { color: #2563eb; }
+        .report-card.monthly .big { color: #6d28d9; }
+        .report-card .sub { font-size: 0.73rem; color: var(--ts); margin-top: 5px; font-weight: 600; }
+        .settings-card { background: var(--sf); border: 1px solid var(--br); border-radius: 18px; padding: 16px; box-shadow: var(--shadow); margin-bottom: 14px; }
+        .settings-label { font-size: 0.78rem; font-weight: 800; color: var(--ts); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px; }
+        .settings-input { width: 100%; padding: 12px 14px; border: 1.5px solid var(--br); border-radius: 14px; font-size: 0.95rem; font-weight: 600; color: var(--tm); background: #fff; outline: none; }
+        .settings-input:focus { border-color: var(--g); }
+        .settings-actions { display: flex; gap: 10px; margin-top: 12px; }
+        .settings-meta { font-size: 0.8rem; color: var(--ts); line-height: 1.5; margin-top: 8px; }
+        .launch-badge { display: inline-flex; align-items: center; gap: 6px; border-radius: 100px; padding: 6px 12px; font-size: 0.75rem; font-weight: 800; background: var(--bg); color: var(--p); }
+        .launch-badge.locked { background: #FEF3C7; color: #92400E; }
+        .launch-badge.open { background: #D1FAE5; color: #065F46; }
     </style>
 </head>
 <body>
@@ -143,6 +169,30 @@
             <div class="stat-card" onclick="switchTab('inventory')">
                 <div class="title">Low Stock <i class="fas fa-exclamation-triangle"></i></div>
                 <div class="value" id="dashLow" style="color: var(--danger);">0</div>
+            </div>
+        </div>
+
+        <h2 style="font-size: 1rem; font-weight: 800; margin-bottom: 14px; display:flex; align-items:center; gap:8px;"><i class="fas fa-chart-bar" style="color:var(--g)"></i> Revenue Reports</h2>
+        <div class="report-grid">
+            <div class="report-card week">
+                <div class="label"><i class="fas fa-calendar-week"></i> 7-Day</div>
+                <div class="big" id="dashWeekRev">ETB 0</div>
+                <div class="sub" id="dashWeekOrd">0 orders this week</div>
+            </div>
+            <div class="report-card biweek">
+                <div class="label"><i class="fas fa-calendar-alt"></i> 14-Day</div>
+                <div class="big" id="dashBiRev">ETB 0</div>
+                <div class="sub" id="dashBiOrd">0 orders in 14 days</div>
+            </div>
+            <div class="report-card monthly" style="grid-column: 1 / -1;">
+                <div class="label"><i class="fas fa-calendar"></i> 30-Day Monthly</div>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div class="big" id="dashMonRev">ETB 0</div>
+                    <div style="text-align:right;">
+                        <div style="font-size:0.75rem;color:#8b5cf6;font-weight:800" id="dashMonOrd">0 orders</div>
+                        <div style="font-size:0.7rem;color:var(--ts);margin-top:2px">last 30 days</div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -176,6 +226,8 @@
 
     <!-- DRIVERS VIEW -->
     <div id="view-drivers" class="view">
+        <h2 style="font-size: 1.1rem; font-weight: 800; margin-bottom: 16px;">Driver Tracking</h2>
+        <p style="font-size:0.85rem;color:var(--ts);margin-bottom:14px;line-height:1.5">Live driver positions and delivery activity.</p>
         <h2 style="font-size: 1.2rem; font-weight: 800; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
             <span><i class="fas fa-map-marked-alt text-g"></i> Delivery Map</span>
             <button class="btn btn-outline" style="padding: 6px 12px; font-size: 0.8rem;" onclick="loadDrivers()"><i class="fas fa-sync-alt"></i> Refresh</button>
@@ -186,6 +238,21 @@
     </div>
 
     <!-- BOTTOM NAVIGATION -->
+    <div id="view-settings" class="view">
+        <h2 style="font-size: 1.1rem; font-weight: 800; margin-bottom: 16px;">Settings</h2>
+        <div class="settings-card">
+            <div class="settings-label">Launch Countdown</div>
+            <div id="launchStatusBadge" class="launch-badge" style="margin-bottom:12px">Loading...</div>
+            <label class="settings-label" for="launchDateInput">Launch date and time</label>
+            <input id="launchDateInput" class="settings-input" type="datetime-local">
+            <div class="settings-actions">
+                <button class="btn btn-primary" style="flex:1" onclick="saveLaunchDate()">Save Launch Date</button>
+                <button class="btn btn-outline" style="flex:1" onclick="clearLaunchDate()">Clear</button>
+            </div>
+            <div class="settings-meta" id="launchMeta">Set a future date to hide prices and block checkout until launch.</div>
+        </div>
+    </div>
+
     <div class="bottom-nav">
         <div class="nav-item active" data-tab="dashboard" onclick="switchTab('dashboard')">
             <i class="fas fa-chart-pie"></i>
@@ -203,6 +270,10 @@
         <div class="nav-item" data-tab="drivers" onclick="switchTab('drivers')">
             <i class="fas fa-motorcycle"></i>
             <span>Drivers</span>
+        </div>
+        <div class="nav-item" data-tab="settings" onclick="switchTab('settings')">
+            <i class="fas fa-gear"></i>
+            <span>Settings</span>
         </div>
     </div>
 
@@ -255,6 +326,7 @@
                     setTimeout(() => storeMap.invalidateSize(), 100);
                 }
             }
+            if(tabId === 'settings') loadSettings();
         }
 
         function debounce(func, wait) {
@@ -262,6 +334,19 @@
                 clearTimeout(_timer);
                 _timer = setTimeout(func, wait);
             };
+        }
+
+        function formatLaunchLocal(isoString) {
+            if(!isoString) return '';
+            const d = new Date(isoString);
+            const pad = n => String(n).padStart(2, '0');
+            return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        }
+
+        function formatLaunchLabel(data) {
+            if(!data || !data.launch_date) return data?.launch_locked ? 'Launch gate active' : 'Launch date not set';
+            const when = new Date(data.launch_date).toLocaleString();
+            return data.launch_locked ? `Ordering is locked until ${when}` : `Ordering is open. Last launch date was ${when}`;
         }
 
         // --- API CALLS ---
@@ -286,14 +371,30 @@
             }
         }
 
+        function fmtRev(n) {
+            // Format revenue: show in thousands if >= 1000
+            if (n >= 1000000) return 'ETB ' + (n / 1000000).toFixed(1) + 'M';
+            if (n >= 1000) return 'ETB ' + (n / 1000).toFixed(1) + 'K';
+            return 'ETB ' + Math.round(n).toLocaleString();
+        }
+
         async function loadDashboard() {
             const data = await fetchAPI('/store/dashboard');
             if(!data) return;
             
-            document.getElementById('dashRev').innerText = `ETB ${data.today.revenue.toLocaleString()}`;
+            document.getElementById('dashRev').innerText = `ETB ${Math.round(data.today.revenue).toLocaleString()}`;
             document.getElementById('dashOrd').innerText = data.today.orders;
             document.getElementById('dashPen').innerText = data.pending_orders;
             document.getElementById('dashLow').innerText = data.low_stock_products.length;
+            // Week
+            document.getElementById('dashWeekRev').innerText = fmtRev(data.week?.revenue || 0);
+            document.getElementById('dashWeekOrd').innerText = `${data.week?.orders || 0} orders this week`;
+            // Bi-Weekly
+            document.getElementById('dashBiRev').innerText = fmtRev(data.bi_weekly?.revenue || 0);
+            document.getElementById('dashBiOrd').innerText = `${data.bi_weekly?.orders || 0} orders in 14 days`;
+            // Monthly
+            document.getElementById('dashMonRev').innerText = fmtRev(data.monthly?.revenue || 0);
+            document.getElementById('dashMonOrd').innerText = `${data.monthly?.orders || 0} orders`;
 
             if(data.pending_orders > 0) {
                 const b1 = document.getElementById('navBadgeOrders');
@@ -327,10 +428,13 @@
         }
 
         function createOrderCard(o) {
+            const discBadge = (o.discount_amount > 0)
+                ? `<span style="background:#d1fae5;color:#065f46;font-size:0.65rem;font-weight:800;padding:2px 7px;border-radius:100px;border:1px solid #a7f3d0;margin-left:6px">-ETB ${Math.round(o.discount_amount).toLocaleString()}</span>`
+                : '';
             return `
             <div class="order-card" onclick="openOrderModal(${o.id})">
                 <div class="order-header">
-                    <div class="order-id">#${o.order_number}</div>
+                    <div class="order-id">#${o.order_number}${discBadge}</div>
                     <div class="order-status status-${o.status}">${o.status_label}</div>
                 </div>
                 <div class="order-customer">
@@ -342,9 +446,45 @@
                 </div>
                 <div class="order-footer">
                     <div class="order-items">${o.items_count || ''} Items</div>
-                    <div class="order-total">ETB ${o.total.toLocaleString()}</div>
+                    <div class="order-total">ETB ${Math.round(o.total).toLocaleString()}</div>
                 </div>
             </div>`;
+        }
+
+        async function loadSettings() {
+            const data = await fetchAPI('/store/settings');
+            if(!data) return;
+
+            const input = document.getElementById('launchDateInput');
+            if(input) input.value = formatLaunchLocal(data.launch_date);
+
+            const badge = document.getElementById('launchStatusBadge');
+            if(badge) {
+                badge.className = 'launch-badge ' + (data.launch_locked ? 'locked' : 'open');
+                badge.textContent = data.launch_locked ? 'Locked until launch' : (data.launch_date ? 'Launch open' : 'No launch date set');
+            }
+
+            const meta = document.getElementById('launchMeta');
+            if(meta) meta.textContent = formatLaunchLabel(data);
+        }
+
+        async function saveLaunchDate() {
+            const input = document.getElementById('launchDateInput');
+            if(!input || !input.value) {
+                tg.showAlert('Pick a date and time first');
+                return;
+            }
+            await fetchAPI('/store/launch-date', { method: 'POST', body: JSON.stringify({ launch_date: new Date(input.value).toISOString() }) });
+            await loadSettings();
+            await loadDashboard();
+        }
+
+        async function clearLaunchDate() {
+            await fetchAPI('/store/launch-date', { method: 'DELETE' });
+            const input = document.getElementById('launchDateInput');
+            if(input) input.value = '';
+            await loadSettings();
+            await loadDashboard();
         }
 
         async function loadInventory() {
