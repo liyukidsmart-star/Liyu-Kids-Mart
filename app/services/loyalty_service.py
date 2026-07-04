@@ -1,4 +1,4 @@
-"""
+﻿"""
 loyalty_service.py — Central business logic for the Loyalty & Rewards Ecosystem.
 
 All business rules are fetched from the database (admin-configurable).
@@ -57,7 +57,35 @@ def _generate_referral_code(length=8):
     return ''.join(secrets.choice(alphabet) for _ in range(length))
 
 
-# ─────────────────────────────────────────────────────────────
+def _coerce_utc(value):
+    if not value:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
+def get_store_launch_date():
+    settings = _get_settings()
+    return _coerce_utc(getattr(settings, 'launch_date', None))
+
+
+def is_store_launch_locked(now=None):
+    launch_date = get_store_launch_date()
+    if not launch_date:
+        return False
+    current = _coerce_utc(now or datetime.now(timezone.utc))
+    return current < launch_date
+
+
+def get_store_launch_state() -> dict:
+    launch_date = get_store_launch_date()
+    return {
+        'launch_date': launch_date.isoformat() if launch_date else None,
+        'launch_locked': bool(launch_date and datetime.now(timezone.utc) < launch_date),
+    }
+
+
 # Tier Resolution
 # ─────────────────────────────────────────────────────────────
 
@@ -310,7 +338,89 @@ def award_points(user, points: int, transaction_type: RewardTransactionType,
     db.session.add(txn)
 
 
-# ─────────────────────────────────────────────────────────────
+def reverse_order_rewards(user, order):
+    """Reverse loyalty stats for a cancelled or returned order."""
+    if not user or not order:
+        return {'reversed': False, 'reason': 'missing_user_or_order'}
+
+    existing_reversal = (
+        RewardTransaction.query
+        .filter_by(user_id=user.id, order_id=order.id, transaction_type=RewardTransactionType.adjust)
+        .filter(RewardTransaction.points <= 0)
+        .first()
+    )
+    if existing_reversal:
+        return {'reversed': False, 'reason': 'already_reversed'}
+
+    from app.models.order import Order as _Order, OrderStatus as _OrderStatus
+
+    order_total = float(order.total or 0)
+    savings_amount = float(getattr(order, 'savings_amount', 0) or 0)
+    points_to_reverse = int(getattr(order, 'reward_earned', 0) or 0)
+    items_to_reverse = int(getattr(order, 'total_items', 0) or 0)
+    if items_to_reverse <= 0 and getattr(order, 'items', None):
+        items_to_reverse = sum(i.quantity for i in order.items)
+
+    user.total_money_spent = max(0.0, float(user.total_money_spent or 0) - order_total)
+    user.total_orders = max(0, int(user.total_orders or 0) - 1)
+    user.total_items_purchased = max(0, int(user.total_items_purchased or 0) - items_to_reverse)
+    user.lifetime_savings = max(0.0, float(user.lifetime_savings or 0) - savings_amount)
+    user.reward_points = max(0, int(user.reward_points or 0) - points_to_reverse)
+    user.lifetime_points_earned = max(0, int(user.lifetime_points_earned or 0) - points_to_reverse)
+    user.loyalty_score = max(0, int(user.loyalty_score or 0) - points_to_reverse)
+
+    new_level = resolve_loyalty_level(float(user.total_money_spent or 0), int(user.total_orders or 0))
+    user.loyalty_level_id = new_level.id if new_level else None
+
+    if user.total_orders > 0:
+        if new_level:
+            if 'elite' in new_level.name.lower() or user.total_orders >= 100:
+                user.customer_status = CustomerStatus.elite
+            elif 'vip' in new_level.name.lower() or user.total_orders >= 50:
+                user.customer_status = CustomerStatus.vip
+            elif user.total_orders >= 5:
+                user.customer_status = CustomerStatus.loyal
+            else:
+                user.customer_status = CustomerStatus.active
+        else:
+            user.customer_status = CustomerStatus.active
+    else:
+        user.customer_status = CustomerStatus.new
+
+    remaining_orders = (
+        _Order.query
+        .filter(_Order.user_id == user.id)
+        .filter(~_Order.status.in_([_OrderStatus.cancelled, _OrderStatus.returned]))
+        .order_by(_Order.created_at.desc())
+        .all()
+    )
+    if remaining_orders:
+        user.first_purchase_date = remaining_orders[-1].created_at
+        user.last_purchase_date = remaining_orders[0].created_at
+    else:
+        user.last_purchase_date = None
+        user.first_purchase_date = None
+
+    txn = RewardTransaction(
+        user_id=user.id,
+        order_id=order.id,
+        transaction_type=RewardTransactionType.adjust,
+        points=-points_to_reverse,
+        balance_after=user.reward_points,
+        description=f'Reversal for order #{order.order_number}',
+    )
+    db.session.add(txn)
+    db.session.flush()
+
+    return {
+        'reversed': True,
+        'points_reversed': points_to_reverse,
+        'order_total_reversed': order_total,
+        'savings_reversed': savings_amount,
+        'new_level': new_level.to_dict() if new_level else None,
+    }
+
+
 # Order Post-Processing (call after order is confirmed)
 # ─────────────────────────────────────────────────────────────
 
@@ -654,3 +764,4 @@ def seed_default_loyalty_data():
         db.session.add(LoyaltySettings())
 
     db.session.commit()
+

@@ -346,6 +346,8 @@ class LoyaltySettings(db.Model):
     point_value_birr = db.Column(db.Numeric(6, 4), default=0.10)
     # Min points to redeem
     min_redemption_points = db.Column(db.Integer, default=500)
+    # Global store launch gate; when set in the future, ordering is blocked.
+    launch_date = db.Column(db.DateTime, nullable=True)
     # Whether loyalty system is enabled
     is_enabled = db.Column(db.Boolean, default=True, nullable=False)
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc),
@@ -362,5 +364,6 @@ class LoyaltySettings(db.Model):
             'points_expiry_days': self.points_expiry_days,
             'point_value_birr': float(self.point_value_birr),
             'min_redemption_points': self.min_redemption_points,
+            'launch_date': self.launch_date.isoformat() if self.launch_date else None,
             'is_enabled': self.is_enabled,
         }

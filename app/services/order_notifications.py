@@ -92,7 +92,7 @@ def notify_store_managers(order, order_items, addr, payment_method_str, discount
     reply_markup = {
         'inline_keyboard': [[
             {'text': '🤖 Open Bot', 'url': 'https://t.me/Liyu_Kids_Mart_Bot'},
-            {'text': '🌐 Open Store Portal', 'url': store_url},
+            {'text': '🌐 Open Store Portal', 'web_app': {'url': store_url}},
         ]]
     }
 

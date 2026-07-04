@@ -14,6 +14,7 @@ from app.models.order import (Cart, Order, OrderItem, Address,
 from app.models.user import User, UserRole
 from app.utils import success_response, error_response, generate_order_number
 from app.services.order_notifications import notify_store_managers
+from app.services.loyalty_service import calculate_loyalty_discount, process_order_rewards, is_store_launch_locked, get_store_launch_state
 
 
 def _resolve_mini_app_user():
@@ -32,6 +33,12 @@ def _resolve_mini_app_user():
     return None
 
 
+@api_bp.route('/shop/init', methods=['GET'])
+def shop_init():
+    """Return Mini App bootstrap state including the launch gate."""
+    return success_response(get_store_launch_state())
+
+
 @api_bp.route('/mini-app/checkout', methods=['POST'])
 def mini_app_checkout():
     """
@@ -41,6 +48,9 @@ def mini_app_checkout():
     """
     user = _resolve_mini_app_user()
     data = request.get_json(silent=True) or {}
+
+    if is_store_launch_locked():
+        return error_response('Ordering is not available yet. Please wait for the launch countdown to finish.', 403)
 
     # Cart items passed from mini app frontend
     cart_items_data = data.get('cart_items', [])
@@ -300,7 +310,7 @@ def _notify_store_managers(order, order_items, addr, payment_method_str, discoun
     reply_markup = {
         'inline_keyboard': [[
             {'text': '🤖 Open Bot', 'url': 'https://t.me/Liyu_Kids_Mart_Bot'},
-            {'text': '🌐 Open Store Portal', 'url': store_url}
+            {'text': '🌐 Open Store Portal', 'web_app': {'url': store_url}}
         ]]
     }
 

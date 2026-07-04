@@ -2048,9 +2048,9 @@ function renderCK(){
         <p>${tr('ck_thanks').replace('\n','<br>')}</p>
         ${savingsHtml}
         <div class="suc-onum">Order #${lastON}</div>
-        <p style="font-size:.82rem;color:var(--ts);margin-top:6px">
-          📍 Bole Bulbula, 93 Mazoriya, Addis Ababa<br>
-          📞 Questions? Call <strong>0947967117</strong>
+        <p style="font-size:.82rem;color:var(--ts);margin-top:6px;line-height:1.5;">
+          📍 ${curLang === 'am' ? 'ወረዳ 12 ወረድ ብሎ ኳስ ሜዳው አጠገብ፣ አዲስ አበባ' : 'Down of Wereda 12, beside the football field, Addis Ababa'}<br>
+          📞 ${curLang === 'am' ? 'ጥያቄዎች አሉዎት? ይደውሉ፡' : 'Questions? Call'} <strong>+251 91 162 3758</strong>
         </p>
         <button class="suc-btn" onclick="closeCheckout();showTab('tab-me')">
           <i class="fas fa-box"></i> ${tr('ck_view_orders')}
