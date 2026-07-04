@@ -132,9 +132,8 @@ def cancel_order(order_number):
         if item.product:
             item.product.stock_qty += item.quantity
     previous_status = order.status
-    reversal_result = apply_order_status_change(user, order, OrderStatus.cancelled, previous_status)
     order.status = OrderStatus.cancelled
-    order.updated_at = db.func.now() if hasattr(db, 'func') else None
+    reversal_result = apply_order_status_change(user, order, OrderStatus.cancelled, previous_status)
     db.session.commit()
     return success_response(message='Order cancelled')
 

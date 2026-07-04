@@ -266,9 +266,9 @@ def store_update_order_status(order_id):
         return error_response(f'Invalid status: {new_status_str}', 400)
 
     previous_status = order.status
-    reversal_result = apply_order_status_change(order.user, order, new_status, previous_status)
     order.status = new_status
     order.updated_at = datetime.now(timezone.utc)
+    reversal_result = apply_order_status_change(order.user, order, new_status, previous_status)
 
     db.session.commit()
 

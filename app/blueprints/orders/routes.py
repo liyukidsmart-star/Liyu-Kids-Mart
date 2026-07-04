@@ -39,9 +39,9 @@ def cancel(order_number):
         flash('This order cannot be cancelled.', 'danger')
         return redirect(url_for('orders.detail', order_number=order_number))
     previous_status = order.status
-    reversal_result = apply_order_status_change(current_user, order, OrderStatus.cancelled, previous_status)
     order.status = OrderStatus.cancelled
     order.updated_at = datetime.now(timezone.utc)
+    reversal_result = apply_order_status_change(current_user, order, OrderStatus.cancelled, previous_status)
     # Restore stock
     for item in order.items:
         if item.product:

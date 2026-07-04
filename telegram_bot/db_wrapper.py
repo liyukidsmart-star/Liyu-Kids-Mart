@@ -9,6 +9,7 @@ from app.models.user import User, UserRole
 from app.models.delivery import Driver
 from app.models.order import Cart, Order, OrderItem, Address, OrderStatus
 from app.services.order_notifications import notify_store_managers
+from app.services.loyalty_service import apply_order_status_change
 
 _app = None
 
@@ -284,7 +285,9 @@ def get_order_by_number(order_num):
 def cancel_order(order_id, user_id):
     order = Order.query.filter_by(id=order_id, user_id=user_id).first()
     if order and order.status == OrderStatus.pending:
+        previous_status = order.status
         order.status = OrderStatus.cancelled
+        apply_order_status_change(order.user, order, OrderStatus.cancelled, previous_status)
         db.session.commit()
         return True
     return False

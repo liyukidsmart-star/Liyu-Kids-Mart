@@ -400,6 +400,9 @@ def reverse_order_rewards(user, order):
     else:
         user.customer_status = CustomerStatus.new
 
+    # Flush session to ensure order status change is visible to the query below
+    db.session.flush()
+
     remaining_orders = (
         _Order.query
         .filter(_Order.user_id == user.id)
