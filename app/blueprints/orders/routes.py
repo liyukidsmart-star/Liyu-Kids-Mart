@@ -3,6 +3,7 @@ from flask_login import login_required, current_user
 from app.blueprints.orders import orders_bp
 from app.extensions import db
 from app.models.order import Order, OrderStatus
+from app.services.loyalty_service import apply_order_status_change
 
 
 @orders_bp.route('/')
@@ -37,7 +38,10 @@ def cancel(order_number):
     if order.status.value not in ('pending', 'confirmed'):
         flash('This order cannot be cancelled.', 'danger')
         return redirect(url_for('orders.detail', order_number=order_number))
+    previous_status = order.status
+    reversal_result = apply_order_status_change(current_user, order, OrderStatus.cancelled, previous_status)
     order.status = OrderStatus.cancelled
+    order.updated_at = datetime.now(timezone.utc)
     # Restore stock
     for item in order.items:
         if item.product:

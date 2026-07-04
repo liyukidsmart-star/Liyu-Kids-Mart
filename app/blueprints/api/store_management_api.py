@@ -14,6 +14,7 @@ from app.models.delivery import Driver, Delivery, DeliveryStatus
 from app.models.user import User, UserRole
 from app.utils import success_response, error_response
 from app.models.loyalty import LoyaltySettings
+from app.services.loyalty_service import apply_order_status_change
 
 MANAGER_TG_IDS = [m.strip() for m in os.getenv('MANAGER_TG_IDS', '401413271').split(',') if m.strip()]
 
@@ -265,15 +266,9 @@ def store_update_order_status(order_id):
         return error_response(f'Invalid status: {new_status_str}', 400)
 
     previous_status = order.status
+    reversal_result = apply_order_status_change(order.user, order, new_status, previous_status)
     order.status = new_status
     order.updated_at = datetime.now(timezone.utc)
-
-    reversal_result = None
-    if new_status in (OrderStatus.cancelled, OrderStatus.returned) and previous_status not in (OrderStatus.cancelled, OrderStatus.returned):
-        try:
-            reversal_result = reverse_order_rewards(order.user, order)
-        except Exception:
-            reversal_result = {'reversed': False, 'reason': 'reversal_failed'}
 
     db.session.commit()
 

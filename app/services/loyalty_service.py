@@ -338,6 +338,19 @@ def award_points(user, points: int, transaction_type: RewardTransactionType,
     db.session.add(txn)
 
 
+def apply_order_status_change(user, order, new_status, previous_status=None):
+    """Apply loyalty side effects for order status changes."""
+    from app.models.order import OrderStatus as _OrderStatus
+
+    previous_status = previous_status or getattr(order, 'status', None)
+    if new_status in (_OrderStatus.cancelled, _OrderStatus.returned) and previous_status not in (_OrderStatus.cancelled, _OrderStatus.returned):
+        try:
+            return reverse_order_rewards(user, order)
+        except Exception:
+            return {'reversed': False, 'reason': 'reversal_failed'}
+    return {'reversed': False, 'reason': 'no_reversal_needed'}
+
+
 def reverse_order_rewards(user, order):
     """Reverse loyalty stats for a cancelled or returned order."""
     if not user or not order:

@@ -7,6 +7,7 @@ from app.models.order import Order, OrderItem, Cart, Address, OrderStatus
 from app.models.product import Product
 from app.models.ai_conversation import Payment
 from app.models.user import User
+from app.services.loyalty_service import apply_order_status_change
 from app.utils import success_response, error_response, generate_order_number
 
 
@@ -130,7 +131,10 @@ def cancel_order(order_number):
     for item in order.items:
         if item.product:
             item.product.stock_qty += item.quantity
+    previous_status = order.status
+    reversal_result = apply_order_status_change(user, order, OrderStatus.cancelled, previous_status)
     order.status = OrderStatus.cancelled
+    order.updated_at = db.func.now() if hasattr(db, 'func') else None
     db.session.commit()
     return success_response(message='Order cancelled')
 
