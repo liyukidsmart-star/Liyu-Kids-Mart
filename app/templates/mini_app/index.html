@@ -979,10 +979,10 @@ function pcard(p,v='grid'){
       ?'<div class="pcard-price" style="color:#7C3AED;font-size:.78rem">Members Only</div>'
       :'<div class="pcard-price">ETB '+Math.round(p.price).toLocaleString()+'</div>';
   const disc=!isLaunchLocked && p.compare_price>p.price&&!priceHidden?'<div class="pcard-cmp">ETB '+Math.round(p.compare_price).toLocaleString()+'</div>':'';
-  const pj=esc(JSON.stringify(p));
+  const pj=encodeURIComponent(JSON.stringify(p));
   if(v==='h') return `
     <div class="hcard" onclick="openSheet(this.dataset.p)" data-p="${pj}">
-      <img src="${p.primary_image}" alt="${n}" loading="lazy" decoding="async" onerror="this.src='/static/images/placeholder.png'"/>
+      <img src="${p.primary_image}" alt="${esc(n)}" loading="lazy" decoding="async" onerror="this.src='/static/images/placeholder.png'"/>
       <div class="hcard-body">
         <div class="hcard-name">${n}</div>
         <div class="hcard-price">${isLaunchLocked?'ETB ***':priceHidden&&isLocked?'Members Only':'ETB ' + Math.round(p.price).toLocaleString()}</div>
@@ -996,7 +996,7 @@ function pcard(p,v='grid'){
       <div class="pbadges">${bdgs}</div>
       <button class="pwish${w?' on':''}" onclick="event.stopPropagation();toggleWish(${p.id},this)">
         <i class="fas fa-heart"></i></button>
-      <img src="${p.primary_image}" alt="${n}" class="pcard-img"
+      <img src="${p.primary_image}" alt="${esc(n)}" class="pcard-img"
            loading="lazy" decoding="async" onerror="this.src='/static/images/placeholder.png'"/>
       ${isLocked?`<div class="ppremium"><div class="ppremium-ico">🔒</div><div class="ppremium-label">${lockLvlName} Tier</div></div>`:''}
       <div class="pcard-body">
@@ -1020,7 +1020,9 @@ function openImageLightbox(src){
 }
 function closeImageLightbox(){document.getElementById('imgLightbox')?.classList.remove('on');}
 function openSheet(pJson){
-  const p=JSON.parse(pJson); shProd=p; shQty=1;
+  let payload = pJson;
+  if(typeof payload === 'string' && payload.startsWith('%')) payload = decodeURIComponent(payload);
+  const p=JSON.parse(payload); shProd=p; shQty=1;
   const n = curLang==='am'&&(p.name_am||'')?p.name_am:p.name;
   const sd = curLang==='am'&&(p.short_description_am||'')?p.short_description_am:p.short_description;
   const fd = curLang==='am'&&(p.description_am||'')?p.description_am:p.description;
