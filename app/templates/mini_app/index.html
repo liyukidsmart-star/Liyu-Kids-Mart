@@ -251,6 +251,15 @@ ul{list-style:none}
 .sov.on{display:flex;animation:sovi .2s ease}
 @keyframes sovi{from{opacity:0}to{opacity:1}}
 .sheet{width:100%;max-height:85vh;background:var(--sf);border-radius:var(--rl) var(--rl) 0 0;overflow-y:auto;animation:shu .3s var(--spr)}
+.sh-img-wrap{position:relative;cursor:zoom-in}
+.sh-img-wrap::after{content:'🔍 Tap to zoom';position:absolute;bottom:10px;left:10px;background:rgba(26,26,46,.75);color:#fff;padding:6px 10px;border-radius:999px;font-size:.7rem;font-weight:700}
+.img-lightbox{position:fixed;inset:0;background:rgba(10,12,18,.92);display:none;align-items:center;justify-content:center;z-index:260;padding:18px}
+.img-lightbox.on{display:flex}
+.img-lightbox img{max-width:100%;max-height:100%;object-fit:contain;border-radius:16px;box-shadow:0 16px 40px rgba(0,0,0,.35)}
+.img-lightbox-close{position:absolute;top:16px;right:16px;width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,.16);color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.1rem}
+.sh-sec-title{font-size:.72rem;font-weight:800;color:var(--ts);text-transform:uppercase;letter-spacing:.7px;margin-bottom:6px}
+.sh-desc,.sh-full-desc{font-size:.9rem;line-height:1.6;color:var(--tm);white-space:pre-wrap}
+.sh-full-desc{margin-top:8px;padding-top:8px;border-top:1px solid var(--br)}
 @keyframes shu{from{transform:translateY(100%)}to{transform:translateY(0)}}
 .shdl{width:36px;height:4px;background:var(--br);border-radius:100px;margin:10px auto}
 .sh-img{width:100%;height:240px;object-fit:cover;background:var(--be)}
@@ -626,7 +635,9 @@ ul{list-style:none}
 <div class="sov" id="sov" onclick="if(event.target===this)closeSheet()">
   <div class="sheet">
     <div class="shdl"></div>
-    <img id="shImg" src="" alt="" class="sh-img"/>
+    <div class="sh-img-wrap">
+      <img id="shImg" src="" alt="" class="sh-img" onclick="openImageLightbox(this.src)"/>
+    </div>
     <div class="sh-body">
       <div class="sh-bdgs" id="shBdgs"></div>
       <div class="sh-name" id="shName"></div>
@@ -636,7 +647,10 @@ ul{list-style:none}
       </div>
       <div class="age-bdg" id="shAge" style="margin-bottom:10px"></div>
       <div id="shPremiumBlock"></div>
+      <div class="sh-sec-title">Short Description</div>
       <div class="sh-desc" id="shDesc"></div>
+      <div class="sh-sec-title" style="margin-top:12px">Full Description</div>
+      <div class="sh-full-desc" id="shFullDesc"></div>
       <div class="sh-qrow">
         <span class="sh-qlbl">Quantity</span>
         <div class="sh-qctrl">
@@ -648,6 +662,11 @@ ul{list-style:none}
       <button class="sh-add" id="shAdd" onclick="shAddCart()"><i class="fas fa-shopping-bag"></i> Add to Cart</button>
     </div>
   </div>
+</div>
+
+<div class="img-lightbox" id="imgLightbox" onclick="if(event.target===this)closeImageLightbox()">
+  <button class="img-lightbox-close" onclick="event.stopPropagation();closeImageLightbox()"><i class="fas fa-xmark"></i></button>
+  <img id="imgLightboxImg" src="" alt="Product image"/>
 </div>
 
 <!-- ═══ CHECKOUT ═══ -->
@@ -992,6 +1011,14 @@ function pcard(p,v='grid'){
 }
 
 /* ── Quick-view sheet ─────────────────────────── */
+function openImageLightbox(src){
+  const lightbox=document.getElementById('imgLightbox');
+  const img=document.getElementById('imgLightboxImg');
+  if(!lightbox||!img) return;
+  img.src=src||document.getElementById('shImg').src;
+  lightbox.classList.add('on');
+}
+function closeImageLightbox(){document.getElementById('imgLightbox')?.classList.remove('on');}
 function openSheet(pJson){
   const p=JSON.parse(pJson); shProd=p; shQty=1;
   const n = curLang==='am'&&(p.name_am||'')?p.name_am:p.name;
@@ -1018,7 +1045,8 @@ function openSheet(pJson){
     else cmp.style.display='none';
   }
   document.getElementById('shAge').textContent=p.age_label||'';
-  document.getElementById('shDesc').textContent=sd||fd?.slice(0,200)||'No description.';
+  document.getElementById('shDesc').textContent=sd||fd||'No description.';
+  document.getElementById('shFullDesc').textContent=fd||sd||'No description.';
   // Premium block
   const premBlock=document.getElementById('shPremiumBlock');
   if(isPremium&&isLocked){
@@ -1047,7 +1075,7 @@ function openSheet(pJson){
     (isPremium?'<span class="bpill" style="background:linear-gradient(135deg,#7C3AED,#C084FC);color:#fff">💎 Premium</span>':'');
   document.getElementById('sov').classList.add('on'); hap();
 }
-function closeSheet(){document.getElementById('sov').classList.remove('on');shProd=null;}
+function closeSheet(){closeImageLightbox();document.getElementById('sov').classList.remove('on');shProd=null;}
 function shDelta(d){shQty=Math.max(1,shQty+d);document.getElementById('shQval').textContent=shQty;}
 function shAddCart(){if(!shProd)return;addCart(shProd.id,shProd.name,shProd.price,shProd.primary_image,shQty);closeSheet();}
 
@@ -1135,13 +1163,15 @@ async function loadShop(reset=false){
   if(reset){spg=1;sAll=[];}
   const grid=document.getElementById('shopGrid');
   if(reset)grid.innerHTML='<div class="ldr" style="grid-column:span 2"><div class="spin"></div></div>';
-  let url='/api/v1/products?page='+spg+'&per_page=12';
-  if(scat)url+='&category_id='+scat;
-  if(sq)url+='&q='+encodeURIComponent(sq);
-  if(ssort==='new')url+='&sort=created_at&order=desc';
-  else if(ssort==='asc')url+='&sort=price&order=asc';
-  else if(ssort==='desc')url+='&sort=price&order=desc';
-  else url+='&sort=bestselling&order=desc';
+  const isSearchMode=Boolean(sq && sq.length>=2);
+  let url=isSearchMode?('/api/v1/products/search?q='+encodeURIComponent(sq)+'&limit=24'):'/api/v1/products?page='+spg+'&per_page=12';
+  if(!isSearchMode){
+    if(scat)url+='&category_id='+scat;
+    if(ssort==='new')url+='&sort=created_at&order=desc';
+    else if(ssort==='asc')url+='&sort=price&order=asc';
+    else if(ssort==='desc')url+='&sort=price&order=desc';
+    else url+='&sort=bestselling&order=desc';
+  }
 
   if(reset && sCache.has(url)){
     const cached=sCache.get(url);
@@ -1157,8 +1187,10 @@ async function loadShop(reset=false){
   setShopLoading(true);
   try{
     const d=await(await fetch(url,{signal:sReqCtrl.signal})).json();
-    const ps=d.data?.products||[], tot=d.data?.total||0;
-    sAll=reset?[...ps]:[...sAll,...ps]; sHasMore=sAll.length<tot;
+    const ps=d.data?.products||[];
+    const tot=d.data?.total||0;
+    sAll=reset?[...ps]:[...sAll,...ps];
+    sHasMore=!isSearchMode && sAll.length<tot;
     if(reset)grid.innerHTML=sAll.length?sAll.map(p=>pcard(p)).join('')
       :'<div class="empty" style="grid-column:span 2"><div class="ei">🧸</div><p>No products found</p></div>';
     else {

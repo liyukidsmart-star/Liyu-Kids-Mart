@@ -39,10 +39,10 @@ def _tokenize_search_query(value):
     return [token for token in re.split(r'[^a-z0-9]+', _normalize_search_query(value)) if len(token) >= 2]
 
 
-def _matches_search_query(product, q_str):
+def _search_score(product, q_str):
     normalized_query = _normalize_search_query(q_str)
     if not normalized_query:
-        return True
+        return 0
 
     haystacks = [
         product.name or '',
@@ -53,16 +53,33 @@ def _matches_search_query(product, q_str):
         product.description_am or '',
         (product.category.name if product.category else '') or '',
     ]
-    haystack = ' '.join(haystacks).casefold()
-    if normalized_query in haystack:
-        return True
-
     tokens = _tokenize_search_query(q_str)
     if not tokens:
-        return False
+        return 0
 
-    matches = sum(1 for token in tokens if token in haystack)
-    return matches >= min(2, len(tokens))
+    score = 0
+    for field in haystacks:
+        text = (field or '').casefold()
+        if not text:
+            continue
+        if normalized_query in text:
+            score += 120
+        elif all(token in text for token in tokens):
+            score += 80
+        else:
+            matches = sum(1 for token in tokens if token in text)
+            if matches:
+                score += matches * 20
+
+    if any(token in (product.name or '').casefold() for token in tokens):
+        score += 40
+    if any(token in (product.category.name or '').casefold() for token in tokens) if product.category else False:
+        score += 30
+    return score
+
+
+def _matches_search_query(product, q_str):
+    return _search_score(product, q_str) >= 20
 
 
 def _filter_products(products, category_id=None, featured=None, new_arrival=None, min_price=0, max_price=99999, q_str=''):
@@ -140,7 +157,10 @@ def get_products():
         max_price=max_price,
         q_str=q_str,
     )
-    sorted_products = _sort_products(filtered, sort, order)
+    if q_str:
+        sorted_products = sorted(filtered, key=lambda product: (-_search_score(product, q_str), -(product.sales_count or 0), -(product.view_count or 0), product.id))
+    else:
+        sorted_products = _sort_products(filtered, sort, order)
     total = len(sorted_products)
     pages = max(1, ceil(total / per_page)) if per_page else 1
     start = max(0, (page - 1) * per_page)
@@ -149,7 +169,7 @@ def get_products():
     prime_product_image_lookup(page_items)
 
     return success_response({
-        'products': [p.to_dict() for p in page_items],
+        'products': [p.to_dict(include_description=True) for p in page_items],
         'total': total,
         'pages': pages,
         'page': page,
@@ -169,17 +189,17 @@ def search_products():
         .all()
     )
     results = [product for product in products if _matches_search_query(product, q_str)]
-    results.sort(key=lambda product: (-(product.sales_count or 0), -(product.view_count or 0), product.created_at or datetime.min.replace(tzinfo=timezone.utc)), reverse=False)
+    results.sort(key=lambda product: (-_search_score(product, q_str), -(product.sales_count or 0), -(product.view_count or 0), product.id))
     results = results[:limit]
     prime_product_image_lookup(results)
-    return success_response({'products': [p.to_dict() for p in results]})
+    return success_response({'products': [p.to_dict(include_description=True) for p in results]})
 
 
 @api_bp.route('/products/featured')
 def featured_products():
     products = Product.query.filter_by(is_featured=True, is_active=True).limit(8).all()
     prime_product_image_lookup(products)
-    return success_response({'products': [p.to_dict() for p in products]})
+    return success_response({'products': [p.to_dict(include_description=True) for p in products]})
 
 
 @api_bp.route('/products/trending')
@@ -187,7 +207,7 @@ def trending_products():
     products = Product.query.filter_by(is_active=True).order_by(
         Product.sales_count.desc()).limit(8).all()
     prime_product_image_lookup(products)
-    return success_response({'products': [p.to_dict() for p in products]})
+    return success_response({'products': [p.to_dict(include_description=True) for p in products]})
 
 
 @api_bp.route('/products/<int:product_id>')

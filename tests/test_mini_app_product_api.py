@@ -64,6 +64,27 @@ class MiniAppProductApiTestCase(unittest.TestCase):
         self.assertGreaterEqual(len(payload['data']['products']), 1)
         self.assertEqual(payload['data']['products'][0]['id'], product.id)
 
+    def test_products_endpoint_includes_full_description_for_modal(self):
+        product = Product(
+            name='Wooden Puzzle',
+            slug='wooden-puzzle',
+            price=180,
+            description='A full detailed description for the modal.',
+            short_description='Short summary.',
+            category_id=None,
+            is_active=True,
+        )
+        db.session.add(product)
+        db.session.commit()
+
+        response = self.client.get('/api/v1/products')
+        payload = response.get_json()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(payload['success'], True)
+        self.assertIn('description', payload['data']['products'][0])
+        self.assertEqual(payload['data']['products'][0]['description'], product.description)
+
 
 if __name__ == '__main__':
     unittest.main()
