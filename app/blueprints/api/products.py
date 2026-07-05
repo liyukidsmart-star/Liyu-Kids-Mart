@@ -1,3 +1,4 @@
+import re
 from math import ceil
 from datetime import datetime, timezone
 
@@ -14,16 +15,69 @@ from app.services.image_delivery import rewrite_media_url
 from app.utils import error_response, success_response
 
 
-def _filter_products(products, category_id=None, featured=None, new_arrival=None, min_price=0, max_price=99999):
+def _collect_category_ids(category_id):
+    if not category_id:
+        return set()
+
+    category_ids = {int(category_id)}
+    stack = [int(category_id)]
+    while stack:
+        current_id = stack.pop()
+        child_ids = [row.id for row in Category.query.filter_by(parent_id=current_id, is_active=True).all()]
+        for child_id in child_ids:
+            if child_id not in category_ids:
+                category_ids.add(child_id)
+                stack.append(child_id)
+    return category_ids
+
+
+def _normalize_search_query(value):
+    return re.sub(r'\s+', ' ', (value or '').strip().casefold())
+
+
+def _tokenize_search_query(value):
+    return [token for token in re.split(r'[^a-z0-9]+', _normalize_search_query(value)) if len(token) >= 2]
+
+
+def _matches_search_query(product, q_str):
+    normalized_query = _normalize_search_query(q_str)
+    if not normalized_query:
+        return True
+
+    haystacks = [
+        product.name or '',
+        product.short_description or '',
+        product.description or '',
+        product.name_am or '',
+        product.short_description_am or '',
+        product.description_am or '',
+        (product.category.name if product.category else '') or '',
+    ]
+    haystack = ' '.join(haystacks).casefold()
+    if normalized_query in haystack:
+        return True
+
+    tokens = _tokenize_search_query(q_str)
+    if not tokens:
+        return False
+
+    matches = sum(1 for token in tokens if token in haystack)
+    return matches >= min(2, len(tokens))
+
+
+def _filter_products(products, category_id=None, featured=None, new_arrival=None, min_price=0, max_price=99999, q_str=''):
     filtered = []
+    category_ids = _collect_category_ids(category_id) if category_id else set()
     for product in products:
         if not product.is_active:
             continue
-        if category_id and product.category_id != category_id:
+        if category_ids and product.category_id not in category_ids:
             continue
         if featured is True and not product.is_featured:
             continue
         if new_arrival is True and not product.is_new_arrival:
+            continue
+        if q_str and not _matches_search_query(product, q_str):
             continue
         price = float(product.current_price())
         if price < float(min_price) or price > float(max_price):
@@ -84,17 +138,8 @@ def get_products():
         new_arrival=new_arrival in ('True', 'true', '1'),
         min_price=min_price,
         max_price=max_price,
+        q_str=q_str,
     )
-    if q_str:
-        filtered = [
-            p for p in filtered
-            if q_str in (p.name or '').lower()
-            or q_str in (p.short_description or '').lower()
-            or q_str in (p.description or '').lower()
-            or q_str in (p.name_am or '').lower()
-            or q_str in (p.short_description_am or '').lower()
-            or q_str in (p.description_am or '').lower()
-        ]
     sorted_products = _sort_products(filtered, sort, order)
     total = len(sorted_products)
     pages = max(1, ceil(total / per_page)) if per_page else 1
@@ -117,14 +162,15 @@ def search_products():
     limit = request.args.get('limit', 8, type=int)
     if not q_str:
         return success_response({'products': []})
-    results = Product.query.filter(
-        Product.is_active == True,
-        db.or_(
-            Product.name.ilike(f'%{q_str}%'),
-            Product.short_description.ilike(f'%{q_str}%'),
-            Product.description.ilike(f'%{q_str}%'),
-        )
-    ).order_by(Product.sales_count.desc()).limit(limit).all()
+
+    products = (
+        Product.query.filter_by(is_active=True)
+        .options(selectinload(Product.category))
+        .all()
+    )
+    results = [product for product in products if _matches_search_query(product, q_str)]
+    results.sort(key=lambda product: (-(product.sales_count or 0), -(product.view_count or 0), product.created_at or datetime.min.replace(tzinfo=timezone.utc)), reverse=False)
+    results = results[:limit]
     prime_product_image_lookup(results)
     return success_response({'products': [p.to_dict() for p in results]})
 

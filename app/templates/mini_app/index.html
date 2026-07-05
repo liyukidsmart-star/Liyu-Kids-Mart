@@ -672,7 +672,7 @@ let cart=JSON.parse(localStorage.getItem('lkm_c')||'[]');
 let wish=new Set(JSON.parse(localStorage.getItem('lkm_w')||'[]'));
 let aiSid=localStorage.getItem('lkm_s')||gid(); localStorage.setItem('lkm_s',aiSid);
 let shProd=null, shQty=1;
-let spg=1,scat=0,ssort='popular',sq='',sHasMore=false,sDbt=null,sAll=[],sLoading=false,sObserver=null;
+let spg=1,scat=0,ssort='popular',sq='',sHasMore=false,sDbt=null,sAll=[],sLoading=false,sObserver=null,sReqCtrl=null,sCache=new Map();
 
 function gid(){return Math.random().toString(36).slice(2)+Date.now().toString(36);}
 
@@ -1131,7 +1131,7 @@ function setupShopObserver(){
 }
 
 async function loadShop(reset=false){
-  if(sLoading) return;
+  if(sLoading && !reset) return;
   if(reset){spg=1;sAll=[];}
   const grid=document.getElementById('shopGrid');
   if(reset)grid.innerHTML='<div class="ldr" style="grid-column:span 2"><div class="spin"></div></div>';
@@ -1142,22 +1142,35 @@ async function loadShop(reset=false){
   else if(ssort==='asc')url+='&sort=price&order=asc';
   else if(ssort==='desc')url+='&sort=price&order=desc';
   else url+='&sort=bestselling&order=desc';
+
+  if(reset && sCache.has(url)){
+    const cached=sCache.get(url);
+    sAll=[...cached.products]; sHasMore=cached.hasMore;
+    grid.innerHTML=sAll.length?sAll.map(p=>pcard(p)).join(''):'<div class="empty" style="grid-column:span 2"><div class="ei">🧸</div><p>No products found</p></div>';
+    document.getElementById('lmbtn').style.display=sHasMore?'block':'none';
+    setupShopObserver();
+    return;
+  }
+
+  if(sReqCtrl) sReqCtrl.abort();
+  sReqCtrl=new AbortController();
   setShopLoading(true);
   try{
-    const d=await(await fetch(url)).json();
+    const d=await(await fetch(url,{signal:sReqCtrl.signal})).json();
     const ps=d.data?.products||[], tot=d.data?.total||0;
-    sAll=[...sAll,...ps]; sHasMore=sAll.length<tot;
+    sAll=reset?[...ps]:[...sAll,...ps]; sHasMore=sAll.length<tot;
     if(reset)grid.innerHTML=sAll.length?sAll.map(p=>pcard(p)).join('')
-      :'<div class="empty" style="grid-column:span 2"><div class="ei">??</div><p>No products found</p></div>';
+      :'<div class="empty" style="grid-column:span 2"><div class="ei">🧸</div><p>No products found</p></div>';
     else {
       const before=grid.children.length;
       ps.forEach(p=>grid.insertAdjacentHTML('beforeend',pcard(p)));
       animateShopCards(Array.from(grid.children).slice(before));
     }
+    if(reset) sCache.set(url,{products:sAll,hasMore:sHasMore});
     document.getElementById('lmbtn').style.display=sHasMore?'block':'none';
     setupShopObserver();
-  }catch{if(reset)grid.innerHTML='<div class="empty" style="grid-column:span 2"><p>Failed to load</p></div>';}
-  finally{setShopLoading(false);}
+  }catch(err){if(err?.name==='AbortError') return; if(reset)grid.innerHTML='<div class="empty" style="grid-column:span 2"><p>Failed to load</p></div>';}
+  finally{if(sReqCtrl && !sReqCtrl.signal.aborted) sReqCtrl=null; setShopLoading(false);}
 }
 function loadMore(){if(!sLoading&&sHasMore){spg++;loadShop(false);}}
 function shopCat(id,btn){
@@ -1172,9 +1185,9 @@ function shopSort(s,btn){
   loadShop(true);
 }
 function shopSearch(val){
-  sq=val;
-  document.getElementById('sclr').classList.toggle('on',val.length>0);
-  clearTimeout(sDbt);sDbt=setTimeout(()=>loadShop(true),320);
+  sq=val.trim();
+  document.getElementById('sclr').classList.toggle('on',sq.length>0);
+  clearTimeout(sDbt);sDbt=setTimeout(()=>loadShop(true),220);
 }
 function shopClear(){
   document.getElementById('shopSrch').value='';sq='';
