@@ -12,6 +12,7 @@ from app.blueprints.admin import admin_bp
 from app.extensions import db
 from app.models.product import Product, Category, ProductImage, prime_product_image_lookup
 from app.models.order import Order, OrderStatus, Coupon, DiscountType
+from app.models.loyalty import LoyaltySettings
 from app.models.marketing import ProductDiscount, TelegramChannelPost, TelegramChannelPostImage
 from app.services.telegram_marketing import publish_channel_post, _telegram_mini_app_link, channel_button_link_mode
 from app.services.image_delivery import media_url_for_file_id
@@ -379,7 +380,20 @@ def hard_delete_product(product_id):
 @admin_bp.route('/categories', methods=['GET', 'POST'])
 @admin_required
 def categories():
+    settings = LoyaltySettings.query.first()
+    if not settings:
+        settings = LoyaltySettings()
+        db.session.add(settings)
+        db.session.flush()
+
     if request.method == 'POST':
+        if request.form.get('save_mini_app_visibility') == '1':
+            settings.show_categories_in_mini_app = 'show_categories_in_mini_app' in request.form
+            settings.show_age_filter_in_mini_app = 'show_age_filter_in_mini_app' in request.form
+            db.session.commit()
+            flash('Mini app visibility updated!', 'success')
+            return redirect(url_for('admin.categories'))
+
         name = request.form.get('name', '').strip()
         if name:
             slug = slugify(name)
@@ -395,7 +409,7 @@ def categories():
             flash(f'Category "{name}" created!', 'success')
         return redirect(url_for('admin.categories'))
     cats = Category.query.order_by(Category.sort_order, Category.name).all()
-    return render_template('admin/categories.html', categories=cats)
+    return render_template('admin/categories.html', categories=cats, settings=settings)
 
 
 # ── ORDERS ──

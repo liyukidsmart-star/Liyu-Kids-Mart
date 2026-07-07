@@ -350,6 +350,9 @@ class LoyaltySettings(db.Model):
     launch_date = db.Column(db.DateTime, nullable=True)
     # Whether loyalty system is enabled
     is_enabled = db.Column(db.Boolean, default=True, nullable=False)
+    # Mini-app visibility controls for category and age-range navigation
+    show_categories_in_mini_app = db.Column(db.Boolean, default=True, nullable=False)
+    show_age_filter_in_mini_app = db.Column(db.Boolean, default=True, nullable=False)
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc),
                            onupdate=lambda: datetime.now(timezone.utc))
 
@@ -366,4 +369,6 @@ class LoyaltySettings(db.Model):
             'min_redemption_points': self.min_redemption_points,
             'launch_date': self.launch_date.isoformat() if self.launch_date else None,
             'is_enabled': self.is_enabled,
+            'show_categories_in_mini_app': self.show_categories_in_mini_app,
+            'show_age_filter_in_mini_app': self.show_age_filter_in_mini_app,
         }

@@ -478,7 +478,7 @@ ul{list-style:none}
       <h1 data-i18n="h_find">Find the Perfect Toy</h1>
       <p data-i18n="h_sub">Ethiopia\'s premier educational toy store</p>
     </div>
-    <div class="afilter">
+    <div class="afilter" id="ageFilterSection">
       <div class="afil-lbl" data-i18n="h_age">Shop by Age</div>
       <div class="achips">
         <button class="achip" data-mn="0" data-mx="11" onclick="ageFilter(this)" data-i18n="a_u1">Under 1yr</button>
@@ -488,8 +488,10 @@ ul{list-style:none}
         <button class="achip on" data-mn="-1" onclick="ageFilter(this,true)" data-i18n="a_all">All Ages</button>
       </div>
     </div>
-    <div class="shdr"><h2 data-i18n="c_cats">🗂 Categories</h2><a onclick="showTab(\'tab-shop\')" data-i18n="see_all">See all</a></div>
-    <div class="cgrid" id="homeCats"><div class="ldr" style="grid-column:span 4"><div class="spin"></div></div></div>
+    <div id="homeCatsSection">
+      <div class="shdr"><h2 data-i18n="c_cats">🗂 Categories</h2><a onclick="showTab(\'tab-shop\')" data-i18n="see_all">See all</a></div>
+      <div class="cgrid" id="homeCats"><div class="ldr" style="grid-column:span 4"><div class="spin"></div></div></div>
+    </div>
     <div class="shdr"><h2 data-i18n="c_feat">⭐ Featured</h2><a onclick="showTab(\'tab-shop\')" data-i18n="see_all">See all</a></div>
     <div class="hrow" id="featRow"><div class="ldr"><div class="spin"></div></div></div>
     <div class="shdr"><h2 data-i18n="c_new">✨ New Arrivals</h2><a onclick="showTab(\'tab-shop\')" data-i18n="see_all">See all</a></div>
@@ -692,6 +694,7 @@ let wish=new Set(JSON.parse(localStorage.getItem('lkm_w')||'[]'));
 let aiSid=localStorage.getItem('lkm_s')||gid(); localStorage.setItem('lkm_s',aiSid);
 let shProd=null, shQty=1;
 let spg=1,scat=0,ssort='popular',sq='',sHasMore=false,sDbt=null,sAll=[],sLoading=false,sObserver=null,sReqCtrl=null,sCache=new Map();
+let miniAppVisibility={show_categories_in_mini_app:true,show_age_filter_in_mini_app:true};
 
 function gid(){return Math.random().toString(36).slice(2)+Date.now().toString(36);}
 
@@ -773,6 +776,19 @@ function applyLaunchState(state){
     celebrateLaunch();
     refreshLaunchSensitiveUI();
   }
+}
+
+function applyMiniAppVisibility(state){
+  miniAppVisibility = {
+    show_categories_in_mini_app: state?.show_categories_in_mini_app !== false,
+    show_age_filter_in_mini_app: state?.show_age_filter_in_mini_app !== false,
+  };
+  const ageSection=document.getElementById('ageFilterSection');
+  if(ageSection) ageSection.style.display = miniAppVisibility.show_age_filter_in_mini_app ? '' : 'none';
+  const homeCatsSection=document.getElementById('homeCatsSection');
+  if(homeCatsSection) homeCatsSection.style.display = miniAppVisibility.show_categories_in_mini_app ? '' : 'none';
+  const shopCats=document.getElementById('shopCats');
+  if(shopCats) shopCats.style.display = miniAppVisibility.show_categories_in_mini_app ? '' : 'none';
 }
 
 if(launchTicker) clearInterval(launchTicker);

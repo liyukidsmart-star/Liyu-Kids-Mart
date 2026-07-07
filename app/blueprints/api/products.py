@@ -8,6 +8,7 @@ from sqlalchemy.orm import selectinload
 from app.blueprints.api import api_bp
 from app.extensions import db
 from app.models.product import Category, Product, ProductImage, prime_product_image_lookup
+from app.models.loyalty import LoyaltySettings
 from app.models import marketing as _marketing  # noqa: F401 - ensure price helpers are attached
 from app.models.marketing import TelegramChannelPost, TelegramChannelPostImage
 from app.data.product_images_backfill import PRODUCT_IMAGE_CATALOG
@@ -291,5 +292,8 @@ def repair_product_images():
 
 @api_bp.route('/categories')
 def get_categories():
+    settings = LoyaltySettings.query.first()
+    if settings and not settings.show_categories_in_mini_app:
+        return success_response([])
     cats = Category.query.filter_by(is_active=True, parent_id=None).order_by(Category.sort_order).all()
     return success_response([c.to_dict() for c in cats])

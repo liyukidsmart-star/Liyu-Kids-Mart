@@ -16,6 +16,22 @@
         <button type="submit" class="btn admin-btn-green w-100">Add Category</button>
       </form>
     </div>
+
+    <div class="admin-card mt-4">
+      <div class="admin-card-header"><h5>Mini App Visibility</h5></div>
+      <form method="POST" class="p-3">
+        <input type="hidden" name="save_mini_app_visibility" value="1"/>
+        <div class="form-check form-switch mb-3">
+          <input class="form-check-input" type="checkbox" id="showCategories" name="show_categories_in_mini_app" value="1" {% if settings.show_categories_in_mini_app %}checked{% endif %}>
+          <label class="form-check-label fw-600" for="showCategories">Show categories in mini app home/store</label>
+        </div>
+        <div class="form-check form-switch mb-3">
+          <input class="form-check-input" type="checkbox" id="showAgeFilter" name="show_age_filter_in_mini_app" value="1" {% if settings.show_age_filter_in_mini_app %}checked{% endif %}>
+          <label class="form-check-label fw-600" for="showAgeFilter">Show age range filter in mini app home</label>
+        </div>
+        <button type="submit" class="btn admin-btn-green w-100">Save Visibility</button>
+      </form>
+    </div>
   </div>
   <div class="col-lg-8">
     <div class="admin-card">

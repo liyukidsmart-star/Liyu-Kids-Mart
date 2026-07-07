@@ -79,10 +79,13 @@ def is_store_launch_locked(now=None):
 
 
 def get_store_launch_state() -> dict:
+    settings = _get_settings()
     launch_date = get_store_launch_date()
     return {
         'launch_date': launch_date.isoformat() if launch_date else None,
         'launch_locked': bool(launch_date and datetime.now(timezone.utc) < launch_date),
+        'show_categories_in_mini_app': getattr(settings, 'show_categories_in_mini_app', True),
+        'show_age_filter_in_mini_app': getattr(settings, 'show_age_filter_in_mini_app', True),
     }
 
 
