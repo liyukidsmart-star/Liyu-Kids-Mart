@@ -197,7 +197,7 @@ def products():
         query = query.filter(Product.name.ilike(f'%{q}%'))
     page = request.args.get('page', 1, type=int)
     pagination = query.order_by(Product.created_at.desc()).paginate(page=page, per_page=15)
-    return render_template('admin/products.html', pagination=pagination, q=q)
+    return render_template('admin/products.html', products=pagination.items, pagination=pagination, q=q)
 
 @admin_bp.route('/api/upload-url', methods=['POST'])
 @admin_required
