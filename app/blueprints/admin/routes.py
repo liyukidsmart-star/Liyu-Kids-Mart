@@ -188,7 +188,6 @@ def dashboard():
                            recent_orders=recent_orders, low_stock=low_stock)
 
 
-# ── PRODUCTS ──
 @admin_bp.route('/products')
 @admin_required
 def products():
@@ -196,11 +195,49 @@ def products():
     query = Product.query
     if q:
         query = query.filter(Product.name.ilike(f'%{q}%'))
-    pagination = query.order_by(Product.created_at.desc()).paginate(
-        page=request.args.get('page', 1, int), per_page=20, error_out=False)
-    prime_product_image_lookup(pagination.items)
-    return render_template('admin/products.html', products=pagination.items,
-                           pagination=pagination, q=q)
+    page = request.args.get('page', 1, type=int)
+    pagination = query.order_by(Product.created_at.desc()).paginate(page=page, per_page=15)
+    return render_template('admin/products.html', pagination=pagination, q=q)
+
+@admin_bp.route('/api/upload-url', methods=['POST'])
+@admin_required
+def get_upload_url():
+    """Generates a Supabase signed URL for direct client-side uploads to bypass Vercel limits."""
+    import time, os, binascii
+    filename = request.json.get('filename') if request.json else None
+    if not filename:
+        return jsonify({'error': 'Filename required'}), 400
+        
+    ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else 'bin'
+    safe_name = f'custom_{int(time.time())}_{binascii.hexlify(os.urandom(4)).decode()}.{ext}'
+    
+    supabase_url = os.environ.get('SUPABASE_URL')
+    supabase_key = (
+        os.environ.get('SUPABASE_SERVICE_ROLE_KEY') or
+        os.environ.get('SUPABASE_KEY') or
+        os.environ.get('SUPABASE_ANON_KEY')
+    )
+    if not supabase_url or not supabase_key:
+        return jsonify({'error': 'Supabase not configured'}), 500
+        
+    try:
+        from supabase import create_client, Client
+        supabase: Client = create_client(supabase_url, supabase_key)
+        res = supabase.storage.from_('uploads').create_signed_upload_url(safe_name)
+        public_url = supabase.storage.from_('uploads').get_public_url(safe_name)
+        
+        signed_url = res.get('signedURL') or res.get('signedUrl') or res.get('url')
+        if not signed_url:
+            signed_url = res.get('signedURL')
+            
+        return jsonify({
+            'signed_url': signed_url,
+            'public_url': public_url,
+            'path': safe_name
+        })
+    except Exception as e:
+        current_app.logger.error(f'Supabase signed URL error: {e}')
+        return jsonify({'error': str(e)}), 500
 
 
 @admin_bp.route('/products/create', methods=['GET', 'POST'])
@@ -737,15 +774,21 @@ def channel_posts():
                     return render_template('admin/channel_posts.html', products=products, recent_posts=recent_posts, processed=processed, configured_tz=ADMIN_TZ)
                 post.product_id = product.id
                 post.title = title or product.name
-                
+                custom_photo_url = request.form.get('custom_photo_url', '').strip()
+                custom_video_url = request.form.get('custom_video_url', '').strip()
+
                 custom_photo = request.files.get('custom_photo')
                 custom_video = request.files.get('custom_video')
                 
-                if custom_photo and custom_photo.filename and allowed_file(custom_photo.filename):
+                if custom_photo_url:
+                    image_urls.append(custom_photo_url)
+                elif custom_photo and custom_photo.filename and allowed_file(custom_photo.filename):
                     img_url = _upload_to_telegram(custom_photo)
                     if img_url: image_urls.append(img_url)
                 
-                if custom_video and custom_video.filename:
+                if custom_video_url:
+                    image_urls.append(custom_video_url)
+                elif custom_video and custom_video.filename:
                     vid_url = _upload_video_to_telegram(custom_video)
                     if vid_url: image_urls.append(vid_url)
                 
