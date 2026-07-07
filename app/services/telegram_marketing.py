@@ -221,10 +221,11 @@ def _product_reply_markup(product) -> dict:
     product_id = getattr(product, 'id', None)
     product_name = getattr(product, 'name_am', None) or getattr(product, 'name', '') or ''
     query = product_name or (f'product:{product_id}' if product_id else '')
+    shop_tab_startapp = f'product__{product_id}' if product_id else ''
     return {
         'inline_keyboard': [[
             _channel_button(f'💬 {ASK_LIYU_LABEL}', tab='ai', query=query),
-            _channel_button(f'🛒 {BUY_NOW_LABEL}', tab='shop'),
+            _channel_button(f'🛒 {BUY_NOW_LABEL}', tab='shop', startapp=shop_tab_startapp),
         ]]
     }
 
@@ -323,6 +324,40 @@ def _send_photo(client: httpx.AsyncClient, chat_id, photo_url: str, caption: str
     )
 
 
+def _send_video(client: httpx.AsyncClient, chat_id, video_url: str, caption: str, reply_markup: dict):
+    if video_url.startswith('/static/'):
+        local_path = os.path.join(current_app.root_path, video_url.lstrip('/'))
+        if os.path.exists(local_path):
+            with open(local_path, 'rb') as f:
+                file_bytes = f.read()
+            filename = os.path.basename(local_path)
+            data_payload = {
+                'chat_id': chat_id,
+                'caption': _truncate(caption, 1024),
+                'parse_mode': 'HTML',
+            }
+            if reply_markup:
+                data_payload['reply_markup'] = json.dumps(reply_markup)
+            return client.post(
+                f"https://api.telegram.org/bot{_token()}/sendVideo",
+                data=data_payload,
+                files={'video': (filename, file_bytes)},
+                timeout=60,
+            )
+
+    return client.post(
+        f"https://api.telegram.org/bot{_token()}/sendVideo",
+        json={
+            'chat_id': chat_id,
+            'video': _telegram_image_input(video_url),
+            'caption': _truncate(caption, 1024),
+            'parse_mode': 'HTML',
+            'reply_markup': reply_markup,
+        },
+        timeout=60,
+    )
+
+
 def _looks_like_media_fetch_error(data: dict) -> bool:
     description = (data.get('description') or '').lower()
     return (
@@ -396,7 +431,11 @@ async def publish_channel_post(post, *, images: Optional[Iterable[str]] = None, 
                 return resp.json()
 
             if len(image_urls) == 1:
-                resp = await _send_photo(client, channel_id, image_urls[0], caption, reply_markup)
+                is_video = any(image_urls[0].lower().endswith(ext) for ext in ['.mp4', '.mov', '.avi'])
+                if is_video:
+                    resp = await _send_video(client, channel_id, image_urls[0], caption, reply_markup)
+                else:
+                    resp = await _send_photo(client, channel_id, image_urls[0], caption, reply_markup)
                 data = resp.json()
                 if data.get('ok') or not _looks_like_media_fetch_error(data):
                     return data
@@ -405,8 +444,9 @@ async def publish_channel_post(post, *, images: Optional[Iterable[str]] = None, 
             media = []
             files = {}
             for idx, url in enumerate(image_urls[:10]):
+                is_video = any(url.lower().endswith(ext) for ext in ['.mp4', '.mov', '.avi'])
                 item = {
-                    'type': 'photo',
+                    'type': 'video' if is_video else 'photo',
                 }
                 
                 if url.startswith('/static/'):
@@ -415,7 +455,7 @@ async def publish_channel_post(post, *, images: Optional[Iterable[str]] = None, 
                         with open(local_path, 'rb') as f:
                             file_bytes = f.read()
                         filename = os.path.basename(local_path)
-                        attach_name = f"photo{idx}"
+                        attach_name = f"media{idx}"
                         item['media'] = f"attach://{attach_name}"
                         files[attach_name] = (filename, file_bytes)
                     else:

@@ -74,6 +74,44 @@ def _upload_to_telegram(file_obj):
         return _upload_file_to_supabase(file_obj)
 
 
+def _upload_video_to_telegram(file_obj):
+    """Upload a video to Telegram via sendVideo to a dedicated media channel."""
+    import httpx
+    token = os.environ.get('TELEGRAM_BOT_TOKEN', '').strip()
+    chat_id = os.environ.get('TELEGRAM_MEDIA_CHAT_ID', '').strip()
+
+    if not token or not chat_id:
+        current_app.logger.warning('TELEGRAM_MEDIA_CHAT_ID is not set for video upload')
+        return None
+
+    try:
+        file_content = file_obj.read()
+        file_obj.seek(0)
+        content_type = getattr(file_obj, 'content_type', 'video/mp4') or 'video/mp4'
+        orig_name = getattr(file_obj, 'filename', 'video.mp4') or 'video.mp4'
+        ext = orig_name.rsplit('.', 1)[-1].lower() if '.' in orig_name else 'mp4'
+        safe_name = f'product.{ext}'
+
+        resp = httpx.post(
+            f'https://api.telegram.org/bot{token}/sendVideo',
+            data={'chat_id': chat_id, 'disable_notification': 'true'},
+            files={'video': (safe_name, file_content, content_type)},
+            timeout=60,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        if not data.get('ok'):
+            raise ValueError(f"Telegram API error: {data.get('description')}")
+
+        video_info = data['result']['video']
+        file_id = video_info['file_id']
+        return media_url_for_file_id(file_id)
+
+    except Exception as e:
+        current_app.logger.error(f'Telegram video upload failed: {e}')
+        return None
+
+
 def _upload_file_to_supabase(file_obj, filename=None):
     """Fallback: upload to Supabase Storage and return public URL."""
     supabase_url = os.environ.get('SUPABASE_URL')
@@ -501,7 +539,10 @@ def _configured_mini_app_url():
 
 
 
-def _configured_telegram_mini_app_link(*, tab: str = 'home', query: str = '', startapp: str = ''):
+def _configured_telegram_mini_app_link(*, tab: str = 'home', query: str = '', startapp: str = '', product_id=None):
+    if product_id:
+        startapp = f'product__{product_id}'
+        tab = 'shop'
     return _telegram_mini_app_link(tab=tab, query=query, startapp=startapp)
 
 def _configured_channel_id():
@@ -696,11 +737,23 @@ def channel_posts():
                     return render_template('admin/channel_posts.html', products=products, recent_posts=recent_posts, processed=processed, configured_tz=ADMIN_TZ)
                 post.product_id = product.id
                 post.title = title or product.name
-                image_mode = request.form.get('product_image_mode', 'primary')
-                if image_mode == 'gallery':
-                    image_urls = product.all_images()
-                else:
+                
+                custom_photo = request.files.get('custom_photo')
+                custom_video = request.files.get('custom_video')
+                
+                if custom_photo and custom_photo.filename and allowed_file(custom_photo.filename):
+                    img_url = _upload_to_telegram(custom_photo)
+                    if img_url: image_urls.append(img_url)
+                
+                if custom_video and custom_video.filename:
+                    vid_url = _upload_video_to_telegram(custom_video)
+                    if vid_url: image_urls.append(vid_url)
+                
+                if not image_urls:
                     image_urls = [product.primary_image()]
+                
+                post.button_url = _configured_telegram_mini_app_link(product_id=product.id)
+                
                 if not caption:
                     post.caption = ''
             else:

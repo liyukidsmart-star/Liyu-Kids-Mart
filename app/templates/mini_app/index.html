@@ -839,7 +839,7 @@ function showTab(id){
 function _resolveStartTab(raw){
   const value=(raw||'').trim().toLowerCase();
   if(!value)return '';
-  const map={home:'tab-home',shop:'tab-shop',store:'tab-shop',cart:'tab-cart',orders:'tab-me',ai:'tab-ai',liyu:'tab-ai',rewards:'tab-me',loyalty:'tab-me',me:'tab-me'};
+  const map={home:'tab-home',shop:'tab-shop',store:'tab-shop',cart:'tab-cart',orders:'tab-me',ai:'tab-ai',liyu:'tab-ai',rewards:'tab-me',loyalty:'tab-me',me:'tab-me',product:'tab-shop'};
   if(map[value])return map[value];
   if(value.startsWith('tab-'))return value;
   if(value.startsWith('tab:')){
@@ -868,6 +868,15 @@ async function openStartParamTarget(){
     if(target==='tab-ai' && query){
       const inp=document.getElementById('aiInp');
       if(inp) inp.focus();
+    }
+    if(target==='tab-shop' && raw==='product' && query){
+      fetch('/api/v1/products/'+query)
+        .then(r=>r.json())
+        .then(d=>{
+          if(d.success && d.data) {
+            openSheet(JSON.stringify(d.data));
+          }
+        }).catch(()=>{});
     }
   }
 }

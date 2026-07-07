@@ -50,33 +50,36 @@
   <div class="col-lg-6">
     <div class="admin-card h-100">
       <div class="admin-card-header"><h5>Product Post</h5></div>
-      <form method="POST" class="p-3">
+      <form method="POST" enctype="multipart/form-data" class="p-3">
         <input type="hidden" name="post_type" value="product"/>
         <div class="mb-3">
           <label class="form-label fw-600">Product *</label>
-          <select name="product_id" class="form-select" required>
+          <select name="product_id" id="product_selector" class="form-select" required>
             <option value="">Select a product</option>
             {% for product in products %}
-            <option value="{{ product.id }}">{{ product.name }} - ETB {{ '{:,.0f}'.format(product.current_price()) }}</option>
+            <option value="{{ product.id }}" data-desc="{{ (product.description_am or product.short_description_am or product.description or product.short_description or '') | forceescape }}">{{ product.name }} - ETB {{ '{:,.0f}'.format(product.current_price()) }}</option>
             {% endfor %}
           </select>
         </div>
         <div class="mb-3">
-          <label class="form-label fw-600">Image Mode</label>
-          <div class="d-flex flex-wrap gap-2">
-            <label class="form-check form-check-inline">
-              <input class="form-check-input" type="radio" name="product_image_mode" value="primary" checked/>
-              <span class="form-check-label">Primary image only</span>
-            </label>
-            <label class="form-check form-check-inline">
-              <input class="form-check-input" type="radio" name="product_image_mode" value="gallery"/>
-              <span class="form-check-label">Send gallery</span>
-            </label>
+          <label class="form-label fw-600">Custom Caption</label>
+          <textarea name="caption" id="product_caption" class="form-control" rows="5" placeholder="Optional extra note below the product caption." maxlength="1024"></textarea>
+          <div class="d-flex justify-content-between form-text">
+            <span>Edit this to fit Telegram's limit if you upload media.</span>
+            <span id="caption_counter">0 / 1024</span>
           </div>
         </div>
-        <div class="mb-3">
-          <label class="form-label fw-600">Custom Caption</label>
-          <textarea name="caption" class="form-control" rows="5" placeholder="Optional extra note below the product caption."></textarea>
+        <div class="row g-2 mb-3">
+          <div class="col-md-6">
+            <label class="form-label fw-600">Upload Photo</label>
+            <input type="file" name="custom_photo" class="form-control" accept="image/*"/>
+            <div class="form-text">Optional. Overrides default.</div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-600">Upload Video</label>
+            <input type="file" name="custom_video" class="form-control" accept="video/mp4,video/quicktime"/>
+            <div class="form-text">Optional. Sent as media group.</div>
+          </div>
         </div>
         <div class="mb-3">
           <label class="form-label fw-600">Schedule For</label>
@@ -84,14 +87,39 @@
           <div class="form-text">Leave blank to publish immediately.</div>
         </div>
         <div class="alert alert-info small">
-          The product caption will auto-fill from the product details, price, and any active discount.
-          Product posts automatically use the two-button layout: <strong>ልዩን ይጠይቁ</strong> and <strong>አሁን ይግዙ</strong>.
+          The post will include your uploaded photo/video + the two buttons: <strong>ልዩን ይጠይቁ</strong> and <strong>አሁን ይግዙ</strong> (links directly to this product).
         </div>
         <button type="submit" class="btn admin-btn-green w-100">Publish Product Post</button>
       </form>
     </div>
   </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const sel = document.getElementById('product_selector');
+    const cap = document.getElementById('product_caption');
+    const counter = document.getElementById('caption_counter');
+
+    function updateCounter() {
+        const len = cap.value.length;
+        counter.textContent = len + ' / 1024';
+        if (len > 1024) counter.style.color = 'red';
+        else counter.style.color = '';
+    }
+
+    if (sel && cap) {
+        sel.addEventListener('change', function() {
+            const opt = sel.options[sel.selectedIndex];
+            if (opt && opt.value) {
+                cap.value = opt.getAttribute('data-desc') || '';
+                updateCounter();
+            }
+        });
+        cap.addEventListener('input', updateCounter);
+    }
+});
+</script>
 
 <div class="admin-card mt-4">
   <div class="admin-card-header">
