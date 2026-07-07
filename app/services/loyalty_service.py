@@ -1,4 +1,4 @@
-﻿"""
+"""
 loyalty_service.py — Central business logic for the Loyalty & Rewards Ecosystem.
 
 All business rules are fetched from the database (admin-configurable).
@@ -48,7 +48,9 @@ def _get_settings():
     try:
         inspector = inspect(db.engine)
         columns = {column['name'] for column in inspector.get_columns(LoyaltySettings.__tablename__)}
-    except Exception:
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
         return _default_settings()
 
     if not columns:
@@ -56,6 +58,7 @@ def _get_settings():
 
     required_columns = {'show_categories_in_mini_app', 'show_age_filter_in_mini_app'}
     if required_columns - columns:
+        print("Missing columns in DB:", required_columns - columns, "Total columns:", columns)
         return _default_settings()
 
     settings = LoyaltySettings.query.first()

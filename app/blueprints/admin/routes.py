@@ -385,13 +385,19 @@ def categories():
 
     if request.method == 'POST':
         if request.form.get('save_mini_app_visibility') == '1':
-            if isinstance(settings, LoyaltySettings):
-                settings.show_categories_in_mini_app = 'show_categories_in_mini_app' in request.form
-                settings.show_age_filter_in_mini_app = 'show_age_filter_in_mini_app' in request.form
+            try:
+                db_settings = LoyaltySettings.query.first()
+                if not db_settings:
+                    db_settings = LoyaltySettings()
+                    db.session.add(db_settings)
+                
+                db_settings.show_categories_in_mini_app = 'show_categories_in_mini_app' in request.form
+                db_settings.show_age_filter_in_mini_app = 'show_age_filter_in_mini_app' in request.form
                 db.session.commit()
                 flash('Mini app visibility updated!', 'success')
-            else:
-                flash('The visibility toggle is enabled, but the database schema is missing the required columns. Please run migrations first.', 'warning')
+            except Exception as e:
+                db.session.rollback()
+                flash(f'Database error: {e}. The visibility toggle is enabled, but the database schema might be missing the required columns. Please run migrations first.', 'warning')
             return redirect(url_for('admin.categories'))
 
         name = request.form.get('name', '').strip()
