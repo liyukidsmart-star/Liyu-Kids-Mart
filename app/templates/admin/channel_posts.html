@@ -57,7 +57,7 @@
           <select name="product_id" id="product_selector" class="form-select" required>
             <option value="">Select a product</option>
             {% for product in products %}
-            <option value="{{ product.id }}" data-desc="{{ (product.description_am or product.short_description_am or product.description or product.short_description or '') | forceescape }}">{{ product.name }} - ETB {{ '{:,.0f}'.format(product.current_price()) }}</option>
+            <option value="{{ product.id }}">{{ product.name }} - ETB {{ '{:,.0f}'.format(product.current_price()) }}</option>
             {% endfor %}
           </select>
         </div>
@@ -109,10 +109,27 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     if (sel && cap) {
-        sel.addEventListener('change', function() {
+        sel.addEventListener('change', async function() {
             const opt = sel.options[sel.selectedIndex];
             if (opt && opt.value) {
-                cap.value = opt.getAttribute('data-desc') || '';
+                cap.value = 'Loading description...';
+                updateCounter();
+                try {
+                    const res = await fetch('/api/v1/products/' + opt.value);
+                    const data = await res.json();
+                    if (data.success && data.data) {
+                        const p = data.data;
+                        cap.value = p.description_am || p.short_description_am || p.description || p.short_description || '';
+                    } else {
+                        cap.value = '';
+                    }
+                } catch (err) {
+                    console.error('Failed to load product description:', err);
+                    cap.value = '';
+                }
+                updateCounter();
+            } else {
+                cap.value = '';
                 updateCounter();
             }
         });
