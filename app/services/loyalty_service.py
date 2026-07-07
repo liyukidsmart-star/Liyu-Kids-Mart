@@ -8,7 +8,10 @@ import json
 import secrets
 import string
 from datetime import datetime, timezone
+from types import SimpleNamespace
 from typing import Optional
+
+from sqlalchemy import inspect
 
 from app.extensions import db
 from app.models.loyalty import (
@@ -22,8 +25,39 @@ from app.models.loyalty import (
 # Helpers
 # ─────────────────────────────────────────────────────────────
 
-def _get_settings() -> LoyaltySettings:
-    """Fetch (or create default) global loyalty settings row."""
+def _default_settings() -> SimpleNamespace:
+    return SimpleNamespace(
+        points_per_100_birr=1,
+        bonus_review_points=50,
+        bonus_referral_points=100,
+        bonus_daily_visit_points=5,
+        bonus_large_order_threshold=5000,
+        bonus_large_order_points=200,
+        points_expiry_days=365,
+        point_value_birr=0.10,
+        min_redemption_points=500,
+        launch_date=None,
+        is_enabled=True,
+        show_categories_in_mini_app=True,
+        show_age_filter_in_mini_app=True,
+    )
+
+
+def _get_settings():
+    """Fetch global loyalty settings safely, even if newer columns are missing in the database."""
+    try:
+        inspector = inspect(db.engine)
+        columns = {column['name'] for column in inspector.get_columns(LoyaltySettings.__tablename__)}
+    except Exception:
+        return _default_settings()
+
+    if not columns:
+        return _default_settings()
+
+    required_columns = {'show_categories_in_mini_app', 'show_age_filter_in_mini_app'}
+    if required_columns - columns:
+        return _default_settings()
+
     settings = LoyaltySettings.query.first()
     if not settings:
         settings = LoyaltySettings()
