@@ -16,9 +16,15 @@ depends_on = None
 
 
 def upgrade():
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    columns = {col['name'] for col in inspector.get_columns('loyalty_settings')}
+    
     with op.batch_alter_table('loyalty_settings', schema=None) as batch_op:
-        batch_op.add_column(sa.Column('show_categories_in_mini_app', sa.Boolean(), nullable=False, server_default=sa.true()))
-        batch_op.add_column(sa.Column('show_age_filter_in_mini_app', sa.Boolean(), nullable=False, server_default=sa.true()))
+        if 'show_categories_in_mini_app' not in columns:
+            batch_op.add_column(sa.Column('show_categories_in_mini_app', sa.Boolean(), nullable=False, server_default=sa.true()))
+        if 'show_age_filter_in_mini_app' not in columns:
+            batch_op.add_column(sa.Column('show_age_filter_in_mini_app', sa.Boolean(), nullable=False, server_default=sa.true()))
 
 
 def downgrade():

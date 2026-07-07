@@ -17,8 +17,17 @@ depends_on = None
 
 
 def upgrade():
-    with op.batch_alter_table('loyalty_settings', schema=None) as batch_op:
-        batch_op.add_column(sa.Column('launch_date', sa.DateTime(), nullable=True))
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    has_column = False
+    for col in inspector.get_columns('loyalty_settings'):
+        if col['name'] == 'launch_date':
+            has_column = True
+            break
+            
+    if not has_column:
+        with op.batch_alter_table('loyalty_settings', schema=None) as batch_op:
+            batch_op.add_column(sa.Column('launch_date', sa.DateTime(), nullable=True))
 
 
 def downgrade():
