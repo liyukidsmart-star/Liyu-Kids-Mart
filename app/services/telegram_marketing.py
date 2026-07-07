@@ -496,7 +496,7 @@ async def publish_channel_post(post, *, images: Optional[Iterable[str]] = None, 
                 except Exception:
                     pass
 
-            followup_text = _truncate(caption or getattr(post, 'caption', '') or '', 900) or 'Open the mini app using the button below.'
+            followup_text = '👇 ከታች ያሉትን ቁልፎች ይጫኑ · ልዩን ይጠይቱ ወይም አሁን ይግዙ!'
             message_resp = await client.post(
                 f"https://api.telegram.org/bot{token}/sendMessage",
                 json={
