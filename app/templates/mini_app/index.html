@@ -1252,7 +1252,10 @@ async function init(){
   try{
     const launchRes = await fetch('/api/v1/shop/init');
     const launchData = await launchRes.json();
-    if(launchData.success) applyLaunchState(launchData.data);
+    if(launchData.success){
+      applyLaunchState(launchData.data);
+      applyMiniAppVisibility(launchData.data);
+    }
   }catch{}
   // Load loyalty profile early so product cards can use it and global bar can render
   const profUrl = TGID ? '/api/v1/loyalty/profile?telegram_id='+TGID : '/api/v1/loyalty/profile';

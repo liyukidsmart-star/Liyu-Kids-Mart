@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 from typing import Optional
 
+from flask import current_app
 from sqlalchemy import inspect
 
 from app.extensions import db
@@ -43,6 +44,36 @@ def _default_settings() -> SimpleNamespace:
     )
 
 
+def _repair_loyalty_settings_visibility_columns(missing_columns):
+    """Add missing mini-app visibility columns in-place when the schema is behind."""
+    if not missing_columns:
+        return
+
+    ddl_columns = {
+        'show_categories_in_mini_app': 'BOOLEAN NOT NULL DEFAULT TRUE',
+        'show_age_filter_in_mini_app': 'BOOLEAN NOT NULL DEFAULT TRUE',
+    }
+
+    try:
+        with db.engine.begin() as connection:
+            for column_name in missing_columns:
+                ddl = ddl_columns.get(column_name)
+                if ddl:
+                    connection.exec_driver_sql(
+                        f'ALTER TABLE {LoyaltySettings.__tablename__} ADD COLUMN {column_name} {ddl}'
+                    )
+        current_app.logger.warning(
+            'Auto-repaired loyalty_settings schema by adding missing columns: %s',
+            ', '.join(sorted(missing_columns)),
+        )
+    except Exception as exc:
+        current_app.logger.warning(
+            'Failed to auto-repair loyalty_settings schema for %s: %s',
+            ', '.join(sorted(missing_columns)),
+            exc,
+        )
+
+
 def _get_settings():
     """Fetch global loyalty settings safely, even if newer columns are missing in the database."""
     try:
@@ -57,9 +88,16 @@ def _get_settings():
         return _default_settings()
 
     required_columns = {'show_categories_in_mini_app', 'show_age_filter_in_mini_app'}
-    if required_columns - columns:
-        print("Missing columns in DB:", required_columns - columns, "Total columns:", columns)
-        return _default_settings()
+    missing_columns = required_columns - columns
+    if missing_columns:
+        _repair_loyalty_settings_visibility_columns(missing_columns)
+        try:
+            inspector = inspect(db.engine)
+            columns = {column['name'] for column in inspector.get_columns(LoyaltySettings.__tablename__)}
+        except Exception:
+            return _default_settings()
+        if required_columns - columns:
+            return _default_settings()
 
     settings = LoyaltySettings.query.first()
     if not settings:
