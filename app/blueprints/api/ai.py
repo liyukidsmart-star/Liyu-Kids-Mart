@@ -56,93 +56,231 @@ def _save_message(session_id, role, content, user_id=None, channel='web'):
 
 
 # ---------------------------------------------------------------------------
-# Age detection
+# Age detection – strict per-mention windows
 # ---------------------------------------------------------------------------
 
-def _detect_age_months_from_text(text):
+def _detect_age_from_text(text):
     """
-    Extract age mentions from text.
-    Returns list of (min_months, max_months) tuples representing strict age windows.
+    Returns a dict with:
+      - 'windows': list of (min_months, max_months) tuples
+      - 'min': overall minimum months
+      - 'max': overall maximum months
+      - 'active': bool – True if any age was mentioned
     """
-    results = []
+    windows = []
     text_lower = text.lower()
 
-    # "X year old" / "X-year-old" / "X yr old"
-    for m in re.finditer(r'(\d+)\s*[-\s]?(?:year|yr)s?\s*(?:old)?', text_lower):
-        years = int(m.group(1))
-        # Tight window: exact age year, allow ±6 months either side max
-        min_m = max(0, years * 12 - 6)
-        max_m = years * 12 + 6
-        results.append((min_m, max_m))
-
-    # "X-Y year old range"
+    # "X-Y year" range first (e.g. "2-4 years")
     for m in re.finditer(r'(\d+)\s*[-–]\s*(\d+)\s*(?:year|yr)', text_lower):
         y1, y2 = int(m.group(1)), int(m.group(2))
-        results.append((y1 * 12, y2 * 12))
+        windows.append((y1 * 12, y2 * 12))
 
-    # "X months old"
-    for m in re.finditer(r'(\d+)\s*(?:month|mo)s?\s*(?:old)?', text_lower):
+    # Single "X year old / X yr old / X-year-old"
+    for m in re.finditer(r'(\d+)\s*[-\s]?(?:year|yr)s?\s*(?:old)?', text_lower):
+        years = int(m.group(1))
+        # Tight ±6-month window around exact age
+        windows.append((max(0, years * 12 - 6), years * 12 + 6))
+
+    # "X months old / X-month-old"
+    for m in re.finditer(r'(\d+)\s*[-\s]?(?:month|mo)s?\s*(?:old)?', text_lower):
         months = int(m.group(1))
-        results.append((max(0, months - 3), months + 3))
+        # ±3-month window
+        windows.append((max(0, months - 3), months + 3))
 
-    # Amharic number words → years
+    # Amharic number words (treated as years)
     amharic_numbers = {
         'አንድ': 1, 'ሁለት': 2, 'ሶስት': 3, 'አራት': 4, 'አምስት': 5,
         'ስድስት': 6, 'ሰባት': 7, 'ስምንት': 8, 'ዘጠኝ': 9, 'አስር': 10,
     }
     for word, num in amharic_numbers.items():
         if word in text:
-            min_m = max(0, num * 12 - 6)
-            results.append((min_m, num * 12 + 6))
+            windows.append((max(0, num * 12 - 6), num * 12 + 6))
 
-    return results
+    if not windows:
+        return {'windows': [], 'min': None, 'max': None, 'active': False}
+
+    overall_min = min(w[0] for w in windows)
+    overall_max = max(w[1] for w in windows)
+    return {'windows': windows, 'min': overall_min, 'max': overall_max, 'active': True}
 
 
 # ---------------------------------------------------------------------------
-# Product name detection
+# Price detection – handles "4k", "4000 birr", "budget of X", etc.
+# ---------------------------------------------------------------------------
+
+def _detect_price_constraints(text):
+    """
+    Returns (min_price, max_price) or (None, None).
+    Handles:
+      - "under / below / less than X [birr/ETB]"
+      - "X birr" with "under/cheap" nearby
+      - "Xk" shorthand  (e.g. 4k → 4000)
+      - "budget of X"
+      - "between X and Y"
+      - "above / more than X"
+    """
+    t = text.lower()
+
+    # Normalise shorthand like 4k → 4000, 1.5k → 1500
+    def expand_k(s):
+        return re.sub(
+            r'(\d+(?:\.\d+)?)\s*k\b',
+            lambda m: str(int(float(m.group(1)) * 1000)),
+            s
+        )
+
+    t = expand_k(t)
+
+    min_price, max_price = None, None
+
+    # "between X and Y"
+    m = re.search(r'between\s+(\d+)\s+and\s+(\d+)', t)
+    if m:
+        min_price = int(m.group(1))
+        max_price = int(m.group(2))
+        return min_price, max_price
+
+    # "under / below / less than / max / at most / budget of / no more than X"
+    m = re.search(
+        r'(?:under|below|less than|max(?:imum)?|at most|budget of|no more than|within)\s+(\d+)',
+        t
+    )
+    if m:
+        max_price = int(m.group(1))
+    else:
+        # "X birr/ETB/br" near budget keyword
+        m = re.search(r'(\d+)\s*(?:birr|etb|br)', t)
+        if m and any(kw in t for kw in ('under', 'below', 'cheap', 'affordable', 'budget')):
+            max_price = int(m.group(1))
+
+    # "above / over / more than / at least X"
+    m2 = re.search(r'(?:above|over|more than|at least|minimum)\s+(\d+)', t)
+    if m2:
+        min_price = int(m2.group(1))
+
+    return min_price, max_price
+
+
+# ---------------------------------------------------------------------------
+# Special-needs / context intent detection
+# ---------------------------------------------------------------------------
+
+# Maps contextual needs to product search keywords injected into the DB query
+_CONTEXT_KEYWORD_MAP = {
+    # Special needs
+    'autism':        ['sensory', 'cause', 'sorting', 'montessori', 'stacking', 'calm', 'texture'],
+    'autistic':      ['sensory', 'cause', 'sorting', 'montessori', 'stacking', 'calm', 'texture'],
+    'adhd':          ['fidget', 'hands-on', 'tactile', 'sensory', 'building', 'active', 'movement'],
+    'hyperactive':   ['active', 'movement', 'building', 'outdoor', 'kinetic'],
+    'speech':        ['language', 'alphabet', 'flashcard', 'book', 'reading', 'letter', 'amharic'],
+    'language':      ['alphabet', 'flashcard', 'book', 'reading', 'letter', 'amharic'],
+    'fine motor':    ['lacing', 'threading', 'bead', 'puzzle', 'peg', 'montessori', 'sorting'],
+    'gross motor':   ['active', 'outdoor', 'movement', 'balance', 'stacking'],
+    'visual':        ['color', 'shape', 'puzzle', 'pattern', 'sorting'],
+
+    # Screen-time / interaction
+    'screen time':   ['wooden', 'offline', 'hands-on', 'puzzle', 'art', 'craft', 'building'],
+    'screen':        ['wooden', 'offline', 'puzzle', 'art', 'craft', 'building'],
+    'no screen':     ['wooden', 'offline', 'puzzle', 'art', 'craft', 'building'],
+    'offline':       ['wooden', 'puzzle', 'art', 'craft', 'building'],
+
+    # Social / multiplayer
+    'two people':    ['game', 'interactive', 'cooperative', 'balancing', 'matching'],
+    'together':      ['game', 'interactive', 'cooperative', 'balancing', 'matching'],
+    'siblings':      ['game', 'interactive', 'cooperative', 'matching', 'building'],
+    'multiplayer':   ['game', 'interactive', 'cooperative', 'matching'],
+    'family':        ['game', 'interactive', 'building', 'art', 'matching'],
+    'play with':     ['game', 'interactive', 'cooperative', 'building'],
+    'cooperative':   ['game', 'interactive', 'cooperative', 'matching'],
+    'interactive':   ['game', 'interactive', 'cooperative', 'balancing'],
+
+    # Creative / imaginative
+    'creative':      ['art', 'craft', 'paint', 'drawing', 'clay', 'building', 'blocks'],
+    'creativity':    ['art', 'craft', 'paint', 'drawing', 'clay', 'building'],
+    'imaginative':   ['doll', 'pretend', 'building', 'art', 'craft'],
+    'art':           ['art', 'craft', 'paint', 'drawing', 'clay'],
+    'drawing':       ['art', 'drawing', 'chalk', 'paint'],
+
+    # Academic / learning
+    'math':          ['math', 'counting', 'abacus', 'number', 'sorting', 'montessori'],
+    'counting':      ['counting', 'abacus', 'number', 'math', 'montessori'],
+    'reading':       ['book', 'alphabet', 'flashcard', 'letter', 'reading', 'amharic'],
+    'amharic':       ['amharic', 'fidel', 'alphabet', 'book', 'letter'],
+    'english':       ['alphabet', 'letter', 'book', 'flashcard', 'reading', 'english'],
+    'science':       ['stem', 'science', 'experiment', 'discovery'],
+    'stem':          ['stem', 'science', 'building', 'blocks', 'experiment'],
+
+    # Physical / sensory
+    'sensory':       ['sensory', 'texture', 'tactile', 'kinetic', 'sand', 'water', 'sorting'],
+    'outdoor':       ['outdoor', 'active', 'movement', 'balance', 'sport'],
+    'music':         ['music', 'xylophone', 'instrument', 'drum', 'piano', 'musical'],
+    'musical':       ['music', 'xylophone', 'instrument', 'drum', 'piano'],
+    'gift':          ['featured', 'popular', 'bestseller', 'wooden', 'educational'],
+    'birthday':      ['featured', 'popular', 'bestseller', 'wooden', 'educational'],
+}
+
+
+def _extract_context_keywords(text):
+    """
+    Scan the message for special-context phrases and return expanded product search keywords.
+    """
+    text_lower = text.lower()
+    extra_keywords = set()
+    for phrase, kws in _CONTEXT_KEYWORD_MAP.items():
+        if phrase in text_lower:
+            extra_keywords.update(kws)
+    return list(extra_keywords)
+
+
+# ---------------------------------------------------------------------------
+# Product name lookup in message
 # ---------------------------------------------------------------------------
 
 def _find_product_by_name_in_message(text):
     """
     If the customer explicitly mentions a product name that exists in our catalog,
-    return those products (up to 3).
-    Matches against product name, name_am, slug words.
+    return those products (up to 3), ordered by match quality.
+    Requires at least 2 significant words to match to avoid false positives.
     """
     text_lower = text.lower()
     all_products = Product.query.filter_by(is_active=True).all()
     matches = []
     for p in all_products:
         name_lower = p.name.lower()
-        # Check if at least 2 consecutive significant words from product name appear in text
-        words = [w for w in name_lower.split() if len(w) > 3]
-        if not words:
+        # Full substring match
+        if name_lower in text_lower and len(name_lower) > 8:
+            matches.append((20, p))
             continue
-        match_count = sum(1 for w in words if w in text_lower)
-        # Strong match: most of the name words appear, or the full name substring
-        if name_lower in text_lower or (len(words) >= 1 and match_count >= max(1, len(words) - 1)):
-            matches.append((match_count, p))
+        # Significant word overlap (need at least 2 words of 4+ chars)
+        words = [w for w in name_lower.split() if len(w) > 3]
+        if len(words) < 2:
+            continue
+        hit_count = sum(1 for w in words if w in text_lower)
+        if hit_count >= max(2, len(words) - 1):
+            matches.append((hit_count, p))
 
     matches.sort(key=lambda x: -x[0])
     return [p for _, p in matches[:3]]
 
 
 # ---------------------------------------------------------------------------
-# Product keyword hints
+# Core product keyword list (base)
 # ---------------------------------------------------------------------------
 
-_PRODUCT_KEYWORDS = [
+_BASE_PRODUCT_KEYWORDS = [
     'montessori', 'wooden', 'puzzle', 'book', 'art', 'music', 'building',
     'blocks', 'paint', 'sensory', 'stacking', 'shape', 'color', 'number',
     'letter', 'alphabet', 'animal', 'toy', 'game', 'doll', 'instrument',
     'reading', 'drawing', 'math', 'counting', 'abacus', 'flashcard',
     'sorting', 'lacing', 'threading', 'bead', 'clay', 'craft', 'foam',
-    'educational', 'learning', 'stem', 'science',
+    'educational', 'learning', 'stem', 'science', 'outdoor', 'balance',
+    'matching', 'cooperative', 'interactive', 'xylophone', 'fidget',
+    'tactile', 'texture', 'amharic', 'english', 'fidel',
 ]
 
 _AMHARIC_PRODUCT_HINTS = [
-    'ምርት', 'ምርቶቹ', 'መጫወቻ', 'መጫወቻዎቹ', 'መጽሐፍ', 'መጽሐፍ', 'ሞንቴሶሪ',
-    'እንጨት', 'ፓዝሎ', 'ሙዚካ', 'ብሎክ', 'ብሎክት', 'ቡቅ', 'ፒደል', 'ቀለም',
-    'ስታኪጉን', 'ዳይይ', 'አሳይዑ', 'አሳይ', 'አለን',
+    'ምርት', 'ምርቶቹ', 'መጫወቻ', 'መጫወቻዎቹ', 'መጽሐፍ', 'ሞንቴሶሪ',
+    'እንጨት', 'ፓዝሎ', 'ሙዚካ', 'ብሎክ', 'ቀለም', 'አሳይ', 'አለን',
 ]
 
 
@@ -152,77 +290,106 @@ def _is_amharic_text(text):
 
 def _is_product_request(text):
     lowered = text.lower()
-    english_hints = [
+    hints = [
         'buy', 'find', 'search', 'looking for', 'show me', 'recommend', 'suggest',
         'toy', 'product', 'montessori', 'wooden', 'puzzle', 'blocks', 'book',
         'art', 'musical', 'educational', 'what do you have', 'do you sell',
         'age', 'years old', 'months old', 'gift', 'birthday', 'child', 'kid',
         'toddler', 'baby', 'infant', 'best for', 'good for', 'appropriate',
+        'autism', 'adhd', 'screen time', 'interactive', 'sensory', 'creative',
+        'affordable', 'budget', 'under', 'below',
     ]
-    if any(hint in lowered for hint in english_hints):
+    if any(h in lowered for h in hints):
         return True
-    if _is_amharic_text(text) and any(hint in text for hint in _AMHARIC_PRODUCT_HINTS):
+    if _is_amharic_text(text) and any(h in text for h in _AMHARIC_PRODUCT_HINTS):
         return True
     return False
 
 
 # ---------------------------------------------------------------------------
-# Candidate product retrieval – strict age filtering
+# Diversity enforcement – ensure candidates span different categories/types
+# ---------------------------------------------------------------------------
+
+def _diversify_candidates(products, target=9):
+    """
+    Reorder products so that the top results are from different categories.
+    Ensures the AI has diverse options to pick 3 from.
+    """
+    if not products:
+        return products
+
+    by_category = {}
+    for p in products:
+        cat = p.category_id or 0
+        by_category.setdefault(cat, []).append(p)
+
+    result = []
+    seen_cats = {}
+    # Round-robin across categories
+    queues = list(by_category.values())
+    i = 0
+    while len(result) < target and any(queues):
+        q = queues[i % len(queues)]
+        if q:
+            result.append(q.pop(0))
+        i += 1
+        if not any(queues):
+            break
+
+    return result[:target]
+
+
+# ---------------------------------------------------------------------------
+# Candidate product retrieval – strict age + context + diversity
 # ---------------------------------------------------------------------------
 
 def _get_all_candidate_products(query_text, history_text='', exclude_ids=None):
     """
-    Retrieve candidate products strictly filtered by:
-    1. Age range (tight ±6 month window around mentioned age)
-    2. Product keyword relevance
-    3. Price constraints if mentioned
-    Returns at most 10 products.
+    Retrieve up to 9 diverse, age-appropriate, budget-matching products.
+
+    Strategy:
+    1. Detect age (strict window), price range, context keywords
+    2. Build an age-filtered + price-filtered base query
+    3. Score/match by keyword relevance
+    4. If no age-matched products exist, return empty (do NOT fall back to wrong-age products)
+    5. Diversify results across categories
     """
     exclude_ids = set(exclude_ids or [])
     combined = (query_text + ' ' + history_text).lower()
     combined_original = f'{query_text} {history_text}'
 
-    # --- Age filtering (strict) ---
-    age_windows = _detect_age_months_from_text(combined_original)
-    age_filter_active = False
-    min_age_filter, max_age_filter = None, None
-    if age_windows:
-        # Merge all windows into one envelope
-        all_mins = [w[0] for w in age_windows]
-        all_maxs = [w[1] for w in age_windows]
-        min_age_filter = min(all_mins)
-        max_age_filter = max(all_maxs)
-        age_filter_active = True
+    # --- Age ---
+    age_info = _detect_age_from_text(combined_original)
 
-    # --- Price filtering ---
-    max_price = None
-    price_match = re.search(r'(?:under|below|less than|max(?:imum)?)\s*(\d+)', combined)
-    if not price_match:
-        price_match = re.search(r'(\d+)\s*(?:birr|etb|br)', combined)
-        if price_match and ('under' in combined or 'cheap' in combined):
-            max_price = int(price_match.group(1))
-    else:
-        max_price = int(price_match.group(1))
+    # --- Price ---
+    min_price, max_price = _detect_price_constraints(combined_original)
 
-    # --- Build base query ---
+    # --- Context keywords ---
+    context_kws = _extract_context_keywords(combined_original)
+    all_keywords = list(set(_BASE_PRODUCT_KEYWORDS + context_kws))
+
+    # --- Base query with age + price filters ---
     q = Product.query.filter(Product.is_active == True)
     if max_price:
         q = q.filter(Product.price <= max_price)
-    if age_filter_active:
-        # Product age range must OVERLAP the requested age window
-        # i.e. product_min <= our_max AND product_max >= our_min
-        q = q.filter(
-            Product.age_min_months <= max_age_filter,
-            Product.age_max_months >= min_age_filter,
-        )
+    if min_price:
+        q = q.filter(Product.price >= min_price)
 
-    # --- Keyword matching ---
-    search_space = [combined, combined_original.lower()]
+    age_filter_applied = False
+    if age_info['active']:
+        q = q.filter(
+            Product.age_min_months <= age_info['max'],
+            Product.age_max_months >= age_info['min'],
+        )
+        age_filter_applied = True
+
+    # --- Keyword search within age/price-filtered space ---
+    search_space = combined
     results = []
     seen = set()
 
-    for kw in _PRODUCT_KEYWORDS:
-        if any(kw in space for space in search_space):
+    for kw in all_keywords:
+        if kw in search_space:
             kw_q = q.filter(
                 db.or_(
                     Product.name.ilike(f'%{kw}%'),
@@ -233,54 +400,60 @@ def _get_all_candidate_products(query_text, history_text='', exclude_ids=None):
                     Product.short_description_am.ilike(f'%{kw}%'),
                     Product.slug.ilike(f'%{kw}%'),
                 )
-            ).order_by(Product.sales_count.desc()).limit(10).all()
+            ).order_by(Product.sales_count.desc()).limit(12).all()
             for p in kw_q:
                 if p.id not in seen and p.id not in exclude_ids:
                     results.append(p)
                     seen.add(p.id)
 
-    # --- Amharic fallback ---
+    # --- Amharic product name fallback (still age-filtered) ---
     if not results and _is_amharic_text(combined_original):
         am_q = q.filter(
             db.or_(
                 Product.name_am.isnot(None),
                 Product.description_am.isnot(None),
-                Product.short_description_am.isnot(None),
             )
-        ).order_by(Product.sales_count.desc()).limit(10).all()
+        ).order_by(Product.sales_count.desc()).limit(12).all()
         for p in am_q:
             if p.id not in exclude_ids:
                 results.append(p)
 
-    # --- Age-filtered fallback (no keyword match, but age specified) ---
-    if not results and age_filter_active:
-        for p in q.order_by(Product.sales_count.desc()).limit(10).all():
+    # --- Age-only fallback (age specified, no keyword match) ---
+    if not results and age_filter_applied:
+        for p in q.order_by(Product.sales_count.desc()).limit(12).all():
             if p.id not in exclude_ids:
                 results.append(p)
 
-    # --- General fallback (no age, no keyword) ---
+    # IMPORTANT: if age was specified but NOTHING matched, return empty.
+    # This signals the AI that no products exist for that age — it should be
+    # honest with the customer rather than recommend wrong-age products.
+    if age_filter_applied and not results:
+        return []
+
+    # --- General fallback (no age, no keyword match, no context) ---
     if not results:
         base_q = Product.query.filter(Product.is_active == True)
         if max_price:
             base_q = base_q.filter(Product.price <= max_price)
-        for p in base_q.order_by(Product.sales_count.desc()).limit(10).all():
+        if min_price:
+            base_q = base_q.filter(Product.price >= min_price)
+        for p in base_q.order_by(Product.sales_count.desc()).limit(12).all():
             if p.id not in exclude_ids:
                 results.append(p)
 
-    return results[:10]
+    # Diversify across categories so AI has a varied selection
+    return _diversify_candidates(results, target=9)
 
 
 # ---------------------------------------------------------------------------
-# Extract product names mentioned in the AI's reply (smart matching)
+# Extract products mentioned in AI reply (only these become cards)
 # ---------------------------------------------------------------------------
 
 def _extract_mentioned_products(reply_text, candidates):
     """
-    Find which candidate products the AI actually named in its reply.
-    Uses multi-strategy matching:
-    1. Exact substring (most reliable)
-    2. Word-overlap scoring with a high threshold
-    Returns list of Product objects in mention order, max 3.
+    Find which candidates the AI actually named in its reply.
+    Multi-strategy: exact substring > word-overlap.
+    Returns up to 3 in mention order.
     """
     reply_lower = reply_text.lower()
     mentioned = []
@@ -289,25 +462,82 @@ def _extract_mentioned_products(reply_text, candidates):
     for p in candidates:
         name_lower = p.name.lower()
 
-        # Strategy 1: product name appears as substring
+        # Strategy 1: exact substring
         if name_lower in reply_lower:
             mentioned.append((10, p))
             seen_ids.add(p.id)
             continue
 
-        # Strategy 2: significant word overlap (strict – need 2/3+ of words)
+        # Strategy 2: high word overlap (≥ 2/3 of significant words)
         words = [w for w in name_lower.split() if len(w) > 3]
-        if not words:
+        if len(words) < 2:
             continue
         hit_count = sum(1 for w in words if w in reply_lower)
-        threshold = max(2, len(words) * 2 // 3)
+        threshold = max(2, (len(words) * 2 + 2) // 3)
         if hit_count >= threshold and p.id not in seen_ids:
             mentioned.append((hit_count, p))
             seen_ids.add(p.id)
 
-    # Sort by match quality, return top 3
     mentioned.sort(key=lambda x: -x[0])
     return [p for _, p in mentioned[:3]]
+
+
+# ---------------------------------------------------------------------------
+# Build full product catalogue context for prompt
+# ---------------------------------------------------------------------------
+
+def _build_product_context_for_prompt(candidates, age_info, min_price, max_price):
+    """
+    Build the product list section of the prompt.
+    Includes a note if candidates list is empty (no age match).
+    """
+    if not candidates:
+        if age_info['active']:
+            age_desc = _format_age_for_human(age_info['min'], age_info['max'])
+            return (
+                f'SYSTEM CONTEXT - PRODUCTS: We currently have no products specifically '
+                f'for {age_desc}. Tell the customer warmly and honestly that you do not '
+                f'have items for that exact age right now, and suggest they check back soon '
+                f'or ask about a different age range.'
+            )
+        return 'SYSTEM CONTEXT - PRODUCTS: No matching products found for this request.'
+
+    lines = []
+    for p in candidates:
+        stock_note = f'In stock' if p.stock_qty > 0 else 'Out of stock'
+        short_desc = (p.short_description or p.description or '')[:100].strip()
+        category = p.category.name if p.category else ''
+        line = (
+            f'- {p.name}'
+            f' | ETB {float(p.current_price()):,.0f}'
+            f' | Age: {p.age_label()}'
+            f' | Category: {category}'
+            f' | {stock_note}'
+        )
+        if short_desc:
+            line += f' | {short_desc}'
+        lines.append(line)
+
+    price_note = ''
+    if max_price:
+        price_note = f' (all are within the ETB {max_price:,} budget)'
+    if min_price and max_price:
+        price_note = f' (all are between ETB {min_price:,} and ETB {max_price:,})'
+
+    header = f'SYSTEM CONTEXT - PRODUCTS{price_note} (choose EXACTLY 3 DIFFERENT types/categories to recommend):'
+    return header + '\n' + '\n'.join(lines)
+
+
+def _format_age_for_human(min_months, max_months):
+    def fmt(m):
+        if m < 12:
+            return f'{m} months'
+        y = m // 12
+        r = m % 12
+        return f'{y} year{"s" if y != 1 else ""}' + (f' {r}m' if r else '')
+    if min_months == max_months:
+        return fmt(min_months)
+    return f'{fmt(min_months)} to {fmt(max_months)}'
 
 
 # ---------------------------------------------------------------------------
@@ -320,34 +550,43 @@ Personality and tone:
 - Speak naturally, warmly, and conversationally - like a trusted friend helping a parent.
 - Match the customer's language exactly. If they write in Amharic, respond fully in Amharic. If English, respond in English. Never mix languages unless they do.
 - Use emojis occasionally but naturally. Never overdo it.
-- Keep responses short and helpful - under 120 words unless the customer asks for detail.
-- Never say you are an AI, a bot, or "Grok-powered". You are Liyu, a person.
+- Keep responses under 150 words unless the customer asks for more detail.
+- Never say you are an AI, a bot, or mention any technology behind you. You are Liyu, a person.
 - Never use asterisks (*), underscores (_), or markdown formatting.
 
 CRITICAL PRODUCT RECOMMENDATION RULES:
-- When a customer asks for a recommendation or product suggestion, you MUST recommend EXACTLY 3 products from the [SYSTEM CONTEXT - PRODUCTS] list.
-- Name each of the 3 products EXACTLY as they appear in the product list (no paraphrasing, no inventing names).
-- For each product you mention, include the age suitability (e.g. "great for 3-year-olds" or "perfect for ages 2-4").
-- Give a short warm 1-sentence description of why each product is great.
-- After naming the 3 products, say "The product cards are below - tap one to add it to your cart!"
-- If a customer mentions a specific product by name, identify it from the product list, confirm it, and give them a brief warm description of that exact product including its age range and benefits.
-- NEVER recommend a product that is not in [SYSTEM CONTEXT - PRODUCTS].
-- NEVER invent or paraphrase product names.
+1. When asked for a recommendation, you MUST recommend EXACTLY 3 products from [SYSTEM CONTEXT - PRODUCTS].
+2. The 3 products MUST be DIFFERENT types - do not recommend 3 stacking rings or 3 puzzles. Aim for variety (e.g. one sensory toy, one learning toy, one creative toy).
+3. Name each product EXACTLY as it appears in the product list - no paraphrasing or shortening.
+4. For each product, mention the age range (e.g. "perfect for 2-4 year olds") and one reason why it is great.
+5. End with: "The product cards are below - tap one to add it to your cart!"
+6. If a customer asks about a specific product by name, find it in [SYSTEM CONTEXT - PRODUCTS], confirm it warmly, describe it with its age range and main benefit.
+7. NEVER recommend a product not in [SYSTEM CONTEXT - PRODUCTS]. NEVER invent product names.
+8. If [SYSTEM CONTEXT - PRODUCTS] says there are no matching products, tell the customer honestly and warmly.
 
-Age rule:
-- ONLY recommend products that are appropriate for the age the customer mentioned.
-- If a customer says "3 year old", only recommend products where the age range includes 3 years.
-- Never recommend baby toys (0-12 months) for a 4-year-old, or big-kid toys (8+) for a toddler.
+AGE RULES (very important):
+- ONLY recommend products whose age range includes the age the customer mentioned.
+- If the customer says "6 months old", only recommend products labelled for 0-12 months.
+- If the customer says "3 years old", only recommend products labelled for 2-4 years range.
+- NEVER recommend a product for a baby to a parent of a school-age child or vice versa.
+- If no products match the age, say so honestly and suggest checking back or trying a nearby age.
+
+BUDGET RULES:
+- If the customer mentioned a budget, only recommend products within that budget.
+- Never suggest a product that costs more than the customer's stated budget.
+
+DIVERSITY RULE:
+- Recommend products from different categories when possible (e.g. one building toy, one music toy, one book/puzzle).
 
 Store policies:
 - Delivery: FREE delivery for orders over 1000 ETB. Otherwise, delivery is 80 ETB.
-- Payment methods: We accept Telebirr, CBE (Commercial Bank of Ethiopia), and Cash on Delivery.
-- Location: We are located in Bole Bulbula, 93 Mazoriya.
-- Store hours: We are open Monday to Saturday, 9:00 AM to 6:00 PM.
+- Payment: Telebirr, CBE (Commercial Bank of Ethiopia), Cash on Delivery.
+- Location: Bole Bulbula, 93 Mazoriya, Addis Ababa.
+- Hours: Monday to Saturday, 9:00 AM to 6:00 PM.
 
 Critical rules:
-- Only recommend products from the [SYSTEM CONTEXT - PRODUCTS] list. Never invent names or prices.
-- Never mention items in cart unless [SYSTEM CONTEXT - CART] explicitly lists them.
+- Only recommend products from [SYSTEM CONTEXT - PRODUCTS]. Never invent names or prices.
+- Never mention cart items unless [SYSTEM CONTEXT - CART] explicitly lists them.
 - Never use markdown formatting."""
 
 
@@ -355,7 +594,8 @@ Critical rules:
 # Prompt builder
 # ---------------------------------------------------------------------------
 
-def _build_gemini_prompt(user_message, history, cart_items, candidates, named_products=None):
+def _build_gemini_prompt(user_message, history, cart_items, candidates,
+                         named_products=None, age_info=None, min_price=None, max_price=None):
     parts = [SYSTEM_PROMPT]
 
     if history:
@@ -375,37 +615,28 @@ def _build_gemini_prompt(user_message, history, cart_items, candidates, named_pr
         parts.append('SYSTEM CONTEXT - CART: Cart is EMPTY. Do NOT mention any cart items.')
 
     if named_products:
-        # Customer explicitly asked about specific products – put them first
         named_lines = []
         for p in named_products:
-            stock_note = f'In stock ({p.stock_qty} left)' if p.stock_qty > 0 else 'Out of stock'
-            age_lbl = p.age_label()
-            desc = (p.short_description or p.description or '')[:120]
+            stock_note = 'In stock' if p.stock_qty > 0 else 'Out of stock'
+            desc = (p.short_description or p.description or '')[:150]
             named_lines.append(
-                f'- {p.name} | ETB {float(p.current_price()):,.0f} | Age: {age_lbl} | {stock_note} | {desc}'
+                f'- {p.name} | ETB {float(p.current_price()):,.0f} | Age: {p.age_label()} | {stock_note} | {desc}'
             )
         parts.append(
-            'SYSTEM CONTEXT - CUSTOMER ASKED ABOUT THESE PRODUCTS (describe them warmly):\n'
+            'SYSTEM CONTEXT - CUSTOMER ASKED ABOUT THESE PRODUCTS (describe them warmly, include age and benefit):\n'
             + '\n'.join(named_lines)
         )
 
-    if candidates:
-        product_lines = []
-        for p in candidates:
-            stock_note = f'In stock ({p.stock_qty} left)' if p.stock_qty > 0 else 'Out of stock'
-            product_lines.append(
-                f'- {p.name} | ETB {float(p.current_price()):,.0f} | Age: {p.age_label()} | {stock_note}'
-            )
-        parts.append('SYSTEM CONTEXT - PRODUCTS (choose EXACTLY 3 to recommend):\n' + '\n'.join(product_lines))
-    else:
-        parts.append('SYSTEM CONTEXT - PRODUCTS: No matching products found for this request.')
+    age_info = age_info or {'active': False, 'min': None, 'max': None}
+    product_context = _build_product_context_for_prompt(candidates, age_info, min_price, max_price)
+    parts.append(product_context)
 
     parts.append('User message:\n' + user_message)
     return '\n\n'.join(parts)
 
 
 # ---------------------------------------------------------------------------
-# Gemini call
+# Gemini API call
 # ---------------------------------------------------------------------------
 
 def _call_gemini(prompt):
@@ -422,7 +653,7 @@ def _call_gemini(prompt):
         contents=prompt,
         config=types.GenerateContentConfig(
             temperature=0.7,
-            max_output_tokens=400,
+            max_output_tokens=450,
         ),
     )
     text = (getattr(response, 'text', '') or '').strip()
@@ -437,14 +668,21 @@ def _call_gemini(prompt):
 
 _NON_PRODUCT_PATTERNS = [
     'location', 'address', 'where are you', 'map', 'direction',
-    'hello', 'hi ', 'selam', 'thank', 'bye', 'checkout', 'check out',
-    'order placed', 'payment', 'cart', 'total price', 'cost', 'basket',
+    'hello', 'hi there', 'selam', 'thank', 'bye', 'checkout', 'check out',
+    'order placed', 'payment method', 'cart total', 'delivery fee',
 ]
 
 
 def _is_non_product_message(text):
     lowered = text.lower()
-    return any(kw in lowered for kw in _NON_PRODUCT_PATTERNS)
+    # It is non-product only if it matches a non-product pattern AND does not
+    # mention any age or product keyword (to avoid false positives like "thank you,
+    # now show me toys for 3 year old")
+    if not any(kw in lowered for kw in _NON_PRODUCT_PATTERNS):
+        return False
+    # If the message also has product intent signals, it's still a product request
+    product_signals = ['toy', 'age', 'year', 'month', 'suggest', 'recommend', 'show', 'find']
+    return not any(sig in lowered for sig in product_signals)
 
 
 # ---------------------------------------------------------------------------
@@ -471,23 +709,36 @@ def ai_chat():
     cart_items = _cart_query(cart_user, cart_session_id).all()
     cart_product_ids = [item.product_id for item in cart_items]
 
-    # Check if customer named a specific product
+    # Parse age and price from full context
+    combined_text = f'{user_message} {recent_history_text}'
+    age_info = _detect_age_from_text(combined_text)
+    min_price, max_price = _detect_price_constraints(combined_text)
+
+    # Check if customer explicitly named a product
     named_products = _find_product_by_name_in_message(user_message)
 
-    # Get age/keyword-filtered candidates
-    candidates = _get_all_candidate_products(user_message, recent_history_text, exclude_ids=cart_product_ids)
+    # Fetch age/price/context-filtered candidates
+    candidates = _get_all_candidate_products(
+        user_message, recent_history_text, exclude_ids=cart_product_ids
+    )
 
-    # Merge named products into candidates (front of list)
+    # Merge named products into candidates (front of list, no duplicates)
     if named_products:
         named_ids = {p.id for p in named_products}
         candidates = named_products + [p for p in candidates if p.id not in named_ids]
-        candidates = candidates[:10]
+        candidates = candidates[:9]
 
     is_product_req = _is_product_request(user_message)
     is_non_product = _is_non_product_message(user_message)
 
-    # Build prompt and call Gemini
-    prompt = _build_gemini_prompt(user_message, history, cart_items, candidates, named_products=named_products or None)
+    # Build and send prompt to Gemini
+    prompt = _build_gemini_prompt(
+        user_message, history, cart_items, candidates,
+        named_products=named_products or None,
+        age_info=age_info,
+        min_price=min_price,
+        max_price=max_price,
+    )
     try:
         assistant_reply = _call_gemini(prompt)
     except Exception as e:
@@ -495,20 +746,18 @@ def ai_chat():
         traceback.print_exc()
         return error_response(f"AI Service Error: {str(e)}")
 
-    # Determine which products to show as cards
-    # RULE: only show what the AI actually mentioned in its reply, up to 3
+    # Determine product cards: ONLY what the AI actually mentioned, max 3
     if is_non_product and not named_products and not is_product_req:
         final_products = []
     else:
-        # Extract exactly the products the AI mentioned by name
         mentioned = _extract_mentioned_products(assistant_reply, candidates)
         if mentioned:
             final_products = mentioned[:3]
         elif named_products:
-            # AI probably described them — show named products
+            # AI described specific products – show them
             final_products = named_products[:3]
         elif is_product_req and candidates:
-            # Fallback: show top 3 best-matching candidates
+            # Fallback: show top 3 diverse candidates
             final_products = candidates[:3]
         else:
             final_products = []
@@ -526,7 +775,10 @@ def ai_chat():
 
     cart_summary = None
     if show_checkout and cart_items:
-        subtotal = sum(float(item.product.current_price()) * item.quantity for item in cart_items if item.product)
+        subtotal = sum(
+            float(item.product.current_price()) * item.quantity
+            for item in cart_items if item.product
+        )
         delivery_fee = 0 if subtotal >= 1000 else 80
         cart_summary = {
             'items': [
@@ -577,7 +829,11 @@ def clear_ai_history():
 def ai_recommendations():
     user = _get_ai_user()
     if not user:
-        products = Product.query.filter_by(is_active=True).order_by(Product.sales_count.desc()).limit(8).all()
+        products = (
+            Product.query.filter_by(is_active=True)
+            .order_by(Product.sales_count.desc())
+            .limit(8).all()
+        )
         return success_response({'products': [p.to_dict() for p in products], 'reason': 'trending'})
 
     child_ages = user.get_child_ages()
@@ -586,10 +842,10 @@ def ai_recommendations():
         age_months = [a * 12 for a in child_ages]
         min_age = min(age_months)
         max_age = max(age_months)
-        # Strict: product must overlap the child's age range
+        # Strict overlap: ±6 months only
         q = q.filter(
             Product.age_min_months <= max_age + 6,
-            Product.age_max_months >= min_age - 6,
+            Product.age_max_months >= max(0, min_age - 6),
         )
     products = q.order_by(Product.sales_count.desc()).limit(8).all()
     return success_response({
