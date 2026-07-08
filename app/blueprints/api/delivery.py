@@ -95,12 +95,12 @@ def calculate_price():
             return error_response('Invalid coordinates')
         distance = calculate_distance(STORE_LAT, STORE_LNG, lat, lng)
 
-    # Pricing: 100 ETB for first 5km, then 40 ETB per additional km
+    # Pricing: 250 ETB for first 5km, then 40 ETB per additional km
     if distance <= 5:
-        price = 100
+        price = 250
     else:
         extra_km = distance - 5
-        price = 100 + (extra_km * 40)
+        price = 250 + (extra_km * 40)
 
     return success_response({
         'distance_km': round(distance, 2),
