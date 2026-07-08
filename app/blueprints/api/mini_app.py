@@ -33,10 +33,67 @@ def _resolve_mini_app_user():
     return None
 
 
+def _log_activity(action, user_id=None, entity_type=None, entity_id=None, meta=None):
+    """Record an activity log entry. Silently ignores errors."""
+    try:
+        from app.models.ai_conversation import ActivityLog
+        import json as _json
+        log = ActivityLog(
+            user_id=user_id,
+            action=action,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            meta=_json.dumps(meta) if meta else None,
+            ip_address=request.remote_addr,
+            user_agent=(request.user_agent.string or '')[:255],
+        )
+        db.session.add(log)
+        db.session.commit()
+    except Exception:
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+
+
 @api_bp.route('/shop/init', methods=['GET'])
 def shop_init():
-    """Return Mini App bootstrap state including the launch gate."""
+    """Return Mini App bootstrap state including the launch gate. Also records a visit."""
+    user = _resolve_mini_app_user()
+    _log_activity('mini_app_visit', user_id=getattr(user, 'id', None))
     return success_response(get_store_launch_state())
+
+
+@api_bp.route('/mini-app/track', methods=['POST'])
+def mini_app_track():
+    """
+    Generic client-side event tracker for the Mini App.
+    Accepts: { action, product_id, telegram_id, meta }
+    Supported actions: add_to_cart, view_product, telegram_buy_now_click, remove_from_cart
+    """
+    data = request.get_json(silent=True) or {}
+    action = data.get('action', '').strip()
+    product_id = data.get('product_id')
+    telegram_id = data.get('telegram_id')
+    meta = data.get('meta', {})
+
+    allowed_actions = {
+        'add_to_cart', 'remove_from_cart', 'view_product',
+        'telegram_buy_now_click', 'wishlist_add', 'product_share',
+    }
+    if action not in allowed_actions:
+        return error_response('Unknown action', 400)
+
+    user_id = None
+    if telegram_id:
+        u = User.query.filter_by(telegram_id=str(telegram_id)).first()
+        if u:
+            user_id = u.id
+
+    entity_type = 'product' if product_id else None
+    _log_activity(action, user_id=user_id, entity_type=entity_type,
+                  entity_id=product_id, meta=meta)
+    return success_response({'tracked': True})
 
 
 @api_bp.route('/mini-app/checkout', methods=['POST'])

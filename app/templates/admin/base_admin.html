@@ -38,8 +38,11 @@
       <i class="fas fa-truck"></i><span>Drivers</span>
     </a>
     <div class="sidebar-section">PEOPLE</div>
-    <a href="{{ url_for('admin.customers') }}" class="sidebar-link {% if request.endpoint == 'admin.customers' %}active{% endif %}">
+    <a href="{{ url_for('admin.customers') }}" class="sidebar-link {% if request.endpoint in ('admin.customers','admin.customer_detail') %}active{% endif %}">
       <i class="fas fa-users"></i><span>Customers</span>
+    </a>
+    <a href="{{ url_for('admin.customers') }}?tab=weekly" class="sidebar-link {% if request.endpoint == 'admin.customers_weekly_report' %}active{% endif %}">
+      <i class="fas fa-calendar-week"></i><span>Weekly Report</span>
     </a>
     <div class="sidebar-section">LOYALTY</div>
     <a href="{{ url_for('admin.loyalty_overview') }}" class="sidebar-link {% if request.endpoint == 'admin.loyalty_overview' %}active{% endif %}">

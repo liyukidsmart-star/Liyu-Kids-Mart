@@ -765,6 +765,27 @@ def ai_chat():
     _save_message(session_id, 'user', user_message, user_id, channel)
     _save_message(session_id, 'assistant', assistant_reply, user_id, channel)
 
+    # Track AI-suggested products in ActivityLog for analytics
+    if final_products:
+        try:
+            from app.models.ai_conversation import ActivityLog
+            import json as _json
+            for fp in final_products:
+                log = ActivityLog(
+                    user_id=user_id,
+                    action='ai_suggested_product',
+                    entity_type='product',
+                    entity_id=fp.id,
+                    meta=_json.dumps({'session_id': session_id, 'channel': channel}),
+                )
+                db.session.add(log)
+            db.session.commit()
+        except Exception:
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
+
     msg_lower = user_message.lower()
     is_cart_confirm = (
         ('i added' in msg_lower or 'added' in msg_lower[:15])

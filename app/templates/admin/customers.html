@@ -1,38 +1,801 @@
 {% extends 'admin/base_admin.html' %}
-{% block title %}Customers — Admin{% endblock %}
-{% block page_title %}Customers{% endblock %}
+{% block title %}Customer Intelligence — Admin{% endblock %}
+{% block page_title %}Customer Intelligence{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Customer Intelligence Hub ─────────────────────────── */
+.ci-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.ci-kpi {
+  background: var(--white);
+  border-radius: var(--radius);
+  padding: 20px 18px 16px;
+  box-shadow: var(--shadow);
+  border-top: 3px solid transparent;
+  transition: transform .18s, box-shadow .18s;
+  position: relative;
+  overflow: hidden;
+}
+.ci-kpi::before {
+  content: '';
+  position: absolute; inset: 0;
+  opacity: .04;
+  background: radial-gradient(circle at top right, currentColor 0%, transparent 70%);
+  pointer-events: none;
+}
+.ci-kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.ci-kpi.green  { border-top-color: #3d8b5f; color: #3d8b5f; }
+.ci-kpi.blue   { border-top-color: #3b82f6; color: #3b82f6; }
+.ci-kpi.purple { border-top-color: #8b5cf6; color: #8b5cf6; }
+.ci-kpi.orange { border-top-color: #f59e0b; color: #f59e0b; }
+.ci-kpi.pink   { border-top-color: #ec4899; color: #ec4899; }
+.ci-kpi.teal   { border-top-color: #14b8a6; color: #14b8a6; }
+.ci-kpi-icon { font-size: 1.6rem; margin-bottom: 8px; }
+.ci-kpi-val  { font-size: 1.9rem; font-weight: 800; line-height: 1; margin-bottom: 4px; color: var(--text); }
+.ci-kpi-label { font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.ci-kpi-sub  { font-size: .7rem; color: var(--muted); margin-top: 4px; }
+
+/* Tab bar */
+.ci-tabs {
+  display: flex; gap: 4px;
+  background: var(--white);
+  padding: 6px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.ci-tab {
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-size: .83rem;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all .18s;
+  border: none;
+  background: none;
+  white-space: nowrap;
+  text-decoration: none;
+  display: flex; align-items: center; gap: 6px;
+}
+.ci-tab:hover { background: var(--green-light); color: var(--green); }
+.ci-tab.active { background: var(--green); color: white; }
+
+/* Charts layout */
+.chart-card {
+  background: var(--white);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 0;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+.chart-card-header {
+  padding: 16px 20px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.chart-card-header h6 {
+  font-size: .92rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+  display: flex; align-items: center; gap: 8px;
+}
+.chart-body { padding: 16px 20px 20px; position: relative; }
+
+/* Activity feed */
+.activity-feed { list-style: none; padding: 0; margin: 0; }
+.activity-item {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border);
+  transition: background .15s;
+}
+.activity-item:last-child { border-bottom: none; }
+.activity-item:hover { background: #f8faff; }
+.act-dot {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .8rem;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.act-dot.visit   { background: #e0f2fe; color: #0284c7; }
+.act-dot.cart    { background: #d1fae5; color: #059669; }
+.act-dot.buy     { background: #fef3c7; color: #d97706; }
+.act-dot.ai      { background: #ede9fe; color: #7c3aed; }
+.act-dot.view    { background: #f1f5f9; color: #475569; }
+.act-dot.other   { background: #f3f4f6; color: #6b7280; }
+.act-body { flex: 1; min-width: 0; }
+.act-title { font-size: .82rem; font-weight: 600; color: var(--text); }
+.act-meta  { font-size: .72rem; color: var(--muted); margin-top: 1px; }
+.act-time  { font-size: .7rem; color: var(--muted); white-space: nowrap; }
+
+/* Table enhancements */
+.tbl-name-cell { max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tbl-badge-tg { background: #e0f4ff; color: #0369a1; padding: 2px 7px; border-radius: 20px; font-size: .7rem; font-weight: 600; }
+.tbl-badge-new { background: #d1fae5; color: #065f46; padding: 2px 7px; border-radius: 20px; font-size: .7rem; font-weight: 600; }
+.tbl-badge-ret { background: #ede9fe; color: #5b21b6; padding: 2px 7px; border-radius: 20px; font-size: .7rem; font-weight: 600; }
+
+/* Mini bar */
+.mini-bar-wrap { display: flex; align-items: center; gap: 8px; }
+.mini-bar {
+  flex: 1;
+  height: 6px;
+  background: var(--border);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.mini-bar-fill {
+  height: 100%;
+  border-radius: 99px;
+  background: var(--green);
+  transition: width .5s ease;
+}
+
+/* Weekly report table */
+.report-tbl th { background: #f8faff; font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.report-tbl td { font-size: .84rem; vertical-align: middle; }
+
+/* AI session cards */
+.ai-session-card {
+  background: #fafbff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+.ai-session-head {
+  padding: 10px 14px;
+  background: var(--green-light);
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: .8rem; font-weight: 600; color: var(--green-dark);
+}
+
+/* Search bar */
+.ci-search {
+  display: flex; gap: 8px;
+  margin-bottom: 16px;
+}
+.ci-search input {
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 9px 14px;
+  font-size: .87rem;
+  font-family: var(--font);
+  outline: none;
+  transition: border .18s;
+}
+.ci-search input:focus { border-color: var(--green); }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="d-flex justify-content-between mb-3">
-  <form method="GET" class="d-flex gap-2">
-    <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="Search name, email, phone…" style="width:260px"/>
-    <button class="btn admin-btn-outline">Search</button>
-  </form>
+
+<!-- KPI Row -->
+<div class="ci-kpi-grid">
+  <div class="ci-kpi green">
+    <div class="ci-kpi-icon">👥</div>
+    <div class="ci-kpi-val">{{ total_customers }}</div>
+    <div class="ci-kpi-label">Total Customers</div>
+    <div class="ci-kpi-sub">+{{ new_this_month }} this month</div>
+  </div>
+  <div class="ci-kpi teal">
+    <div class="ci-kpi-icon">📱</div>
+    <div class="ci-kpi-val">{{ visits_today }}</div>
+    <div class="ci-kpi-label">Mini App Visits Today</div>
+    <div class="ci-kpi-sub">{{ visits_week }} this week</div>
+  </div>
+  <div class="ci-kpi blue">
+    <div class="ci-kpi-icon">🌟</div>
+    <div class="ci-kpi-val">{{ new_today }}</div>
+    <div class="ci-kpi-label">New Today</div>
+    <div class="ci-kpi-sub">{{ new_this_week }} this week</div>
+  </div>
+  <div class="ci-kpi orange">
+    <div class="ci-kpi-icon">🛒</div>
+    <div class="ci-kpi-val">{{ cart_adds_week }}</div>
+    <div class="ci-kpi-label">Cart Adds (7d)</div>
+  </div>
+  <div class="ci-kpi pink">
+    <div class="ci-kpi-icon">⚡</div>
+    <div class="ci-kpi-val">{{ buy_now_clicks_week }}</div>
+    <div class="ci-kpi-label">Buy Now Clicks (7d)</div>
+    <div class="ci-kpi-sub">From Telegram channel</div>
+  </div>
+  <div class="ci-kpi purple">
+    <div class="ci-kpi-icon">🤖</div>
+    <div class="ci-kpi-val">{{ ai_convos_week }}</div>
+    <div class="ci-kpi-label">AI Sessions (7d)</div>
+  </div>
+  <div class="ci-kpi blue">
+    <div class="ci-kpi-icon">✈️</div>
+    <div class="ci-kpi-val">{{ telegram_users }}</div>
+    <div class="ci-kpi-label">Telegram Users</div>
+    <div class="ci-kpi-sub">Connected accounts</div>
+  </div>
 </div>
-<div class="admin-card">
+
+<!-- Tab Bar -->
+<div class="ci-tabs">
+  <a href="?tab=overview" class="ci-tab {% if tab == 'overview' %}active{% endif %}">
+    <i class="fas fa-chart-pie"></i> Overview
+  </a>
+  <a href="?tab=engagement" class="ci-tab {% if tab == 'engagement' %}active{% endif %}">
+    <i class="fas fa-fire"></i> Engagement
+  </a>
+  <a href="?tab=ai" class="ci-tab {% if tab == 'ai' %}active{% endif %}">
+    <i class="fas fa-robot"></i> AI Conversations
+  </a>
+  <a href="?tab=weekly" class="ci-tab {% if tab == 'weekly' %}active{% endif %}">
+    <i class="fas fa-calendar-week"></i> Weekly Report
+  </a>
+  <a href="?tab=customers" class="ci-tab {% if tab == 'customers' %}active{% endif %}">
+    <i class="fas fa-users"></i> Customer List
+  </a>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- TAB: OVERVIEW                                                       -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+{% if tab == 'overview' %}
+<div class="row g-4">
+
+  <!-- New vs Returning Donut -->
+  <div class="col-lg-4">
+    <div class="chart-card h-100">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-chart-pie" style="color:#3d8b5f"></i> New vs Returning (30d)</h6>
+      </div>
+      <div class="chart-body" style="display:flex;align-items:center;justify-content:center;height:220px">
+        <canvas id="pieChart" width="220" height="220"></canvas>
+      </div>
+      <div class="px-4 pb-3 d-flex justify-content-around">
+        <div class="text-center">
+          <div class="fw-700" style="color:#3d8b5f;font-size:1.2rem">{{ new_users_30 }}</div>
+          <div style="font-size:.72rem;color:var(--muted)">New Users</div>
+        </div>
+        <div class="text-center">
+          <div class="fw-700" style="color:#8b5cf6;font-size:1.2rem">{{ returning_users_30 }}</div>
+          <div style="font-size:.72rem;color:var(--muted)">Returning</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Daily Visits Line Chart -->
+  <div class="col-lg-8">
+    <div class="chart-card h-100">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-chart-line" style="color:#3b82f6"></i> Daily Mini App Visits (14 days)</h6>
+      </div>
+      <div class="chart-body" style="height:260px">
+        <canvas id="visitsChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Weekly Signups Bar Chart -->
+  <div class="col-lg-7">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-user-plus" style="color:#f59e0b"></i> Weekly New Customers (8 weeks)</h6>
+      </div>
+      <div class="chart-body" style="height:230px">
+        <canvas id="signupsChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Top Add-to-Cart Products -->
+  <div class="col-lg-5">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-shopping-cart" style="color:#059669"></i> Top Cart Adds (30d)</h6>
+      </div>
+      <div class="chart-body">
+        {% if top_cart_products %}
+        {% set max_cart = top_cart_products[0].count %}
+        {% for p in top_cart_products %}
+        <div class="mb-3">
+          <div class="d-flex justify-content-between mb-1">
+            <span style="font-size:.82rem;font-weight:600" class="text-truncate me-2">{{ p.name[:35] }}{% if p.name|length > 35 %}…{% endif %}</span>
+            <span style="font-size:.78rem;color:var(--muted);white-space:nowrap">{{ p.count }}x</span>
+          </div>
+          <div class="mini-bar-wrap">
+            <div class="mini-bar">
+              <div class="mini-bar-fill" style="width:{{ ((p.count / max_cart) * 100)|int }}%;background:{% if loop.index==1%}#3d8b5f{% elif loop.index==2%}#3b82f6{% elif loop.index==3%}#8b5cf6{% elif loop.index==4%}#f59e0b{% else %}#ec4899{% endif %}"></div>
+            </div>
+            <span style="font-size:.7rem;color:var(--muted)">ETB {{ '{:,.0f}'.format(p.price) }}</span>
+          </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="text-center text-muted py-4" style="font-size:.85rem">No cart activity tracked yet.<br><small>Activity logging starts now!</small></div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Buy Now Clicks (Telegram Channel) -->
+  <div class="col-lg-6">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fab fa-telegram" style="color:#0ea5e9"></i> Telegram "Buy Now" Clicks (30d)</h6>
+      </div>
+      <div class="chart-body">
+        {% if top_buy_now %}
+        <table class="table admin-table mb-0">
+          <thead><tr><th>#</th><th>Product</th><th>Clicks</th></tr></thead>
+          <tbody>
+            {% for p in top_buy_now %}
+            <tr>
+              <td class="text-muted fw-600">{{ loop.index }}</td>
+              <td style="font-size:.82rem">{{ p.name }}</td>
+              <td><span class="badge" style="background:#0ea5e9;color:white;font-size:.75rem">{{ p.count }}</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="text-center text-muted py-4" style="font-size:.85rem">No Buy Now click data yet.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- AI Top Suggested Products -->
+  <div class="col-lg-6">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-robot" style="color:#8b5cf6"></i> AI Most-Suggested Products (30d)</h6>
+      </div>
+      <div class="chart-body">
+        {% if ai_suggestions %}
+        <table class="table admin-table mb-0">
+          <thead><tr><th>#</th><th>Product</th><th>Times Suggested</th></tr></thead>
+          <tbody>
+            {% for p in ai_suggestions %}
+            <tr>
+              <td class="text-muted fw-600">{{ loop.index }}</td>
+              <td style="font-size:.82rem">{{ p.name }}</td>
+              <td><span class="badge" style="background:#8b5cf6;color:white;font-size:.75rem">{{ p.count }}</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="text-center text-muted py-4" style="font-size:.85rem">No AI suggestion data yet.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endif %}
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- TAB: ENGAGEMENT (Activity Feed)                                    -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+{% if tab == 'engagement' %}
+<div class="row g-4">
+  <div class="col-lg-8">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-bolt" style="color:#f59e0b"></i> Live Activity Feed</h6>
+        <span style="font-size:.75rem;color:var(--muted)">Last 20 events</span>
+      </div>
+      <ul class="activity-feed">
+        {% for act in recent_activity %}
+        {% set action = act.action %}
+        <li class="activity-item">
+          <div class="act-dot {% if action == 'mini_app_visit' %}visit{% elif action == 'add_to_cart' %}cart{% elif action == 'telegram_buy_now_click' %}buy{% elif action == 'ai_suggested_product' %}ai{% elif action == 'view_product' %}view{% else %}other{% endif %}">
+            {% if action == 'mini_app_visit' %}<i class="fas fa-mobile-alt"></i>
+            {% elif action == 'add_to_cart' %}<i class="fas fa-shopping-cart"></i>
+            {% elif action == 'telegram_buy_now_click' %}<i class="fab fa-telegram"></i>
+            {% elif action == 'ai_suggested_product' %}<i class="fas fa-robot"></i>
+            {% elif action == 'view_product' %}<i class="fas fa-eye"></i>
+            {% else %}<i class="fas fa-circle"></i>{% endif %}
+          </div>
+          <div class="act-body">
+            <div class="act-title">
+              {% if action == 'mini_app_visit' %}Mini App Visited
+              {% elif action == 'add_to_cart' %}Added to Cart{% if act.entity_id %} — Product #{{ act.entity_id }}{% endif %}
+              {% elif action == 'telegram_buy_now_click' %}Telegram Buy Now Click{% if act.entity_id %} — Product #{{ act.entity_id }}{% endif %}
+              {% elif action == 'ai_suggested_product' %}AI Suggested Product #{{ act.entity_id }}
+              {% elif action == 'view_product' %}Viewed Product #{{ act.entity_id }}
+              {% else %}{{ action|replace('_',' ')|title }}{% endif %}
+            </div>
+            <div class="act-meta">
+              {% if act.user_id %}User #{{ act.user_id }}{% else %}Anonymous{% endif %}
+              {% if act.ip_address %} · {{ act.ip_address }}{% endif %}
+            </div>
+          </div>
+          <div class="act-time">{{ act.created_at.strftime('%b %d, %H:%M') if act.created_at else '—' }}</div>
+        </li>
+        {% else %}
+        <li class="activity-item"><div class="text-center text-muted py-4 w-100">No activity recorded yet. Activity tracking is now live!</div></li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="chart-card mb-4">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-chart-bar" style="color:#3d8b5f"></i> Event Breakdown</h6>
+      </div>
+      <div class="chart-body" style="height:220px">
+        <canvas id="eventPieChart"></canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-info-circle" style="color:var(--muted)"></i> Tracking Guide</h6>
+      </div>
+      <div class="chart-body">
+        <div style="font-size:.8rem;color:var(--muted);line-height:1.6">
+          <div class="mb-2"><span class="act-dot visit d-inline-flex" style="width:22px;height:22px;font-size:.65rem;margin-right:6px"><i class="fas fa-mobile-alt"></i></span>Mini App opens</div>
+          <div class="mb-2"><span class="act-dot cart d-inline-flex" style="width:22px;height:22px;font-size:.65rem;margin-right:6px"><i class="fas fa-shopping-cart"></i></span>Add to cart events</div>
+          <div class="mb-2"><span class="act-dot buy d-inline-flex" style="width:22px;height:22px;font-size:.65rem;margin-right:6px"><i class="fab fa-telegram"></i></span>Telegram Buy Now clicks</div>
+          <div class="mb-2"><span class="act-dot ai d-inline-flex" style="width:22px;height:22px;font-size:.65rem;margin-right:6px"><i class="fas fa-robot"></i></span>AI product suggestions</div>
+          <hr/>
+          <p class="mb-0" style="font-size:.72rem">To track Buy Now clicks from the Telegram channel, call <code>POST /api/mini-app/track</code> with <code>{"action":"telegram_buy_now_click","product_id":ID}</code> when the button is tapped.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- TAB: AI CONVERSATIONS                                              -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+{% if tab == 'ai' %}
+<div class="chart-card">
+  <div class="chart-card-header">
+    <h6><i class="fas fa-robot" style="color:#8b5cf6"></i> Recent AI Conversations</h6>
+    <span style="font-size:.75rem;color:var(--muted)">Latest 15 sessions</span>
+  </div>
   <div class="table-responsive">
-    <table class="table admin-table">
-      <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Telegram</th><th>Orders</th><th>Joined</th><th>Role</th></tr></thead>
-      <tbody>
-        {% for customer in customers %}
+    <table class="table admin-table mb-0">
+      <thead>
         <tr>
-          <td><div class="fw-600">{{ customer.full_name }}</div></td>
-          <td class="small">{{ customer.email or '—' }}</td>
-          <td class="small">{{ customer.phone or '—' }}</td>
-          <td class="small">{% if customer.telegram_id %}<span class="badge bg-info">@{{ customer.telegram_username or customer.telegram_id }}</span>{% else %}—{% endif %}</td>
-          <td>{{ customer.orders.count() }}</td>
-          <td class="small text-muted">{{ customer.created_at.strftime('%b %d, %Y') if customer.created_at else '' }}</td>
-          <td><span class="badge bg-{{ 'danger' if customer.role.value == 'admin' else 'success' if customer.role.value == 'driver' else 'secondary' }}">{{ customer.role.value }}</span></td>
+          <th>Session ID</th>
+          <th>Customer</th>
+          <th>Messages</th>
+          <th>Last Activity</th>
+          <th>Channel</th>
+          <th></th>
         </tr>
+      </thead>
+      <tbody>
+        {% for sess in recent_ai %}
+        <tr>
+          <td style="font-size:.75rem;font-family:monospace;color:var(--muted)">{{ sess.session_id[:16] }}…</td>
+          <td>
+            {% if sess.user_id %}
+            {% set u = sess.user_id %}
+            <a href="{{ url_for('admin.customer_detail', user_id=sess.user_id) }}" style="font-size:.82rem;color:var(--green);font-weight:600">User #{{ sess.user_id }}</a>
+            {% else %}
+            <span style="font-size:.82rem;color:var(--muted)">Anonymous</span>
+            {% endif %}
+          </td>
+          <td><span class="badge" style="background:#ede9fe;color:#5b21b6;font-weight:700">{{ sess.msg_count }}</span></td>
+          <td style="font-size:.78rem;color:var(--muted)">{{ sess.last_msg.strftime('%b %d, %H:%M') if sess.last_msg else '—' }}</td>
+          <td><span class="badge bg-secondary">mini_app</span></td>
+          <td>
+            <a href="{{ url_for('admin.ai_conversations') }}?session={{ sess.session_id }}" class="btn btn-sm" style="background:var(--green-light);color:var(--green);font-weight:600;font-size:.74rem;padding:4px 10px">View</a>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="text-center text-muted py-4">No AI conversation data yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- TAB: WEEKLY REPORT                                                 -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+{% if tab == 'weekly' %}
+<div class="row g-4">
+  <div class="col-12">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-calendar-week" style="color:#14b8a6"></i> 8-Week Performance Report</h6>
+        <a href="{{ url_for('admin.customers_weekly_report') }}" target="_blank" class="btn btn-sm" style="background:var(--green-light);color:var(--green);font-weight:600;font-size:.75rem;padding:4px 12px"><i class="fas fa-download me-1"></i>Export JSON</a>
+      </div>
+      <div class="chart-body" style="height:260px">
+        <canvas id="weeklyChart"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-12">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-table" style="color:var(--muted)"></i> Weekly Breakdown Table</h6>
+      </div>
+      <div class="table-responsive">
+        <table class="table report-tbl admin-table mb-0">
+          <thead>
+            <tr>
+              <th>Week</th>
+              <th>New Users</th>
+              <th>Mini App Visits</th>
+              <th>Orders</th>
+              <th>Revenue (ETB)</th>
+            </tr>
+          </thead>
+          <tbody id="weeklyReportBody">
+            <tr><td colspan="5" class="text-center text-muted py-3"><i class="fas fa-spinner fa-spin me-2"></i>Loading weekly data…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- TAB: CUSTOMER LIST                                                 -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+{% if tab == 'customers' %}
+<div class="chart-card">
+  <div class="chart-card-header">
+    <h6><i class="fas fa-users" style="color:#3d8b5f"></i> All Customers</h6>
+    <span style="font-size:.78rem;color:var(--muted)">{{ pagination.total }} total</span>
+  </div>
+  <div class="chart-body pb-1">
+    <form method="GET" class="ci-search">
+      <input type="hidden" name="tab" value="customers"/>
+      <input type="text" name="q" value="{{ q }}" placeholder="Search by name, email, phone, Telegram username…" />
+      <button class="btn admin-btn-outline" type="submit">Search</button>
+      {% if q %}<a href="?tab=customers" class="btn admin-btn-outline">Clear</a>{% endif %}
+    </form>
+  </div>
+  <div class="table-responsive">
+    <table class="table admin-table mb-0">
+      <thead>
+        <tr>
+          <th>Customer</th>
+          <th>Contact</th>
+          <th>Telegram</th>
+          <th>Orders</th>
+          <th>Spent (ETB)</th>
+          <th>Status</th>
+          <th>Joined</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in customers %}
+        {% set days_old = ((now|default(none)) - c.created_at).days if c.created_at else 999 %}
+        <tr>
+          <td>
+            <div class="fw-600 tbl-name-cell">{{ c.full_name or '—' }}</div>
+            <div style="font-size:.72rem;color:var(--muted)">ID #{{ c.id }}</div>
+          </td>
+          <td>
+            <div style="font-size:.8rem">{{ c.email or '—' }}</div>
+            <div style="font-size:.76rem;color:var(--muted)">{{ c.phone or '' }}</div>
+          </td>
+          <td>
+            {% if c.telegram_id %}
+            <span class="tbl-badge-tg">@{{ c.telegram_username or c.telegram_id }}</span>
+            {% else %}—{% endif %}
+          </td>
+          <td><span class="fw-600">{{ c.orders.count() }}</span></td>
+          <td style="font-size:.82rem">{{ '{:,.0f}'.format(c.total_money_spent|float) }}</td>
+          <td>
+            {% if c.created_at and (now|default(none)) %}
+            <span class="{% if c.orders.count() == 0 %}tbl-badge-new{% else %}tbl-badge-ret{% endif %}">
+              {% if c.orders.count() == 0 %}New{% else %}Customer{% endif %}
+            </span>
+            {% endif %}
+          </td>
+          <td style="font-size:.76rem;color:var(--muted)">{{ c.created_at.strftime('%b %d, %Y') if c.created_at else '—' }}</td>
+          <td>
+            <a href="{{ url_for('admin.customer_detail', user_id=c.id) }}" class="btn btn-sm" style="background:var(--green-light);color:var(--green);font-size:.74rem;font-weight:600;padding:4px 10px">Profile</a>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" class="text-center text-muted py-4">No customers found.</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
   {% if pagination.pages > 1 %}
-  <nav><ul class="pagination mt-3 justify-content-center">
-    {% if pagination.has_prev %}<li class="page-item"><a class="page-link" href="?page={{ pagination.prev_num }}&q={{ q }}">‹</a></li>{% endif %}
-    {% for p in pagination.iter_pages() %}{% if p %}<li class="page-item {% if p == pagination.page %}active{% endif %}"><a class="page-link" href="?page={{ p }}&q={{ q }}">{{ p }}</a></li>{% endif %}{% endfor %}
-    {% if pagination.has_next %}<li class="page-item"><a class="page-link" href="?page={{ pagination.next_num }}&q={{ q }}">›</a></li>{% endif %}
-  </ul></nav>
+  <div class="chart-body pt-1">
+    <nav><ul class="pagination justify-content-center mb-0">
+      {% if pagination.has_prev %}<li class="page-item"><a class="page-link" href="?tab=customers&page={{ pagination.prev_num }}&q={{ q }}">‹</a></li>{% endif %}
+      {% for p in pagination.iter_pages() %}{% if p %}<li class="page-item {% if p == pagination.page %}active{% endif %}"><a class="page-link" href="?tab=customers&page={{ p }}&q={{ q }}">{{ p }}</a></li>{% endif %}{% endfor %}
+      {% if pagination.has_next %}<li class="page-item"><a class="page-link" href="?tab=customers&page={{ pagination.next_num }}&q={{ q }}">›</a></li>{% endif %}
+    </ul></nav>
+  </div>
   {% endif %}
 </div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+// ── Shared chart defaults ────────────────────────────────────────────
+Chart.defaults.font.family = "'Outfit', sans-serif";
+Chart.defaults.color = '#718096';
+
+{% if tab == 'overview' %}
+// New vs Returning Donut
+new Chart(document.getElementById('pieChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['New Users', 'Returning'],
+    datasets: [{
+      data: [{{ new_users_30 }}, {{ returning_users_30 }}],
+      backgroundColor: ['#3d8b5f', '#8b5cf6'],
+      borderWidth: 0,
+      hoverOffset: 8,
+    }]
+  },
+  options: {
+    cutout: '68%',
+    plugins: { legend: { display: false }, tooltip: { callbacks: {
+      label: ctx => ` ${ctx.label}: ${ctx.raw}`
+    }}}
+  }
+});
+
+// Daily Visits Line
+const visitLabels = {{ daily_visits | map(attribute='date') | list | tojson }};
+const visitData   = {{ daily_visits | map(attribute='count') | list | tojson }};
+new Chart(document.getElementById('visitsChart'), {
+  type: 'line',
+  data: {
+    labels: visitLabels,
+    datasets: [{
+      label: 'Unique Visitors',
+      data: visitData,
+      borderColor: '#3b82f6',
+      backgroundColor: 'rgba(59,130,246,.08)',
+      borderWidth: 2.5,
+      pointBackgroundColor: '#3b82f6',
+      pointRadius: 4,
+      fill: true,
+      tension: 0.4,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+      y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,.04)' }, ticks: { precision: 0 } }
+    }
+  }
+});
+
+// Weekly Signups Bar
+const signupLabels = {{ weekly_signups | map(attribute='week') | list | tojson }};
+const signupData   = {{ weekly_signups | map(attribute='count') | list | tojson }};
+new Chart(document.getElementById('signupsChart'), {
+  type: 'bar',
+  data: {
+    labels: signupLabels,
+    datasets: [{
+      label: 'New Customers',
+      data: signupData,
+      backgroundColor: ctx => {
+        const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 200);
+        g.addColorStop(0, '#f59e0b');
+        g.addColorStop(1, 'rgba(245,158,11,.2)');
+        return g;
+      },
+      borderRadius: 8,
+      borderSkipped: false,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+      y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,.04)' }, ticks: { precision: 0 } }
+    }
+  }
+});
+{% endif %}
+
+{% if tab == 'engagement' %}
+// Event breakdown pie
+const evtData = {
+  labels: ['Mini App Visits', 'Cart Adds', 'Buy Now Clicks', 'AI Suggestions', 'Product Views'],
+  datasets: [{
+    data: [
+      {{ recent_activity | selectattr('action', 'equalto', 'mini_app_visit') | list | length }},
+      {{ recent_activity | selectattr('action', 'equalto', 'add_to_cart') | list | length }},
+      {{ recent_activity | selectattr('action', 'equalto', 'telegram_buy_now_click') | list | length }},
+      {{ recent_activity | selectattr('action', 'equalto', 'ai_suggested_product') | list | length }},
+      {{ recent_activity | selectattr('action', 'equalto', 'view_product') | list | length }},
+    ],
+    backgroundColor: ['#14b8a6','#3d8b5f','#f59e0b','#8b5cf6','#64748b'],
+    borderWidth: 0,
+  }]
+};
+new Chart(document.getElementById('eventPieChart'), {
+  type: 'doughnut',
+  data: evtData,
+  options: {
+    cutout: '60%',
+    plugins: { legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 12, boxWidth: 12 } } }
+  }
+});
+{% endif %}
+
+{% if tab == 'weekly' %}
+// Load weekly report data
+fetch('{{ url_for("admin.customers_weekly_report") }}')
+  .then(r => r.json())
+  .then(data => {
+    const weeks = data.weeks;
+    const tbody = document.getElementById('weeklyReportBody');
+    tbody.innerHTML = weeks.map(w => `
+      <tr>
+        <td class="fw-600">${w.week}</td>
+        <td><span style="background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:20px;font-size:.78rem;font-weight:600">${w.new_users}</span></td>
+        <td><span style="background:#e0f2fe;color:#0369a1;padding:2px 8px;border-radius:20px;font-size:.78rem;font-weight:600">${w.visits}</span></td>
+        <td>${w.orders}</td>
+        <td class="fw-600">${(w.revenue).toLocaleString('en-ET', {minimumFractionDigits:0, maximumFractionDigits:0})} ETB</td>
+      </tr>
+    `).join('');
+
+    // Weekly multi-line chart
+    new Chart(document.getElementById('weeklyChart'), {
+      type: 'bar',
+      data: {
+        labels: weeks.map(w => w.week),
+        datasets: [
+          {
+            label: 'New Users',
+            data: weeks.map(w => w.new_users),
+            backgroundColor: 'rgba(61,139,95,.75)',
+            borderRadius: 6,
+          },
+          {
+            label: 'Mini App Visits',
+            data: weeks.map(w => w.visits),
+            backgroundColor: 'rgba(59,130,246,.75)',
+            borderRadius: 6,
+          },
+          {
+            label: 'Orders',
+            data: weeks.map(w => w.orders),
+            backgroundColor: 'rgba(245,158,11,.75)',
+            borderRadius: 6,
+          },
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'top', labels: { font: { size: 12 }, padding: 16, boxWidth: 14 } } },
+        scales: {
+          x: { grid: { display: false } },
+          y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,.04)' }, ticks: { precision: 0 } }
+        }
+      }
+    });
+  });
+{% endif %}
+</script>
 {% endblock %}

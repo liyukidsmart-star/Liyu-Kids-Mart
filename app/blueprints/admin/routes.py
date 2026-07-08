@@ -1,7 +1,7 @@
 import os
 import json
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 from flask import (render_template, redirect, url_for, flash, request,
                    jsonify, current_app)
@@ -11,7 +11,7 @@ from functools import wraps
 from app.blueprints.admin import admin_bp
 from app.extensions import db
 from app.models.product import Product, Category, ProductImage, prime_product_image_lookup
-from app.models.order import Order, OrderStatus, Coupon, DiscountType
+from app.models.order import Order, OrderStatus, Coupon, DiscountType, OrderItem
 from app.models.loyalty import LoyaltySettings
 from app.services.loyalty_service import _get_settings
 from app.models.marketing import ProductDiscount, TelegramChannelPost, TelegramChannelPostImage
@@ -19,10 +19,10 @@ from app.services.telegram_marketing import publish_channel_post, _telegram_mini
 from app.services.image_delivery import media_url_for_file_id
 from app.models.user import User, UserRole
 from app.models.delivery import Driver
-from app.models.ai_conversation import AIConversation
+from app.models.ai_conversation import AIConversation, ActivityLog
 from app.utils import allowed_file
 from slugify import slugify
-from slugify import slugify
+from sqlalchemy import func, distinct, and_, or_, case
 
 def _upload_to_telegram(file_obj):
     """Upload an image to Telegram via sendPhoto to a dedicated media channel.
@@ -525,23 +525,287 @@ def update_order_status(order_id):
         return jsonify({'success': False, 'message': 'Invalid status'})
 
 
-# ── CUSTOMERS ──
+# ── CUSTOMERS INTELLIGENCE HUB ──
 @admin_bp.route('/customers')
 @admin_required
 def customers():
     q = request.args.get('q', '').strip()
-    query = User.query
+    tab = request.args.get('tab', 'overview')
+    now = datetime.now(timezone.utc)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    week_start = today_start - timedelta(days=7)
+    month_start = today_start - timedelta(days=30)
+
+    # ── Overview KPIs ──────────────────────────────────────────────
+    total_customers = User.query.filter_by(role=UserRole.customer).count()
+    new_today = User.query.filter(
+        User.role == UserRole.customer,
+        User.created_at >= today_start
+    ).count()
+    new_this_week = User.query.filter(
+        User.role == UserRole.customer,
+        User.created_at >= week_start
+    ).count()
+    new_this_month = User.query.filter(
+        User.role == UserRole.customer,
+        User.created_at >= month_start
+    ).count()
+    telegram_users = User.query.filter(
+        User.role == UserRole.customer,
+        User.telegram_id.isnot(None)
+    ).count()
+
+    # Mini App visits today (unique sessions)
+    visits_today = db.session.query(func.count(distinct(ActivityLog.user_id))).filter(
+        ActivityLog.action == 'mini_app_visit',
+        ActivityLog.created_at >= today_start
+    ).scalar() or 0
+    visits_week = db.session.query(func.count(distinct(ActivityLog.user_id))).filter(
+        ActivityLog.action == 'mini_app_visit',
+        ActivityLog.created_at >= week_start
+    ).scalar() or 0
+
+    # Cart adds this week
+    cart_adds_week = db.session.query(func.count(ActivityLog.id)).filter(
+        ActivityLog.action == 'add_to_cart',
+        ActivityLog.created_at >= week_start
+    ).scalar() or 0
+
+    # Buy Now clicks from Telegram channel (this week)
+    buy_now_clicks_week = db.session.query(func.count(ActivityLog.id)).filter(
+        ActivityLog.action == 'telegram_buy_now_click',
+        ActivityLog.created_at >= week_start
+    ).scalar() or 0
+
+    # AI conversations this week
+    ai_convos_week = db.session.query(
+        func.count(distinct(AIConversation.session_id))
+    ).filter(
+        AIConversation.created_at >= week_start
+    ).scalar() or 0
+
+    # New vs Returning pie data (last 30 days)
+    # "New" = users created in last 30 days; "Returning" = rest with activity
+    new_users_30 = User.query.filter(
+        User.role == UserRole.customer,
+        User.created_at >= month_start
+    ).count()
+    returning_users_30 = max(0, total_customers - new_users_30)
+
+    # ── Daily visits for past 14 days chart ───────────────────────
+    daily_visits = []
+    for i in range(13, -1, -1):
+        day = today_start - timedelta(days=i)
+        next_day = day + timedelta(days=1)
+        cnt = db.session.query(func.count(distinct(ActivityLog.user_id))).filter(
+            ActivityLog.action == 'mini_app_visit',
+            ActivityLog.created_at >= day,
+            ActivityLog.created_at < next_day
+        ).scalar() or 0
+        daily_visits.append({'date': day.strftime('%b %d'), 'count': cnt})
+
+    # ── Weekly signups for past 8 weeks chart ─────────────────────
+    weekly_signups = []
+    for i in range(7, -1, -1):
+        wk_start = today_start - timedelta(weeks=i+1)
+        wk_end = today_start - timedelta(weeks=i)
+        cnt = User.query.filter(
+            User.role == UserRole.customer,
+            User.created_at >= wk_start,
+            User.created_at < wk_end
+        ).count()
+        weekly_signups.append({'week': wk_start.strftime('W%U %b'), 'count': cnt})
+
+    # ── Top products clicked / added to cart ──────────────────────
+    top_cart_products = db.session.query(
+        ActivityLog.entity_id,
+        func.count(ActivityLog.id).label('cnt')
+    ).filter(
+        ActivityLog.action == 'add_to_cart',
+        ActivityLog.entity_id.isnot(None),
+        ActivityLog.created_at >= month_start
+    ).group_by(ActivityLog.entity_id).order_by(func.count(ActivityLog.id).desc()).limit(5).all()
+
+    top_cart_products_data = []
+    for pid, cnt in top_cart_products:
+        p = db.session.get(Product, pid)
+        if p:
+            top_cart_products_data.append({'name': p.name, 'count': cnt, 'price': float(p.current_price())})
+
+    # ── Buy Now clicks by product ─────────────────────────────────
+    top_buy_now = db.session.query(
+        ActivityLog.entity_id,
+        func.count(ActivityLog.id).label('cnt')
+    ).filter(
+        ActivityLog.action == 'telegram_buy_now_click',
+        ActivityLog.entity_id.isnot(None),
+        ActivityLog.created_at >= month_start
+    ).group_by(ActivityLog.entity_id).order_by(func.count(ActivityLog.id).desc()).limit(5).all()
+
+    top_buy_now_data = []
+    for pid, cnt in top_buy_now:
+        p = db.session.get(Product, pid)
+        if p:
+            top_buy_now_data.append({'name': p.name, 'count': cnt})
+
+    # ── AI suggestions breakdown ──────────────────────────────────
+    ai_suggestions = db.session.query(
+        ActivityLog.entity_id,
+        func.count(ActivityLog.id).label('cnt')
+    ).filter(
+        ActivityLog.action == 'ai_suggested_product',
+        ActivityLog.entity_id.isnot(None),
+        ActivityLog.created_at >= month_start
+    ).group_by(ActivityLog.entity_id).order_by(func.count(ActivityLog.id).desc()).limit(5).all()
+
+    ai_suggestions_data = []
+    for pid, cnt in ai_suggestions:
+        p = db.session.get(Product, pid)
+        if p:
+            ai_suggestions_data.append({'name': p.name, 'count': cnt})
+
+    # ── Recent activity feed ───────────────────────────────────────
+    recent_activity = ActivityLog.query.order_by(
+        ActivityLog.created_at.desc()
+    ).limit(20).all()
+
+    # ── Customer list (search) ────────────────────────────────────
+    cust_query = User.query.filter_by(role=UserRole.customer)
     if q:
-        from sqlalchemy import or_
-        query = query.filter(or_(
+        cust_query = cust_query.filter(or_(
             User.full_name.ilike(f'%{q}%'),
             User.email.ilike(f'%{q}%'),
             User.phone.ilike(f'%{q}%'),
+            User.telegram_username.ilike(f'%{q}%'),
         ))
-    pagination = query.order_by(User.created_at.desc()).paginate(
-        page=request.args.get('page', 1, int), per_page=30, error_out=False)
-    return render_template('admin/customers.html', customers=pagination.items,
-                           pagination=pagination, q=q)
+    pagination = cust_query.order_by(User.created_at.desc()).paginate(
+        page=request.args.get('page', 1, int), per_page=25, error_out=False
+    )
+
+    # ── AI conversations recent ───────────────────────────────────
+    recent_ai = db.session.query(
+        AIConversation.session_id,
+        AIConversation.user_id,
+        func.count(AIConversation.id).label('msg_count'),
+        func.max(AIConversation.created_at).label('last_msg'),
+    ).group_by(AIConversation.session_id, AIConversation.user_id
+    ).order_by(func.max(AIConversation.created_at).desc()).limit(15).all()
+
+    return render_template('admin/customers.html',
+        tab=tab, q=q,
+        now=now,
+        # KPIs
+        total_customers=total_customers,
+        new_today=new_today,
+        new_this_week=new_this_week,
+        new_this_month=new_this_month,
+        telegram_users=telegram_users,
+        visits_today=visits_today,
+        visits_week=visits_week,
+        cart_adds_week=cart_adds_week,
+        buy_now_clicks_week=buy_now_clicks_week,
+        ai_convos_week=ai_convos_week,
+        # Charts data
+        new_users_30=new_users_30,
+        returning_users_30=returning_users_30,
+        daily_visits=daily_visits,
+        weekly_signups=weekly_signups,
+        # Tables
+        top_cart_products=top_cart_products_data,
+        top_buy_now=top_buy_now_data,
+        ai_suggestions=ai_suggestions_data,
+        recent_activity=recent_activity,
+        recent_ai=recent_ai,
+        # Customer list
+        customers=pagination.items,
+        pagination=pagination,
+    )
+
+
+@admin_bp.route('/customers/<int:user_id>')
+@admin_required
+def customer_detail(user_id):
+    user = db.session.get(User, user_id)
+    if not user:
+        flash('Customer not found', 'danger')
+        return redirect(url_for('admin.customers'))
+
+    # Activity timeline
+    activity = ActivityLog.query.filter_by(user_id=user_id).order_by(
+        ActivityLog.created_at.desc()
+    ).limit(50).all()
+
+    # Orders
+    orders = Order.query.filter_by(user_id=user_id).order_by(
+        Order.created_at.desc()
+    ).limit(20).all()
+
+    # AI conversations grouped by session
+    ai_sessions = db.session.query(
+        AIConversation.session_id,
+        func.count(AIConversation.id).label('msg_count'),
+        func.min(AIConversation.created_at).label('started'),
+        func.max(AIConversation.created_at).label('last_msg'),
+    ).filter(
+        AIConversation.user_id == user_id
+    ).group_by(AIConversation.session_id
+    ).order_by(func.max(AIConversation.created_at).desc()).limit(10).all()
+
+    # Messages for each session (latest 3 sessions full)
+    ai_messages_by_session = {}
+    for sess in ai_sessions[:3]:
+        msgs = AIConversation.query.filter_by(
+            session_id=sess.session_id
+        ).order_by(AIConversation.created_at.asc()).all()
+        ai_messages_by_session[sess.session_id] = msgs
+
+    return render_template('admin/customer_detail.html',
+        customer=user,
+        activity=activity,
+        orders=orders,
+        ai_sessions=ai_sessions,
+        ai_messages_by_session=ai_messages_by_session,
+    )
+
+
+@admin_bp.route('/customers/weekly-report')
+@admin_required
+def customers_weekly_report():
+    """JSON endpoint for weekly report data."""
+    now = datetime.now(timezone.utc)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    weeks = []
+    for i in range(7, -1, -1):
+        wk_start = today_start - timedelta(weeks=i+1)
+        wk_end = today_start - timedelta(weeks=i)
+        new_users = User.query.filter(
+            User.role == UserRole.customer,
+            User.created_at >= wk_start,
+            User.created_at < wk_end
+        ).count()
+        visits = db.session.query(func.count(distinct(ActivityLog.user_id))).filter(
+            ActivityLog.action == 'mini_app_visit',
+            ActivityLog.created_at >= wk_start,
+            ActivityLog.created_at < wk_end
+        ).scalar() or 0
+        orders_cnt = Order.query.filter(
+            Order.created_at >= wk_start,
+            Order.created_at < wk_end
+        ).count()
+        revenue = db.session.query(func.sum(Order.total)).filter(
+            Order.created_at >= wk_start,
+            Order.created_at < wk_end,
+            Order.status.notin_([OrderStatus.cancelled])
+        ).scalar() or 0
+        weeks.append({
+            'week': wk_start.strftime('%b %d'),
+            'new_users': new_users,
+            'visits': visits,
+            'orders': orders_cnt,
+            'revenue': float(revenue),
+        })
+    return jsonify({'weeks': weeks})
 
 
 # ── DRIVERS ──

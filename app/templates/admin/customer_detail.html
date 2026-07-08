@@ -1,0 +1,264 @@
+{% extends 'admin/base_admin.html' %}
+{% block title %}{{ customer.full_name }} — Customer Profile{% endblock %}
+{% block page_title %}Customer Profile{% endblock %}
+
+{% block extra_css %}
+<style>
+.profile-hero {
+  background: linear-gradient(135deg, #0f2318 0%, #1b4330 60%, #3d8b5f 100%);
+  border-radius: var(--radius);
+  padding: 28px 28px 24px;
+  color: white;
+  margin-bottom: 24px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+}
+.profile-hero::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Ccircle cx='30' cy='30' r='20'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  pointer-events: none;
+}
+.profile-avatar {
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.15);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.6rem; font-weight: 800;
+  color: white;
+  border: 2px solid rgba(255,255,255,.3);
+  flex-shrink: 0;
+}
+.profile-stat {
+  text-align: center;
+  padding: 12px 20px;
+  border-left: 1px solid rgba(255,255,255,.12);
+}
+.profile-stat:first-child { border-left: none; }
+.profile-stat-val { font-size: 1.4rem; font-weight: 800; line-height: 1; }
+.profile-stat-lbl { font-size: .7rem; opacity: .7; margin-top: 3px; }
+
+.timeline { list-style: none; padding: 0; margin: 0; }
+.tl-item {
+  display: flex; gap: 14px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border);
+  align-items: flex-start;
+}
+.tl-item:last-child { border-bottom: none; }
+.tl-dot {
+  width: 30px; height: 30px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .75rem; flex-shrink: 0; margin-top: 2px;
+}
+.tl-dot.visit   { background:#e0f2fe; color:#0284c7; }
+.tl-dot.cart    { background:#d1fae5; color:#059669; }
+.tl-dot.buy     { background:#fef3c7; color:#d97706; }
+.tl-dot.ai      { background:#ede9fe; color:#7c3aed; }
+.tl-dot.view    { background:#f1f5f9; color:#475569; }
+.tl-dot.other   { background:#f3f4f6; color:#6b7280; }
+.tl-body { flex: 1; }
+.tl-title { font-size: .83rem; font-weight: 600; color: var(--text); }
+.tl-meta  { font-size: .72rem; color: var(--muted); margin-top: 2px; }
+.tl-time  { font-size: .7rem; color: var(--muted); white-space: nowrap; margin-top: 4px; }
+
+.chat-bubble {
+  max-width: 80%;
+  padding: 8px 14px;
+  border-radius: 14px;
+  font-size: .82rem;
+  line-height: 1.5;
+  margin-bottom: 6px;
+}
+.chat-bubble.user {
+  background: #f0f4fc;
+  color: var(--text);
+  align-self: flex-start;
+  border-bottom-left-radius: 4px;
+}
+.chat-bubble.assistant {
+  background: linear-gradient(135deg, #3d8b5f, #2e6b48);
+  color: white;
+  align-self: flex-end;
+  border-bottom-right-radius: 4px;
+}
+.chat-thread { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Back -->
+<div class="mb-3">
+  <a href="{{ url_for('admin.customers') }}?tab=customers" style="color:var(--muted);font-size:.85rem;text-decoration:none">
+    <i class="fas fa-arrow-left me-1"></i>Back to Customers
+  </a>
+</div>
+
+<!-- Hero Banner -->
+<div class="profile-hero mb-4">
+  <div class="d-flex align-items-center gap-16 mb-4" style="gap:16px">
+    <div class="profile-avatar">{{ (customer.full_name or 'U')[0].upper() }}</div>
+    <div>
+      <div style="font-size:1.3rem;font-weight:800">{{ customer.full_name or 'Unknown' }}</div>
+      <div style="opacity:.7;font-size:.83rem;margin-top:2px">
+        {% if customer.email %}{{ customer.email }}{% endif %}
+        {% if customer.phone %} · {{ customer.phone }}{% endif %}
+      </div>
+      <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap">
+        {% if customer.telegram_id %}
+        <span style="background:rgba(255,255,255,.15);border-radius:20px;padding:2px 10px;font-size:.73rem;font-weight:600">
+          <i class="fab fa-telegram me-1"></i>@{{ customer.telegram_username or customer.telegram_id }}
+        </span>
+        {% endif %}
+        <span style="background:rgba(255,255,255,.1);border-radius:20px;padding:2px 10px;font-size:.73rem">
+          Joined {{ customer.created_at.strftime('%b %d, %Y') if customer.created_at else '—' }}
+        </span>
+        <span style="background:rgba(255,255,255,.1);border-radius:20px;padding:2px 10px;font-size:.73rem">
+          {{ customer.customer_status.value|title if customer.customer_status else 'Customer' }}
+        </span>
+      </div>
+    </div>
+  </div>
+  <div class="d-flex flex-wrap" style="border-top:1px solid rgba(255,255,255,.1);padding-top:16px;gap:0">
+    <div class="profile-stat">
+      <div class="profile-stat-val">{{ orders|length }}</div>
+      <div class="profile-stat-lbl">Orders</div>
+    </div>
+    <div class="profile-stat">
+      <div class="profile-stat-val">{{ '{:,.0f}'.format(customer.total_money_spent|float) }}</div>
+      <div class="profile-stat-lbl">ETB Spent</div>
+    </div>
+    <div class="profile-stat">
+      <div class="profile-stat-val">{{ customer.total_items_purchased }}</div>
+      <div class="profile-stat-lbl">Items Purchased</div>
+    </div>
+    <div class="profile-stat">
+      <div class="profile-stat-val">{{ customer.reward_points }}</div>
+      <div class="profile-stat-lbl">Reward Points</div>
+    </div>
+    <div class="profile-stat">
+      <div class="profile-stat-val">{{ ai_sessions|length }}</div>
+      <div class="profile-stat-lbl">AI Sessions</div>
+    </div>
+    <div class="profile-stat">
+      <div class="profile-stat-val">{{ activity|length }}</div>
+      <div class="profile-stat-lbl">Events Tracked</div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+
+  <!-- Activity Timeline -->
+  <div class="col-lg-5">
+    <div class="admin-card">
+      <div class="admin-card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0" style="font-size:.92rem;font-weight:700"><i class="fas fa-history me-2" style="color:#3b82f6"></i>Activity Timeline</h5>
+        <span style="font-size:.72rem;color:var(--muted)">Last 50 events</span>
+      </div>
+      {% if activity %}
+      <ul class="timeline">
+        {% for act in activity %}
+        <li class="tl-item">
+          <div class="tl-dot {% if act.action == 'mini_app_visit' %}visit{% elif act.action == 'add_to_cart' %}cart{% elif act.action == 'telegram_buy_now_click' %}buy{% elif 'ai' in act.action %}ai{% elif act.action == 'view_product' %}view{% else %}other{% endif %}">
+            {% if act.action == 'mini_app_visit' %}<i class="fas fa-mobile-alt"></i>
+            {% elif act.action == 'add_to_cart' %}<i class="fas fa-cart-plus"></i>
+            {% elif act.action == 'telegram_buy_now_click' %}<i class="fab fa-telegram"></i>
+            {% elif 'ai' in act.action %}<i class="fas fa-robot"></i>
+            {% elif act.action == 'view_product' %}<i class="fas fa-eye"></i>
+            {% else %}<i class="fas fa-circle"></i>{% endif %}
+          </div>
+          <div class="tl-body">
+            <div class="tl-title">{{ act.action|replace('_',' ')|title }}</div>
+            {% if act.entity_id %}<div class="tl-meta">Product #{{ act.entity_id }}</div>{% endif %}
+            <div class="tl-time">{{ act.created_at.strftime('%b %d %Y, %H:%M') if act.created_at else '—' }}</div>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <div class="text-center text-muted py-5">
+        <i class="fas fa-ghost fa-2x mb-3 d-block" style="opacity:.3"></i>
+        No activity tracked for this customer yet.
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="col-lg-7">
+
+    <!-- Orders -->
+    <div class="admin-card mb-4">
+      <div class="admin-card-header">
+        <h5 class="mb-0" style="font-size:.92rem;font-weight:700"><i class="fas fa-shopping-bag me-2" style="color:#f59e0b"></i>Order History</h5>
+      </div>
+      {% if orders %}
+      <div class="table-responsive">
+        <table class="table admin-table mb-0">
+          <thead><tr><th>Order #</th><th>Total</th><th>Status</th><th>Date</th></tr></thead>
+          <tbody>
+            {% for o in orders %}
+            <tr>
+              <td style="font-family:monospace;font-size:.82rem">{{ o.order_number }}</td>
+              <td class="fw-600">ETB {{ '{:,.0f}'.format(o.total|float) }}</td>
+              <td>
+                <span class="badge {% if o.status.value == 'delivered' %}bg-success{% elif o.status.value == 'cancelled' %}bg-danger{% elif o.status.value == 'pending' %}bg-warning text-dark{% else %}bg-info{% endif %}" style="font-size:.73rem">
+                  {{ o.status.value|title }}
+                </span>
+              </td>
+              <td style="font-size:.76rem;color:var(--muted)">{{ o.created_at.strftime('%b %d, %Y') if o.created_at else '—' }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="text-center text-muted py-4" style="font-size:.85rem">No orders placed yet.</div>
+      {% endif %}
+    </div>
+
+    <!-- AI Conversations -->
+    <div class="admin-card">
+      <div class="admin-card-header">
+        <h5 class="mb-0" style="font-size:.92rem;font-weight:700"><i class="fas fa-robot me-2" style="color:#8b5cf6"></i>AI Conversations</h5>
+      </div>
+      {% if ai_sessions %}
+        {% for sess in ai_sessions %}
+        <div style="margin:12px 16px;border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden">
+          <div style="background:var(--green-light);padding:9px 14px;display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <span style="font-size:.78rem;font-weight:700;color:var(--green-dark)">Session</span>
+              <span style="font-size:.72rem;color:var(--muted);font-family:monospace;margin-left:6px">{{ sess.session_id[:20] }}…</span>
+            </div>
+            <div style="font-size:.72rem;color:var(--muted)">
+              {{ sess.msg_count }} messages · {{ sess.last_msg.strftime('%b %d, %H:%M') if sess.last_msg else '' }}
+            </div>
+          </div>
+          {% if sess.session_id in ai_messages_by_session %}
+          <div class="chat-thread" style="max-height:280px;overflow-y:auto">
+            {% for msg in ai_messages_by_session[sess.session_id] %}
+            <div style="display:flex;{% if msg.role == 'assistant' %}justify-content:flex-end{% else %}justify-content:flex-start{% endif %}">
+              <div class="chat-bubble {{ msg.role }}">
+                {% if msg.role == 'assistant' %}
+                <div style="font-size:.67rem;opacity:.7;margin-bottom:3px">🌿 Liyu</div>
+                {% else %}
+                <div style="font-size:.67rem;opacity:.6;margin-bottom:3px">Customer</div>
+                {% endif %}
+                {{ msg.content[:300] }}{% if msg.content|length > 300 %}…{% endif %}
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      {% else %}
+      <div class="text-center text-muted py-4" style="font-size:.85rem">No AI conversations yet.</div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}
