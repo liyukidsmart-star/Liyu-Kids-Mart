@@ -580,7 +580,6 @@
       </thead>
       <tbody>
         {% for c in customers %}
-        {% set days_old = ((now|default(none)) - c.created_at).days if c.created_at else 999 %}
         <tr>
           <td>
             <div class="fw-600 tbl-name-cell">{{ c.full_name or '—' }}</div>
@@ -718,6 +717,21 @@ new Chart(document.getElementById('signupsChart'), {
 {% endif %}
 
 {% if tab == 'engagement' %}
+// Live Activity Polling
+const activityFeed = document.querySelector('.activity-feed');
+if (activityFeed) {
+  setInterval(() => {
+    fetch('{{ url_for("admin.customers_live_activity") }}')
+      .then(res => res.text())
+      .then(html => {
+        if(html && html.trim().length > 0) {
+          activityFeed.innerHTML = html;
+        }
+      })
+      .catch(err => console.error("Live feed error:", err));
+  }, 5000);
+}
+
 // Event breakdown pie
 const evtData = {
   labels: ['Mini App Visits', 'Cart Adds', 'Buy Now Clicks', 'AI Suggestions', 'Product Views'],

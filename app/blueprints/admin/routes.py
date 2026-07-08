@@ -531,10 +531,16 @@ def update_order_status(order_id):
 def customers():
     q = request.args.get('q', '').strip()
     tab = request.args.get('tab', 'overview')
+    
+    # Use Addis Ababa local time for daily/weekly boundaries
+    local_tz = ZoneInfo('Africa/Addis_Ababa')
+    now_local = datetime.now(local_tz)
+    today_start_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    today_start = today_start_local.astimezone(timezone.utc)
+    week_start = (today_start_local - timedelta(days=7)).astimezone(timezone.utc)
+    month_start = (today_start_local - timedelta(days=30)).astimezone(timezone.utc)
     now = datetime.now(timezone.utc)
-    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    week_start = today_start - timedelta(days=7)
-    month_start = today_start - timedelta(days=30)
 
     # ── Overview KPIs ──────────────────────────────────────────────
     total_customers = User.query.filter_by(role=UserRole.customer).count()
@@ -595,26 +601,32 @@ def customers():
     # ── Daily visits for past 14 days chart ───────────────────────
     daily_visits = []
     for i in range(13, -1, -1):
-        day = today_start - timedelta(days=i)
-        next_day = day + timedelta(days=1)
+        day_local = today_start_local - timedelta(days=i)
+        next_day_local = day_local + timedelta(days=1)
+        day_utc = day_local.astimezone(timezone.utc)
+        next_day_utc = next_day_local.astimezone(timezone.utc)
+        
         cnt = db.session.query(func.count(distinct(ActivityLog.user_id))).filter(
             ActivityLog.action == 'mini_app_visit',
-            ActivityLog.created_at >= day,
-            ActivityLog.created_at < next_day
+            ActivityLog.created_at >= day_utc,
+            ActivityLog.created_at < next_day_utc
         ).scalar() or 0
-        daily_visits.append({'date': day.strftime('%b %d'), 'count': cnt})
+        daily_visits.append({'date': day_local.strftime('%b %d'), 'count': cnt})
 
     # ── Weekly signups for past 8 weeks chart ─────────────────────
     weekly_signups = []
     for i in range(7, -1, -1):
-        wk_start = today_start - timedelta(weeks=i+1)
-        wk_end = today_start - timedelta(weeks=i)
+        wk_start_local = today_start_local - timedelta(weeks=i+1)
+        wk_end_local = today_start_local - timedelta(weeks=i)
+        wk_start_utc = wk_start_local.astimezone(timezone.utc)
+        wk_end_utc = wk_end_local.astimezone(timezone.utc)
+        
         cnt = User.query.filter(
             User.role == UserRole.customer,
-            User.created_at >= wk_start,
-            User.created_at < wk_end
+            User.created_at >= wk_start_utc,
+            User.created_at < wk_end_utc
         ).count()
-        weekly_signups.append({'week': wk_start.strftime('W%U %b'), 'count': cnt})
+        weekly_signups.append({'week': wk_start_local.strftime('W%U %b'), 'count': cnt})
 
     # ── Top products clicked / added to cart ──────────────────────
     top_cart_products = db.session.query(
@@ -768,17 +780,78 @@ def customer_detail(user_id):
     )
 
 
+@admin_bp.route('/customers/live-activity')
+@admin_required
+def customers_live_activity():
+    """Returns the latest 20 activities for the live feed."""
+    recent = ActivityLog.query.order_by(ActivityLog.created_at.desc()).limit(20).all()
+    local_tz = ZoneInfo('Africa/Addis_Ababa')
+    
+    html = []
+    for act in recent:
+        action = act.action
+        # Get localized time
+        dt = act.created_at
+        if dt:
+            dt_local = dt.replace(tzinfo=timezone.utc).astimezone(local_tz)
+            time_str = dt_local.strftime('%b %d, %H:%M')
+        else:
+            time_str = '—'
+            
+        # Determine dot class/icon
+        dot_cls = 'other'
+        icon = '<i class="fas fa-circle"></i>'
+        if action == 'mini_app_visit':
+            dot_cls, icon = 'visit', '<i class="fas fa-mobile-alt"></i>'
+        elif action == 'add_to_cart':
+            dot_cls, icon = 'cart', '<i class="fas fa-shopping-cart"></i>'
+        elif action == 'telegram_buy_now_click':
+            dot_cls, icon = 'buy', '<i class="fab fa-telegram"></i>'
+        elif action == 'ai_suggested_product':
+            dot_cls, icon = 'ai', '<i class="fas fa-robot"></i>'
+        elif action == 'view_product':
+            dot_cls, icon = 'view', '<i class="fas fa-eye"></i>'
+            
+        # Determine title
+        title = action.replace('_', ' ').title()
+        if action == 'mini_app_visit': title = 'Mini App Visited'
+        elif action == 'add_to_cart': title = f"Added to Cart{f' — Product #{act.entity_id}' if act.entity_id else ''}"
+        elif action == 'telegram_buy_now_click': title = f"Telegram Buy Now Click{f' — Product #{act.entity_id}' if act.entity_id else ''}"
+        elif action == 'ai_suggested_product': title = f"AI Suggested Product #{act.entity_id}"
+        elif action == 'view_product': title = f"Viewed Product #{act.entity_id}"
+        
+        meta_str = f"User #{act.user_id}" if act.user_id else "Anonymous"
+        if act.ip_address: meta_str += f" · {act.ip_address}"
+        
+        html.append(f'''
+        <li class="activity-item">
+          <div class="act-dot {dot_cls}">{icon}</div>
+          <div class="act-body">
+            <div class="act-title">{title}</div>
+            <div class="act-meta">{meta_str}</div>
+          </div>
+          <div class="act-time">{time_str}</div>
+        </li>
+        ''')
+        
+    return ''.join(html)
+
 @admin_bp.route('/customers/weekly-report')
 @admin_required
 def customers_weekly_report():
     """JSON endpoint for weekly report data."""
-    now = datetime.now(timezone.utc)
-    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    local_tz = ZoneInfo('Africa/Addis_Ababa')
+    now_local = datetime.now(local_tz)
+    today_start_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
 
     weeks = []
     for i in range(7, -1, -1):
-        wk_start = today_start - timedelta(weeks=i+1)
-        wk_end = today_start - timedelta(weeks=i)
+        wk_start_local = today_start_local - timedelta(weeks=i+1)
+        wk_end_local = today_start_local - timedelta(weeks=i)
+        
+        wk_start = wk_start_local.astimezone(timezone.utc)
+        wk_end = wk_end_local.astimezone(timezone.utc)
+        
         new_users = User.query.filter(
             User.role == UserRole.customer,
             User.created_at >= wk_start,
@@ -799,7 +872,7 @@ def customers_weekly_report():
             Order.status.notin_([OrderStatus.cancelled])
         ).scalar() or 0
         weeks.append({
-            'week': wk_start.strftime('%b %d'),
+            'week': wk_start_local.strftime('%b %d'),
             'new_users': new_users,
             'visits': visits,
             'orders': orders_cnt,
