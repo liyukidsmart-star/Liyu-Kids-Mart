@@ -1,0 +1,507 @@
+{% extends 'admin/base_admin.html' %}
+{% block title %}Stock Management — Liyu Kids Mart Admin{% endblock %}
+{% block page_title %}📦 Stock Management{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── INVENTORY PAGE STYLES ── */
+.inv-header {
+  display: flex; align-items: center; gap: 16px;
+  margin-bottom: 28px; flex-wrap: wrap;
+}
+.inv-header h2 {
+  font-size: 1.55rem; font-weight: 900;
+  background: linear-gradient(135deg, #3d8b5f, #1a5c38);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  margin: 0;
+}
+.inv-kpi-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 18px; margin-bottom: 28px; }
+@media(max-width:900px){ .inv-kpi-row { grid-template-columns: repeat(2,1fr); } }
+@media(max-width:480px){ .inv-kpi-row { grid-template-columns: 1fr; } }
+
+.kpi-card {
+  background: white; border-radius: 16px;
+  padding: 22px 20px; border: 1px solid #e4eaf5;
+  box-shadow: 0 4px 20px rgba(0,0,0,.06);
+  display: flex; align-items: center; gap: 14px;
+  transition: transform .2s, box-shadow .2s;
+}
+.kpi-card:hover { transform: translateY(-3px); box-shadow: 0 10px 32px rgba(0,0,0,.1); }
+.kpi-icon {
+  width: 52px; height: 52px; border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.4rem; flex-shrink: 0;
+}
+.kpi-icon.green  { background: linear-gradient(135deg,#dcfce7,#bbf7d0); color:#166534; }
+.kpi-icon.orange { background: linear-gradient(135deg,#ffedd5,#fed7aa); color:#9a3412; }
+.kpi-icon.red    { background: linear-gradient(135deg,#fee2e2,#fecaca); color:#991b1b; }
+.kpi-icon.blue   { background: linear-gradient(135deg,#dbeafe,#bfdbfe); color:#1e40af; }
+.kpi-label { font-size: .72rem; font-weight: 700; color: #718096; text-transform: uppercase; letter-spacing: .06em; }
+.kpi-value { font-size: 1.7rem; font-weight: 900; color: #12172e; line-height: 1.1; margin-top: 2px; }
+.kpi-sub { font-size: .75rem; color: #718096; margin-top: 2px; }
+
+/* Filters */
+.filter-bar {
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  background: white; border-radius: 14px; padding: 14px 18px;
+  border: 1px solid #e4eaf5; margin-bottom: 20px;
+  box-shadow: 0 2px 12px rgba(0,0,0,.04);
+}
+.filter-bar input, .filter-bar select {
+  border: 1.5px solid #e4eaf5; border-radius: 10px;
+  padding: 8px 14px; font-size: .87rem; font-family: inherit;
+  outline: none; transition: .2s;
+}
+.filter-bar input:focus, .filter-bar select:focus {
+  border-color: #3d8b5f; box-shadow: 0 0 0 3px rgba(61,139,95,.15);
+}
+.filter-bar .search-input { flex: 1; min-width: 180px; }
+.stock-badge-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 12px; border-radius: 100px; font-size: .71rem; font-weight: 800;
+}
+.chip-ok { background:#dcfce7; color:#166534; }
+.chip-low { background:#ffedd5; color:#9a3412; }
+.chip-out { background:#fee2e2; color:#991b1b; }
+
+/* Stock table */
+.stock-table { width:100%; border-collapse: collapse; }
+.stock-table th {
+  background: #f8faff; padding: 12px 16px;
+  font-size: .72rem; font-weight: 800; text-transform: uppercase;
+  letter-spacing: .06em; color: #718096;
+  border-bottom: 2px solid #e4eaf5; text-align: left;
+}
+.stock-table td { padding: 13px 16px; vertical-align: middle; border-bottom: 1px solid #f0f4fc; }
+.stock-table tr:hover td { background: #f8fff8; }
+.stock-table tr:last-child td { border-bottom: none; }
+
+.product-cell { display: flex; align-items: center; gap: 12px; }
+.product-thumb {
+  width: 48px; height: 48px; border-radius: 10px;
+  object-fit: cover; border: 1.5px solid #e4eaf5;
+}
+.product-name { font-weight: 700; font-size: .9rem; }
+.product-sku { font-size: .73rem; color: #718096; }
+
+/* Inline stock editor */
+.stock-editor {
+  display: flex; align-items: center; gap: 6px;
+}
+.stock-qty-badge {
+  font-size: 1.05rem; font-weight: 800; min-width: 42px; text-align: center;
+}
+.qty-btn {
+  width: 28px; height: 28px; border-radius: 8px; border: 1.5px solid #e4eaf5;
+  background: white; cursor: pointer; font-size: .85rem; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+  transition: .18s; color: #12172e;
+}
+.qty-btn:hover { background: #3d8b5f; color: white; border-color: #3d8b5f; }
+.qty-input {
+  width: 56px; border: 1.5px solid #3d8b5f; border-radius: 8px;
+  padding: 4px 8px; text-align: center; font-weight: 700;
+  font-size: .9rem; outline: none; display: none;
+  font-family: inherit;
+}
+.qty-input.visible { display: block; }
+.set-btn {
+  background: linear-gradient(135deg,#3d8b5f,#2e6b48);
+  color: white; border: none; border-radius: 8px;
+  padding: 5px 12px; font-size: .78rem; font-weight: 700;
+  cursor: pointer; display: none; transition: .18s;
+}
+.set-btn.visible { display: block; }
+.set-btn:hover { opacity: .88; }
+
+/* Txn feed */
+.txn-feed { max-height: 340px; overflow-y: auto; }
+.txn-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 0; border-bottom: 1px solid #f0f4fc;
+}
+.txn-item:last-child { border-bottom: none; }
+.txn-dot {
+  width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .85rem;
+}
+.txn-dot.add { background: #dcfce7; color: #166534; }
+.txn-dot.sub { background: #fee2e2; color: #991b1b; }
+.txn-dot.adj { background: #dbeafe; color: #1e40af; }
+.txn-body { flex: 1; min-width: 0; }
+.txn-title { font-weight: 700; font-size: .85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.txn-meta { font-size: .72rem; color: #718096; margin-top: 1px; }
+.txn-change { font-weight: 900; font-size: .92rem; }
+.txn-change.pos { color: #16a34a; }
+.txn-change.neg { color: #dc2626; }
+
+/* Toast */
+.inv-toast {
+  position: fixed; bottom: 28px; right: 28px; z-index: 9999;
+  background: #1b4330; color: white;
+  padding: 13px 22px; border-radius: 12px;
+  font-weight: 700; font-size: .9rem;
+  box-shadow: 0 8px 32px rgba(0,0,0,.22);
+  transform: translateY(80px); opacity: 0;
+  transition: all .3s cubic-bezier(.4,0,.2,1);
+  display: flex; align-items: center; gap: 10px;
+  max-width: 340px;
+}
+.inv-toast.show { transform: translateY(0); opacity: 1; }
+.inv-toast.error { background: #991b1b; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="inv-header">
+  <div>
+    <h2>📦 Stock Management</h2>
+    <p class="text-muted mb-0" style="font-size:.88rem">Monitor and adjust product inventory levels in real time.</p>
+  </div>
+  <div class="ms-auto d-flex gap-2 flex-wrap">
+    <a href="{{ url_for('admin.inventory_print_barcodes') }}" class="btn btn-sm d-flex align-items-center gap-2"
+       style="background:linear-gradient(135deg,#7c3aed,#6d28d9);color:white;border:none;border-radius:10px;padding:9px 18px;font-weight:700;">
+      <i class="fas fa-qrcode"></i> Print Labels
+    </a>
+    <a href="{{ url_for('admin.inventory_pos') }}" class="btn btn-sm admin-btn-green d-flex align-items-center gap-2">
+      <i class="fas fa-cash-register"></i> Open POS
+    </a>
+  </div>
+</div>
+
+<!-- KPI Row -->
+<div class="inv-kpi-row">
+  <div class="kpi-card">
+    <div class="kpi-icon green"><i class="fas fa-box"></i></div>
+    <div>
+      <div class="kpi-label">Total Products</div>
+      <div class="kpi-value">{{ total_products }}</div>
+    </div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-icon orange"><i class="fas fa-exclamation-triangle"></i></div>
+    <div>
+      <div class="kpi-label">Low Stock (≤10)</div>
+      <div class="kpi-value">{{ low_stock }}</div>
+      <div class="kpi-sub">Needs restocking soon</div>
+    </div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-icon red"><i class="fas fa-times-circle"></i></div>
+    <div>
+      <div class="kpi-label">Out of Stock</div>
+      <div class="kpi-value">{{ out_of_stock }}</div>
+      <div class="kpi-sub">Unavailable to customers</div>
+    </div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-icon blue"><i class="fas fa-coins"></i></div>
+    <div>
+      <div class="kpi-label">Inventory Value</div>
+      <div class="kpi-value">ETB {{ "{:,.0f}".format(total_stock_value) }}</div>
+      <div class="kpi-sub">At current prices</div>
+    </div>
+  </div>
+</div>
+
+<!-- Main grid -->
+<div class="row g-3">
+  <div class="col-lg-8">
+    <!-- Filter Bar -->
+    <form method="GET" id="filterForm">
+      <div class="filter-bar">
+        <input type="text" name="q" value="{{ q }}" placeholder="🔍  Search product…" class="search-input form-control" style="max-width:260px;">
+        <select name="category_id" class="form-select" style="max-width:160px;" onchange="document.getElementById('filterForm').submit()">
+          <option value="">All Categories</option>
+          {% for cat in categories %}
+          <option value="{{ cat.id }}" {% if category_id == cat.id|string %}selected{% endif %}>{{ cat.name }}</option>
+          {% endfor %}
+        </select>
+        <select name="stock_filter" class="form-select" style="max-width:140px;" onchange="document.getElementById('filterForm').submit()">
+          <option value="">All Stock</option>
+          <option value="low" {% if stock_filter=='low' %}selected{% endif %}>Low Stock</option>
+          <option value="out" {% if stock_filter=='out' %}selected{% endif %}>Out of Stock</option>
+        </select>
+        <button type="submit" class="admin-btn-green" style="padding:8px 18px;">Search</button>
+        {% if q or category_id or stock_filter %}
+        <a href="{{ url_for('admin.inventory_stock') }}" class="admin-btn-outline" style="padding:8px 14px;">Clear</a>
+        {% endif %}
+      </div>
+    </form>
+
+    <!-- Products Table -->
+    <div class="admin-card">
+      <div class="admin-card-header">
+        <h5>Product Inventory ({{ pagination.total }} items)</h5>
+        <span class="text-muted" style="font-size:.8rem">Click qty to edit inline</span>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="stock-table">
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th>Category</th>
+              <th>Price (ETB)</th>
+              <th>Stock</th>
+              <th>Adjust</th>
+              <th>Labels</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in products %}
+            <tr id="row-{{ p.id }}">
+              <td>
+                <div class="product-cell">
+                  <img src="{{ p.primary_image() }}" alt="{{ p.name }}" class="product-thumb"
+                       onerror="this.src='/static/images/placeholder.png'">
+                  <div>
+                    <div class="product-name">{{ p.name }}</div>
+                    <div class="product-sku">SKU: {{ p.sku or 'P-' ~ p.id }}</div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <span style="font-size:.82rem;color:#718096;">
+                  {{ p.category.name if p.category else '—' }}
+                </span>
+              </td>
+              <td style="font-weight:800;color:#3d8b5f;">{{ "{:,.0f}".format(p.price) }}</td>
+              <td>
+                {% if p.stock_qty <= 0 %}
+                  <span class="stock-badge-chip chip-out"><i class="fas fa-times-circle"></i> Out</span>
+                {% elif p.stock_qty <= 10 %}
+                  <span class="stock-badge-chip chip-low"><i class="fas fa-exclamation-triangle"></i> {{ p.stock_qty }}</span>
+                {% else %}
+                  <span class="stock-badge-chip chip-ok"><i class="fas fa-check-circle"></i> {{ p.stock_qty }}</span>
+                {% endif %}
+              </td>
+              <td>
+                <div class="stock-editor">
+                  <button class="qty-btn" onclick="adjustStock({{ p.id }}, -1)" title="Remove 1">−</button>
+                  <span class="stock-qty-badge" id="qty-{{ p.id }}" onclick="startEdit({{ p.id }})" title="Click to set" style="cursor:pointer;">{{ p.stock_qty }}</span>
+                  <input type="number" class="qty-input" id="input-{{ p.id }}" min="0" value="{{ p.stock_qty }}" onkeydown="if(event.key==='Enter')saveStock({{ p.id }})">
+                  <button class="set-btn" id="savebtn-{{ p.id }}" onclick="saveStock({{ p.id }})">✓ Set</button>
+                  <button class="qty-btn" onclick="adjustStock({{ p.id }}, 1)" title="Add 1">+</button>
+                  <button class="qty-btn" onclick="bulkAdd({{ p.id }})" title="Add many" style="width:auto;padding:0 10px;font-size:.72rem;color:#3d8b5f;border-color:#3d8b5f;">+N</button>
+                </div>
+              </td>
+              <td>
+                <a href="{{ url_for('admin.inventory_print_barcodes') }}?product_id={{ p.id }}"
+                   class="btn btn-sm" title="Print Labels"
+                   style="background:#ede9fe;color:#6d28d9;border:none;border-radius:8px;padding:5px 11px;font-size:.78rem;font-weight:700;">
+                  <i class="fas fa-qrcode"></i>
+                </a>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" class="text-center text-muted py-5">No products found.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      {% if pagination.pages > 1 %}
+      <div class="d-flex justify-content-center py-3">
+        <nav><ul class="pagination pagination-sm mb-0">
+          {% if pagination.has_prev %}
+          <li class="page-item"><a class="page-link" href="{{ url_for('admin.inventory_stock', page=pagination.prev_num, q=q, category_id=category_id, stock_filter=stock_filter) }}">«</a></li>
+          {% endif %}
+          {% for p in pagination.iter_pages() %}
+            {% if p %}
+            <li class="page-item {% if p == pagination.page %}active{% endif %}">
+              <a class="page-link" href="{{ url_for('admin.inventory_stock', page=p, q=q, category_id=category_id, stock_filter=stock_filter) }}">{{ p }}</a>
+            </li>
+            {% else %}
+            <li class="page-item disabled"><span class="page-link">…</span></li>
+            {% endif %}
+          {% endfor %}
+          {% if pagination.has_next %}
+          <li class="page-item"><a class="page-link" href="{{ url_for('admin.inventory_stock', page=pagination.next_num, q=q, category_id=category_id, stock_filter=stock_filter) }}">»</a></li>
+          {% endif %}
+        </ul></nav>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Sidebar: Recent Transactions -->
+  <div class="col-lg-4">
+    <div class="admin-card h-100">
+      <div class="admin-card-header">
+        <h5>Recent Activity</h5>
+        <span class="text-muted" style="font-size:.78rem;">Last 15 changes</span>
+      </div>
+      <div class="p-3 txn-feed">
+        {% for t in recent_transactions %}
+        <div class="txn-item">
+          {% if t.quantity_change > 0 %}
+          <div class="txn-dot add"><i class="fas fa-plus"></i></div>
+          {% else %}
+          <div class="txn-dot sub"><i class="fas fa-minus"></i></div>
+          {% endif %}
+          <div class="txn-body">
+            <div class="txn-title" title="{{ t.product.name if t.product else '' }}">
+              {{ (t.product.name if t.product else 'Unknown')[:28] }}{% if (t.product.name if t.product else '')|length > 28 %}…{% endif %}
+            </div>
+            <div class="txn-meta">{{ t.transaction_type.value|replace('_',' ')|title }} · {{ t.created_by.full_name if t.created_by else 'System' }}</div>
+          </div>
+          <div class="txn-change {% if t.quantity_change > 0 %}pos{% else %}neg{% endif %}">
+            {% if t.quantity_change > 0 %}+{% endif %}{{ t.quantity_change }}
+          </div>
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-4" style="font-size:.85rem;">No activity yet.</div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast notification -->
+<div class="inv-toast" id="invToast"></div>
+
+<!-- Bulk Add Modal -->
+<div class="modal fade" id="bulkModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:360px;">
+    <div class="modal-content border-0 shadow-lg" style="border-radius:18px;">
+      <div class="modal-header border-0" style="padding:20px 24px 0;">
+        <h5 class="modal-title fw-bold">Add Stock</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" style="padding:16px 24px 24px;">
+        <input type="hidden" id="bulk-product-id">
+        <div class="mb-3">
+          <label class="form-label fw-700" style="font-size:.85rem;">Quantity to Add</label>
+          <input type="number" class="form-control" id="bulk-qty" min="1" value="10" style="font-size:1.1rem;font-weight:700;text-align:center;">
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-600" style="font-size:.85rem;">Notes (optional)</label>
+          <input type="text" class="form-control" id="bulk-notes" placeholder="e.g. Restock delivery #123">
+        </div>
+        <button class="admin-btn-green w-100" onclick="confirmBulkAdd()" style="padding:12px;">
+          <i class="fas fa-check me-2"></i>Confirm Restock
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function showToast(msg, isError=false) {
+  const t = document.getElementById('invToast');
+  t.textContent = msg;
+  t.className = 'inv-toast show' + (isError ? ' error' : '');
+  setTimeout(() => { t.className = 'inv-toast'; }, 3200);
+}
+
+function adjustStock(productId, change) {
+  fetch('{{ url_for("admin.inventory_adjust_stock") }}', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({product_id: productId, change: change})
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.success) {
+      updateQtyDisplay(productId, d.new_stock);
+      showToast(`✅ ${d.product_name}: stock → ${d.new_stock}`);
+    } else {
+      showToast(d.message || 'Error', true);
+    }
+  })
+  .catch(() => showToast('Network error', true));
+}
+
+function startEdit(productId) {
+  const badge = document.getElementById('qty-' + productId);
+  const input = document.getElementById('input-' + productId);
+  const btn   = document.getElementById('savebtn-' + productId);
+  badge.style.display = 'none';
+  input.classList.add('visible');
+  btn.classList.add('visible');
+  input.focus(); input.select();
+}
+
+function saveStock(productId) {
+  const input = document.getElementById('input-' + productId);
+  const newQty = parseInt(input.value);
+  if (isNaN(newQty) || newQty < 0) return;
+
+  fetch('{{ url_for("admin.inventory_set_stock") }}', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({product_id: productId, qty: newQty})
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.success) {
+      updateQtyDisplay(productId, d.new_stock);
+      showToast(`✅ Stock set to ${d.new_stock}`);
+    } else {
+      showToast(d.message || 'Error', true);
+    }
+  })
+  .catch(() => showToast('Network error', true));
+}
+
+function updateQtyDisplay(productId, qty) {
+  const badge = document.getElementById('qty-' + productId);
+  const input = document.getElementById('input-' + productId);
+  const btn   = document.getElementById('savebtn-' + productId);
+  badge.textContent = qty;
+  badge.style.display = '';
+  input.value = qty;
+  input.classList.remove('visible');
+  btn.classList.remove('visible');
+
+  // Update chip in stock column
+  const row = document.getElementById('row-' + productId);
+  if (!row) return;
+  const chipCell = row.querySelector('td:nth-child(4)');
+  if (!chipCell) return;
+  if (qty <= 0) {
+    chipCell.innerHTML = '<span class="stock-badge-chip chip-out"><i class="fas fa-times-circle"></i> Out</span>';
+  } else if (qty <= 10) {
+    chipCell.innerHTML = `<span class="stock-badge-chip chip-low"><i class="fas fa-exclamation-triangle"></i> ${qty}</span>`;
+  } else {
+    chipCell.innerHTML = `<span class="stock-badge-chip chip-ok"><i class="fas fa-check-circle"></i> ${qty}</span>`;
+  }
+}
+
+let _bulkPid = null;
+function bulkAdd(productId) {
+  _bulkPid = productId;
+  document.getElementById('bulk-product-id').value = productId;
+  document.getElementById('bulk-qty').value = 10;
+  document.getElementById('bulk-notes').value = '';
+  new bootstrap.Modal(document.getElementById('bulkModal')).show();
+}
+
+function confirmBulkAdd() {
+  const qty = parseInt(document.getElementById('bulk-qty').value);
+  const notes = document.getElementById('bulk-notes').value;
+  if (!_bulkPid || isNaN(qty) || qty < 1) return;
+
+  fetch('{{ url_for("admin.inventory_adjust_stock") }}', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({product_id: _bulkPid, change: qty, notes: notes})
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.success) {
+      updateQtyDisplay(_bulkPid, d.new_stock);
+      showToast(`✅ Added ${qty} units → ${d.new_stock} total`);
+      bootstrap.Modal.getInstance(document.getElementById('bulkModal')).hide();
+    } else {
+      showToast(d.message || 'Error', true);
+    }
+  })
+  .catch(() => showToast('Network error', true));
+}
+</script>
+{% endblock %}

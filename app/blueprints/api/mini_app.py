@@ -563,3 +563,48 @@ def debug_migrate():
     except Exception as e:
         _logger.error(f'[debug_migrate] {e}', exc_info=True)
         return error_response(str(e), 500)
+
+
+# ─────────────────────────────────────────────────────────────
+# QR Code Scan — Public Product Info
+# ─────────────────────────────────────────────────────────────
+
+@api_bp.route('/product/<int:product_id>/info', methods=['GET'])
+def product_qr_info(product_id):
+    """
+    Public endpoint for QR-scanned product info.
+    When a customer scans a product QR code, their camera opens this URL.
+    We redirect them to the Telegram Mini App deep-link for the product.
+    Falls back to JSON product data if mini-app is not configured.
+    """
+    from flask import current_app, redirect
+    product = db.session.get(Product, product_id)
+    if not product or not product.is_active:
+        return error_response('Product not found', 404)
+
+    bot_username = current_app.config.get('TELEGRAM_BOT_USERNAME', '')
+    short_name   = current_app.config.get('TELEGRAM_MINI_APP_SHORT_NAME', '')
+
+    if bot_username and short_name:
+        deep_link = 'https://t.me/' + bot_username + '/' + short_name + '?startapp=product__' + str(product_id)
+        return redirect(deep_link, code=302)
+
+    p = product
+    return success_response({
+        'id': p.id,
+        'name': p.name,
+        'name_am': p.name_am,
+        'price': float(p.price),
+        'compare_price': float(p.compare_price) if p.compare_price else None,
+        'stock_qty': p.stock_qty,
+        'description': p.short_description,
+        'image': p.primary_image(),
+        'images': p.all_images(),
+        'category': p.category.name if p.category else None,
+        'age_label': p.age_label(),
+        'avg_rating': p.avg_rating(),
+        'review_count': p.review_count(),
+        'is_new_arrival': p.is_new_arrival,
+        'is_featured': p.is_featured,
+        'sku': p.sku or ('P-' + str(p.id)),
+    })

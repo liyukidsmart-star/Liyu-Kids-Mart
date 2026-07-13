@@ -30,6 +30,19 @@
     <a href="{{ url_for('admin.categories') }}" class="sidebar-link {% if request.endpoint == 'admin.categories' %}active{% endif %}">
       <i class="fas fa-tags"></i><span>Categories</span>
     </a>
+    <div class="sidebar-section">INVENTORY</div>
+    <a href="{{ url_for('admin.inventory_stock') }}" class="sidebar-link {% if request.endpoint in ('admin.inventory_stock',) %}active{% endif %}">
+      <i class="fas fa-warehouse"></i><span>Stock Management</span>
+    </a>
+    <a href="{{ url_for('admin.inventory_print_barcodes') }}" class="sidebar-link {% if request.endpoint == 'admin.inventory_print_barcodes' %}active{% endif %}">
+      <i class="fas fa-qrcode"></i><span>Print Labels</span>
+    </a>
+    <a href="{{ url_for('admin.inventory_pos') }}" class="sidebar-link {% if request.endpoint in ('admin.inventory_pos',) %}active{% endif %}">
+      <i class="fas fa-cash-register"></i><span>POS Terminal</span>
+    </a>
+    <a href="{{ url_for('admin.pos_history') }}" class="sidebar-link {% if request.endpoint == 'admin.pos_history' %}active{% endif %}">
+      <i class="fas fa-receipt"></i><span>Sales History</span>
+    </a>
     <div class="sidebar-section">ORDERS</div>
     <a href="{{ url_for('admin.orders') }}" class="sidebar-link {% if request.endpoint == 'admin.orders' %}active{% endif %}">
       <i class="fas fa-shopping-cart"></i><span>Orders</span>

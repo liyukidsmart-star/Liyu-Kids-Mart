@@ -1,0 +1,235 @@
+{% extends 'admin/base_admin.html' %}
+{% block title %}POS Sales History — Liyu Kids Mart Admin{% endblock %}
+{% block page_title %}🧾 POS Sales History{% endblock %}
+
+{% block extra_css %}
+<style>
+.hist-header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+.hist-header h2 {
+  font-size: 1.5rem; font-weight: 900;
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  margin: 0;
+}
+.hist-kpi-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+@media(max-width:768px) { .hist-kpi-row { grid-template-columns: 1fr 1fr; } }
+.hist-kpi {
+  background: white; border-radius: 14px; padding: 20px;
+  border: 1px solid #e4eaf5; box-shadow: 0 4px 16px rgba(0,0,0,.05);
+  display: flex; align-items: center; gap: 14px;
+}
+.hist-kpi-icon { width: 46px; height: 46px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; flex-shrink: 0; }
+.hki-green { background: #dcfce7; color: #16a34a; }
+.hki-purple { background: #ede9fe; color: #6d28d9; }
+.hki-blue { background: #dbeafe; color: #1e40af; }
+.hist-kpi-label { font-size: .72rem; font-weight: 700; color: #718096; text-transform: uppercase; letter-spacing: .06em; }
+.hist-kpi-value { font-size: 1.55rem; font-weight: 900; color: #12172e; line-height: 1.1; }
+
+/* Sale details modal */
+.sale-items-list { max-height: 340px; overflow-y: auto; }
+.sale-item-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f0f4fc; }
+.sale-item-row:last-child { border-bottom: none; }
+.si-img { width: 44px; height: 44px; border-radius: 8px; object-fit: cover; border: 1px solid #e4eaf5; }
+.si-name { flex: 1; font-weight: 700; font-size: .87rem; }
+.si-qty { font-size: .8rem; color: #718096; }
+.si-total { font-weight: 900; color: #3d8b5f; }
+
+.sale-badge { padding: 3px 12px; border-radius: 100px; font-size: .71rem; font-weight: 800; }
+.badge-completed { background: #dcfce7; color: #16a34a; }
+.badge-refunded  { background: #dbeafe; color: #1e40af; }
+.badge-voided    { background: #fee2e2; color: #991b1b; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="hist-header">
+  <div>
+    <h2>🧾 POS Sales History</h2>
+    <p class="text-muted mb-0" style="font-size:.88rem;">All in-store point-of-sale transactions.</p>
+  </div>
+  <div class="ms-auto">
+    <a href="{{ url_for('admin.inventory_pos') }}" class="admin-btn-green">
+      <i class="fas fa-cash-register me-1"></i> Open POS
+    </a>
+  </div>
+</div>
+
+<!-- KPIs -->
+<div class="hist-kpi-row">
+  <div class="hist-kpi">
+    <div class="hist-kpi-icon hki-green"><i class="fas fa-coins"></i></div>
+    <div>
+      <div class="hist-kpi-label">Today's Revenue</div>
+      <div class="hist-kpi-value">ETB {{ "{:,.0f}".format(today_revenue) }}</div>
+    </div>
+  </div>
+  <div class="hist-kpi">
+    <div class="hist-kpi-icon hki-purple"><i class="fas fa-calendar-week"></i></div>
+    <div>
+      <div class="hist-kpi-label">This Week</div>
+      <div class="hist-kpi-value">ETB {{ "{:,.0f}".format(week_revenue) }}</div>
+    </div>
+  </div>
+  <div class="hist-kpi">
+    <div class="hist-kpi-icon hki-blue"><i class="fas fa-receipt"></i></div>
+    <div>
+      <div class="hist-kpi-label">Total Completed Sales</div>
+      <div class="hist-kpi-value">{{ total_sales }}</div>
+    </div>
+  </div>
+</div>
+
+<!-- Table -->
+<div class="admin-card">
+  <div class="admin-card-header">
+    <h5>All POS Sales</h5>
+    <span class="text-muted" style="font-size:.8rem;">{{ pagination.total }} total</span>
+  </div>
+  <div style="overflow-x:auto;">
+    <table class="admin-table table mb-0">
+      <thead>
+        <tr>
+          <th>Sale #</th>
+          <th>Date & Time</th>
+          <th>Cashier</th>
+          <th>Items</th>
+          <th>Discount</th>
+          <th>Total</th>
+          <th>Payment</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for sale in sales %}
+        <tr>
+          <td><code style="font-size:.78rem;color:#3d8b5f;">{{ sale.sale_number }}</code></td>
+          <td style="font-size:.83rem;">
+            {{ sale.created_at.strftime('%b %d, %Y') if sale.created_at else '—' }}<br>
+            <span style="color:#718096;font-size:.75rem;">{{ sale.created_at.strftime('%H:%M') if sale.created_at else '' }}</span>
+          </td>
+          <td style="font-size:.85rem;font-weight:600;">{{ sale.cashier.full_name if sale.cashier else '—' }}</td>
+          <td><span class="badge bg-light text-dark border" style="font-weight:700;">{{ sale.items|length }}</span></td>
+          <td>
+            {% if sale.discount_percentage > 0 %}
+            <span style="color:#f97316;font-weight:800;">{{ sale.discount_percentage }}% off</span><br>
+            <span style="font-size:.75rem;color:#718096;">-ETB {{ "{:,.0f}".format(sale.discount_amount) }}</span>
+            {% else %}<span style="color:#9ca3af;">—</span>{% endif %}
+          </td>
+          <td style="font-weight:900;color:#3d8b5f;font-size:1rem;">ETB {{ "{:,.0f}".format(sale.total) }}</td>
+          <td>
+            {% if sale.payment_method %}
+            <span style="font-size:.8rem;background:#f0f4fc;padding:3px 10px;border-radius:8px;font-weight:600;">{{ sale.payment_method }}</span>
+            {% else %}<span style="color:#9ca3af;font-size:.8rem;">—</span>{% endif %}
+          </td>
+          <td>
+            <span class="sale-badge badge-{{ sale.status.value }}">{{ sale.status.value|title }}</span>
+          </td>
+          <td>
+            <button class="btn btn-sm admin-btn-outline" onclick="viewSale({{ sale.id }}, {{ sale.to_dict()|tojson }})" title="View details">
+              <i class="fas fa-eye"></i>
+            </button>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="9" class="text-center text-muted py-5">No POS sales recorded yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if pagination.pages > 1 %}
+  <div class="d-flex justify-content-center py-3">
+    <nav><ul class="pagination pagination-sm mb-0">
+      {% if pagination.has_prev %}
+      <li class="page-item"><a class="page-link" href="{{ url_for('admin.pos_history', page=pagination.prev_num) }}">«</a></li>
+      {% endif %}
+      {% for p in pagination.iter_pages() %}
+        {% if p %}
+        <li class="page-item {% if p == pagination.page %}active{% endif %}">
+          <a class="page-link" href="{{ url_for('admin.pos_history', page=p) }}">{{ p }}</a>
+        </li>
+        {% else %}
+        <li class="page-item disabled"><span class="page-link">…</span></li>
+        {% endif %}
+      {% endfor %}
+      {% if pagination.has_next %}
+      <li class="page-item"><a class="page-link" href="{{ url_for('admin.pos_history', page=pagination.next_num) }}">»</a></li>
+      {% endif %}
+    </ul></nav>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Sale Detail Modal -->
+<div class="modal fade" id="saleDetailModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:520px;">
+    <div class="modal-content border-0 shadow-lg" style="border-radius:20px; overflow:hidden;">
+      <div class="modal-header border-0" style="background:linear-gradient(135deg,#0f2318,#1b4330); padding: 20px 24px 12px;">
+        <div>
+          <h5 class="modal-title fw-900 text-white mb-0">Sale Details</h5>
+          <div class="text-white-50" style="font-size:.8rem;" id="modalSaleNum"></div>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" style="padding: 20px 24px;">
+        <div class="sale-items-list" id="modalItemsList"></div>
+        <div class="border-top pt-3 mt-2">
+          <div class="d-flex justify-content-between mb-1" style="font-size:.88rem;color:#718096;">
+            <span>Subtotal</span><span id="modalSubtotal" class="fw-700 text-dark"></span>
+          </div>
+          <div class="d-flex justify-content-between mb-1" id="modalDiscRow" style="font-size:.88rem;color:#f97316;display:none!important;">
+            <span>Discount</span><span id="modalDiscount" class="fw-700"></span>
+          </div>
+          <div class="d-flex justify-content-between mt-2 pt-2 border-top" style="font-size:1.05rem;">
+            <span class="fw-900">Total</span>
+            <span class="fw-900" style="color:#3d8b5f;" id="modalTotal"></span>
+          </div>
+        </div>
+        <div class="mt-2 text-muted" style="font-size:.78rem;" id="modalMeta"></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function viewSale(id, sale) {
+  document.getElementById('modalSaleNum').textContent = sale.sale_number + ' · ' + (sale.created_at ? new Date(sale.created_at).toLocaleString() : '');
+  const itemsList = document.getElementById('modalItemsList');
+  itemsList.innerHTML = '';
+
+  (sale.items || []).forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'sale-item-row';
+    div.innerHTML = `
+      <img src="${item.product_image}" alt="" class="si-img" onerror="this.src='/static/images/placeholder.png'">
+      <div class="si-name">${item.product_name}</div>
+      <div class="si-qty">×${item.quantity}</div>
+      <div class="si-total">ETB ${parseFloat(item.total_price).toLocaleString()}</div>
+    `;
+    itemsList.appendChild(div);
+  });
+
+  document.getElementById('modalSubtotal').textContent = 'ETB ' + parseFloat(sale.subtotal).toLocaleString();
+  document.getElementById('modalTotal').textContent = 'ETB ' + parseFloat(sale.total).toLocaleString();
+
+  const discRow = document.getElementById('modalDiscRow');
+  if (sale.discount_percentage > 0) {
+    discRow.style.display = '';
+    document.getElementById('modalDiscount').textContent = `-${sale.discount_percentage}% (-ETB ${parseFloat(sale.discount_amount).toLocaleString()})`;
+  } else {
+    discRow.style.display = 'none';
+  }
+
+  let meta = '';
+  if (sale.cashier) meta += `Cashier: ${sale.cashier}`;
+  if (sale.payment_method) meta += ` · Payment: ${sale.payment_method}`;
+  if (sale.notes) meta += `\nNotes: ${sale.notes}`;
+  document.getElementById('modalMeta').textContent = meta;
+
+  new bootstrap.Modal(document.getElementById('saleDetailModal')).show();
+}
+</script>
+{% endblock %}

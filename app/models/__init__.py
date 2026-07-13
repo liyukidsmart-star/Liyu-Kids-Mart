@@ -11,6 +11,7 @@ from app.models.ai_conversation import (
     Payment, AIConversation, ProductRecommendation, ActivityLog, Notification
 )
 from app.models.marketing import ProductDiscount, TelegramChannelPost, TelegramChannelPostImage  # noqa: F401
+from app.models.inventory import StockTransaction, StockTransactionType, POSSale, POSSaleItem, POSSaleStatus  # noqa: F401
 
 __all__ = [
     'LoyaltyLevel', 'SpendingThreshold', 'QuantityDiscount', 'CartIncentive',
@@ -19,6 +20,7 @@ __all__ = [
     'User', 'UserRole',
     'Product', 'Category', 'ProductImage', 'ProductTag', 'ProductEmbedding',
     'ProductDiscount', 'TelegramChannelPost', 'TelegramChannelPostImage',
+    'StockTransaction', 'StockTransactionType', 'POSSale', 'POSSaleItem', 'POSSaleStatus',
     'Order', 'OrderItem', 'Cart', 'Wishlist', 'Address', 'Coupon', 'Review',
     'Driver', 'Delivery', 'DeliveryStatus',
     'Payment', 'AIConversation', 'ProductRecommendation', 'ActivityLog', 'Notification',
