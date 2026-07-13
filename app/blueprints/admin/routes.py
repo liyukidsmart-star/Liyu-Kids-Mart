@@ -609,14 +609,34 @@ def customers():
         day_utc = day_local.astimezone(timezone.utc)
         next_day_utc = next_day_local.astimezone(timezone.utc)
         
-        cnt = db.session.query(func.count(distinct(
+        visitors = db.session.query(func.count(distinct(
             db.case((ActivityLog.user_id.isnot(None), db.cast(ActivityLog.user_id, db.String)), else_=ActivityLog.ip_address)
         ))).filter(
             ActivityLog.action == 'mini_app_visit',
             ActivityLog.created_at >= day_utc,
             ActivityLog.created_at < next_day_utc
         ).scalar() or 0
-        daily_visits.append({'date': day_local.strftime('%b %d'), 'count': cnt})
+        
+        visits = db.session.query(func.count(ActivityLog.id)).filter(
+            ActivityLog.action == 'mini_app_visit',
+            ActivityLog.created_at >= day_utc,
+            ActivityLog.created_at < next_day_utc
+        ).scalar() or 0
+        
+        returning = db.session.query(func.count(distinct(ActivityLog.user_id))).join(User).filter(
+            User.role == UserRole.customer,
+            User.created_at < day_utc,
+            ActivityLog.action == 'mini_app_visit',
+            ActivityLog.created_at >= day_utc,
+            ActivityLog.created_at < next_day_utc
+        ).scalar() or 0
+        
+        daily_visits.append({
+            'date': day_local.strftime('%b %d'), 
+            'visitors': visitors,
+            'visits': visits,
+            'returning': returning
+        })
 
     # ── Weekly signups for past 8 weeks chart ─────────────────────
     weekly_signups = []
@@ -633,21 +653,31 @@ def customers():
         ).count()
         weekly_signups.append({'week': wk_start_local.strftime('W%U %b'), 'count': cnt})
 
-    # ── Top products clicked / added to cart ──────────────────────
-    top_cart_products = db.session.query(
-        ActivityLog.entity_id,
-        func.count(ActivityLog.id).label('cnt')
-    ).filter(
-        ActivityLog.action == 'add_to_cart',
-        ActivityLog.entity_id.isnot(None),
-        ActivityLog.created_at >= month_start
-    ).group_by(ActivityLog.entity_id).order_by(func.count(ActivityLog.id).desc()).limit(5).all()
+    # ── Active Carts (Abandonment) ──────────────────────
+    from app.models.order import Cart
+    active_carts_query = db.session.query(
+        Cart.user_id,
+        Cart.session_id,
+        func.sum(Cart.quantity).label('total_items'),
+        func.max(Cart.added_at).label('last_active'),
+    ).join(Product).group_by(Cart.user_id, Cart.session_id).order_by(func.max(Cart.added_at).desc()).limit(8).all()
 
-    top_cart_products_data = []
-    for pid, cnt in top_cart_products:
-        p = db.session.get(Product, pid)
-        if p:
-            top_cart_products_data.append({'name': p.name, 'count': cnt, 'price': float(p.current_price())})
+    active_carts_data = []
+    for uid, sid, qty, last_active in active_carts_query:
+        user = db.session.get(User, uid) if uid else None
+        cart_items = Cart.query.filter_by(user_id=uid, session_id=sid).all()
+        total_price = sum(i.quantity * float(i.product.price) for i in cart_items if i.product)
+        
+        name = user.full_name if user else "Anonymous Visitor"
+        identifier = f"@{user.telegram_username}" if (user and user.telegram_username) else (f"User #{user.id}" if user else f"Session {sid[:6] if sid else '?'}")
+        
+        active_carts_data.append({
+            'name': name,
+            'identifier': identifier,
+            'items': qty,
+            'total': total_price,
+            'last_active': last_active.strftime('%b %d, %H:%M')
+        })
 
     # ── Buy Now clicks by product ─────────────────────────────────
     top_buy_now = db.session.query(
@@ -727,8 +757,7 @@ def customers():
         returning_users_30=returning_users_30,
         daily_visits=daily_visits,
         weekly_signups=weekly_signups,
-        # Tables
-        top_cart_products=top_cart_products_data,
+        active_carts=active_carts_data,
         top_buy_now=top_buy_now_data,
         ai_suggestions=ai_suggestions_data,
         recent_activity=recent_activity,

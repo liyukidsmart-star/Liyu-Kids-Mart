@@ -300,27 +300,28 @@
   <div class="col-lg-5">
     <div class="chart-card">
       <div class="chart-card-header">
-        <h6><i class="fas fa-shopping-cart" style="color:#059669"></i> Top Cart Adds (30d)</h6>
+        <h6><i class="fas fa-shopping-cart" style="color:#059669"></i> Active & Abandoned Carts</h6>
       </div>
-      <div class="chart-body">
-        {% if top_cart_products %}
-        {% set max_cart = top_cart_products[0].count %}
-        {% for p in top_cart_products %}
-        <div class="mb-3">
-          <div class="d-flex justify-content-between mb-1">
-            <span style="font-size:.82rem;font-weight:600" class="text-truncate me-2">{{ p.name[:35] }}{% if p.name|length > 35 %}…{% endif %}</span>
-            <span style="font-size:.78rem;color:var(--muted);white-space:nowrap">{{ p.count }}x</span>
-          </div>
-          <div class="mini-bar-wrap">
-            <div class="mini-bar">
-              <div class="mini-bar-fill" style="width:{{ ((p.count / max_cart) * 100)|int }}%;background:{% if loop.index==1%}#3d8b5f{% elif loop.index==2%}#3b82f6{% elif loop.index==3%}#8b5cf6{% elif loop.index==4%}#f59e0b{% else %}#ec4899{% endif %}"></div>
-            </div>
-            <span style="font-size:.7rem;color:var(--muted)">ETB {{ '{:,.0f}'.format(p.price) }}</span>
-          </div>
-        </div>
-        {% endfor %}
+      <div class="chart-body" style="padding: 0;">
+        {% if active_carts %}
+        <table class="table admin-table mb-0">
+          <thead><tr><th>User</th><th>Items</th><th>Cart Value</th><th>Last Active</th></tr></thead>
+          <tbody>
+            {% for c in active_carts %}
+            <tr>
+              <td>
+                <div class="fw-600 tbl-name-cell">{{ c.name }}</div>
+                <div style="font-size:.72rem;color:var(--muted)">{{ c.identifier }}</div>
+              </td>
+              <td><span class="badge" style="background:#059669;color:white;font-size:.75rem">{{ c.items }}</span></td>
+              <td class="fw-600">ETB {{ '{:,.0f}'.format(c.total) }}</td>
+              <td style="font-size:.75rem;color:var(--muted)">{{ c.last_active }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
         {% else %}
-        <div class="text-center text-muted py-4" style="font-size:.85rem">No cart activity tracked yet.<br><small>Activity logging starts now!</small></div>
+        <div class="text-center text-muted py-4" style="font-size:.85rem">No active carts found.<br><small>Customers checking out cleanly!</small></div>
         {% endif %}
       </div>
     </div>
@@ -658,26 +659,53 @@ new Chart(document.getElementById('pieChart'), {
 
 // Daily Visits Line
 const visitLabels = {{ daily_visits | map(attribute='date') | list | tojson }};
-const visitData   = {{ daily_visits | map(attribute='count') | list | tojson }};
+const visitVisitors = {{ daily_visits | map(attribute='visitors') | list | tojson }};
+const visitTotal = {{ daily_visits | map(attribute='visits') | list | tojson }};
+const visitReturning = {{ daily_visits | map(attribute='returning') | list | tojson }};
 new Chart(document.getElementById('visitsChart'), {
   type: 'line',
   data: {
     labels: visitLabels,
-    datasets: [{
-      label: 'Unique Visitors',
-      data: visitData,
-      borderColor: '#3b82f6',
-      backgroundColor: 'rgba(59,130,246,.08)',
-      borderWidth: 2.5,
-      pointBackgroundColor: '#3b82f6',
-      pointRadius: 4,
-      fill: true,
-      tension: 0.4,
-    }]
+    datasets: [
+      {
+        label: 'Total Visits',
+        data: visitTotal,
+        borderColor: '#94a3b8',
+        backgroundColor: 'transparent',
+        borderWidth: 2,
+        borderDash: [5, 5],
+        pointBackgroundColor: '#94a3b8',
+        pointRadius: 3,
+        fill: false,
+        tension: 0.4,
+      },
+      {
+        label: 'Unique Visitors',
+        data: visitVisitors,
+        borderColor: '#3b82f6',
+        backgroundColor: 'rgba(59,130,246,.08)',
+        borderWidth: 2.5,
+        pointBackgroundColor: '#3b82f6',
+        pointRadius: 4,
+        fill: true,
+        tension: 0.4,
+      },
+      {
+        label: 'Returning Customers',
+        data: visitReturning,
+        borderColor: '#10b981',
+        backgroundColor: 'transparent',
+        borderWidth: 2.5,
+        pointBackgroundColor: '#10b981',
+        pointRadius: 4,
+        fill: false,
+        tension: 0.4,
+      }
+    ]
   },
   options: {
     responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { display: false } },
+    plugins: { legend: { display: true, position: 'top', labels: { font: { size: 11 }, usePointStyle: true, boxWidth: 8 } } },
     scales: {
       x: { grid: { display: false }, ticks: { font: { size: 11 } } },
       y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,.04)' }, ticks: { precision: 0 } }
