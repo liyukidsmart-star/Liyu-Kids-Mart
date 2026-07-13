@@ -622,16 +622,17 @@ def store_pos_checkout():
         return error_response('Cart is empty', 400)
 
     try:
-        from app.models.inventory import POSSale, POSSaleItem, StockTransaction, TransactionType
+        from app.models.inventory import POSSale, POSSaleItem, StockTransaction, StockTransactionType
         from app.models.user import User
         
         manager = User.query.filter_by(telegram_id=str(manager_id)).first()
         cashier_name = manager.full_name if manager else 'Manager'
         cashier_id = manager.id if manager else None
 
+        import time
         sale = POSSale(
+            sale_number=f"POS-{time.strftime('%Y%m%d')}-{int(time.time()*1000)%10000}",
             cashier_id=cashier_id,
-            cashier_name=cashier_name,
             discount_percentage=discount_percentage,
             payment_method=payment_method,
             notes=notes
@@ -654,8 +655,10 @@ def store_pos_checkout():
             # Log transaction
             txn = StockTransaction(
                 product_id=p.id,
-                transaction_type=TransactionType.pos_sale,
+                transaction_type=StockTransactionType.pos_sale,
                 quantity_change=-qty,
+                quantity_before=p.stock_qty + qty,
+                quantity_after=p.stock_qty,
                 reference_id=sale.sale_number,
                 notes=f'POS Sale checkout by {cashier_name}'
             )

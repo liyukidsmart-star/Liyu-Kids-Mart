@@ -293,11 +293,12 @@
                 </div>
 
                 <div class="pos-totals">
-                    <div class="pos-discounts">
+                    <div class="pos-discounts" style="align-items: center;">
                         <button class="pos-discount-btn active" onclick="setPosDiscount(0, this)">No Discount</button>
                         <button class="pos-discount-btn" onclick="setPosDiscount(5, this)">5% Off</button>
                         <button class="pos-discount-btn" onclick="setPosDiscount(10, this)">10% Off</button>
                         <button class="pos-discount-btn" onclick="setPosDiscount(15, this)">15% Off</button>
+                        <input type="number" id="customPosDiscount" placeholder="Custom %" style="width: 85px; padding: 6px 10px; border-radius: 100px; border: 1px solid var(--br); font-size: 0.8rem; font-family: 'Outfit'; outline: none;" oninput="setPosDiscount(this.value, null, true)">
                     </div>
                     
                     <div class="pos-totals-row">
@@ -905,10 +906,19 @@ function removeFromPos(index) {
     renderPosCart();
 }
 
-function setPosDiscount(percent, btnElement) {
-    posDiscountPercent = percent;
+function setPosDiscount(percent, btnElement, isCustom=false) {
+    posDiscountPercent = parseFloat(percent) || 0;
+    if (posDiscountPercent > 100) posDiscountPercent = 100;
+    if (posDiscountPercent < 0) posDiscountPercent = 0;
+    
     document.querySelectorAll('.pos-discount-btn').forEach(btn => btn.classList.remove('active'));
-    if (btnElement) btnElement.classList.add('active');
+    if (btnElement) {
+        btnElement.classList.add('active');
+        document.getElementById('customPosDiscount').value = '';
+    } else if (isCustom && posDiscountPercent === 0) {
+        document.querySelector('.pos-discount-btn').classList.add('active');
+    }
+    
     renderPosCart();
 }
 
@@ -990,6 +1000,7 @@ async function posCheckout() {
             // Clear cart
             posCart = [];
             setPosDiscount(0, document.querySelector('.pos-discount-btn'));
+            document.getElementById('customPosDiscount').value = '';
             
         } else {
             if (window.Telegram && window.Telegram.WebApp) window.Telegram.WebApp.HapticFeedback.notificationOccurred('error');
