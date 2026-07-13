@@ -591,13 +591,15 @@ def customers():
         AIConversation.created_at >= week_start
     ).scalar() or 0
 
-    # New vs Returning pie data (last 30 days)
-    # "New" = users created in last 30 days; "Returning" = rest with activity
     new_users_30 = User.query.filter(
         User.role == UserRole.customer,
         User.created_at >= month_start
     ).count()
-    returning_users_30 = max(0, total_customers - new_users_30)
+    returning_users_30 = db.session.query(func.count(distinct(ActivityLog.user_id))).join(User).filter(
+        User.role == UserRole.customer,
+        User.created_at < month_start,
+        ActivityLog.created_at >= month_start
+    ).scalar() or 0
 
     # ── Daily visits for past 14 days chart ───────────────────────
     daily_visits = []
@@ -607,7 +609,9 @@ def customers():
         day_utc = day_local.astimezone(timezone.utc)
         next_day_utc = next_day_local.astimezone(timezone.utc)
         
-        cnt = db.session.query(func.count(distinct(ActivityLog.user_id))).filter(
+        cnt = db.session.query(func.count(distinct(
+            db.case((ActivityLog.user_id.isnot(None), db.cast(ActivityLog.user_id, db.String)), else_=ActivityLog.ip_address)
+        ))).filter(
             ActivityLog.action == 'mini_app_visit',
             ActivityLog.created_at >= day_utc,
             ActivityLog.created_at < next_day_utc
@@ -858,26 +862,45 @@ def customers_weekly_report():
             User.created_at >= wk_start,
             User.created_at < wk_end
         ).count()
-        visits = db.session.query(func.count(distinct(ActivityLog.user_id))).filter(
+        visits = db.session.query(func.count(distinct(
+            db.case((ActivityLog.user_id.isnot(None), db.cast(ActivityLog.user_id, db.String)), else_=ActivityLog.ip_address)
+        ))).filter(
             ActivityLog.action == 'mini_app_visit',
             ActivityLog.created_at >= wk_start,
             ActivityLog.created_at < wk_end
         ).scalar() or 0
+        
+        from app.models.inventory import POSSale, POSSaleStatus
         orders_cnt = Order.query.filter(
             Order.created_at >= wk_start,
-            Order.created_at < wk_end
+            Order.created_at < wk_end,
+            Order.status.notin_([OrderStatus.cancelled, OrderStatus.returned])
         ).count()
+        pos_cnt = POSSale.query.filter(
+            POSSale.created_at >= wk_start,
+            POSSale.created_at < wk_end,
+            POSSale.status == POSSaleStatus.completed
+        ).count()
+        total_orders_cnt = orders_cnt + pos_cnt
+
         revenue = db.session.query(func.sum(Order.total)).filter(
             Order.created_at >= wk_start,
             Order.created_at < wk_end,
-            Order.status.notin_([OrderStatus.cancelled])
+            Order.status.notin_([OrderStatus.cancelled, OrderStatus.returned])
         ).scalar() or 0
+        revenue_pos = db.session.query(func.sum(POSSale.total)).filter(
+            POSSale.created_at >= wk_start,
+            POSSale.created_at < wk_end,
+            POSSale.status == POSSaleStatus.completed
+        ).scalar() or 0
+        total_revenue = float(revenue) + float(revenue_pos)
+
         weeks.append({
             'week': wk_start_local.strftime('%b %d'),
             'new_users': new_users,
             'visits': visits,
-            'orders': orders_cnt,
-            'revenue': float(revenue),
+            'orders': total_orders_cnt,
+            'revenue': total_revenue,
         })
     return jsonify({'weeks': weeks})
 
