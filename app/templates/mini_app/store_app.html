@@ -270,6 +270,18 @@
     </div>
 
     
+    
+    <!-- HISTORY VIEW -->
+    <div id="view-history" class="view">
+        <h2 style="font-size: 1.1rem; font-weight: 800; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+            <span><i class="fas fa-history text-g"></i> Sales History</span>
+            <button class="btn btn-outline" style="padding: 6px 12px; font-size: 0.8rem;" onclick="loadHistory()"><i class="fas fa-sync-alt"></i></button>
+        </h2>
+        <div id="historyList">
+            <!-- Rendered by JS -->
+        </div>
+    </div>
+
     <!-- POS VIEW -->
     <div id="view-pos" class="view">
         <h2 style="font-size: 1.1rem; font-weight: 800; margin-bottom: 16px;"><i class="fas fa-cash-register text-g"></i> POS Terminal</h2>
@@ -314,6 +326,15 @@
                         <span id="posTotal">ETB 0</span>
                     </div>
 
+                    <div style="margin-bottom: 10px; margin-top: 10px;">
+                        <label style="font-size: 0.8rem; font-weight: 600; color: var(--ts); margin-bottom: 4px; display: block;">Payment Method</label>
+                        <select id="posPaymentMethod" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--br); font-family: 'Outfit'; font-size: 0.9rem; outline: none; background: var(--bg);">
+                            <option value="cash">Cash</option>
+                            <option value="cbe">CBE / Transfer</option>
+                            <option value="telebirr">Telebirr</option>
+                            <option value="card">Card</option>
+                        </select>
+                    </div>
                     <button class="pos-checkout-btn" id="posCheckoutBtn" onclick="posCheckout()" disabled>Complete Sale</button>
                 </div>
             </div>
@@ -353,6 +374,10 @@
         <div class="nav-item" data-tab="drivers" onclick="switchTab('drivers')">
             <i class="fas fa-motorcycle"></i>
             <span>Drivers</span>
+        </div>
+                <div class="nav-item" data-tab="history" onclick="switchTab('history')">
+            <i class="fas fa-history"></i>
+            <span>History</span>
         </div>
         <div class="nav-item" data-tab="pos" onclick="switchTab('pos')">
             <i class="fas fa-cash-register"></i>
@@ -409,6 +434,7 @@
             if(tabId === 'dashboard') loadDashboard();
             if(tabId === 'orders') loadOrders();
             if(tabId === 'inventory') loadInventory();
+            if(tabId === 'history') loadHistory();
             if(tabId === 'drivers') {
                 loadDrivers();
                 if(storeMap) {
@@ -821,6 +847,75 @@
             loadOrders();
         }
     
+
+// ────────────────────────────────────────────────────────
+// HISTORY Logic
+// ────────────────────────────────────────────────────────
+async function loadHistory() {
+    try {
+        const res = await fetch(`/api/v1/store/sales/history?manager_id=${managerId}`);
+        const data = await res.json();
+        const container = document.getElementById('historyList');
+        
+        if (data.success && data.data && data.data.history) {
+            if (data.data.history.length === 0) {
+                container.innerHTML = '<div style="text-align:center; padding:30px 0; color:var(--ts);">No history available.</div>';
+                return;
+            }
+            container.innerHTML = data.data.history.map(item => {
+                const isOnline = item.type === 'online';
+                const badgeColor = isOnline ? 'var(--p)' : 'var(--g)';
+                const badgeText = isOnline ? 'Online' : 'In-Store';
+                const canCancel = item.status !== 'cancelled' && item.status !== 'refunded' && item.status !== 'voided';
+                
+                return `
+                    <div style="background:var(--sf); border-radius:12px; padding:16px; margin-bottom:12px; border:1px solid var(--br); box-shadow:0 2px 8px rgba(0,0,0,0.02);">
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
+                            <div>
+                                <div style="font-size:0.75rem; font-weight:800; color:white; background:${badgeColor}; padding:2px 8px; border-radius:100px; display:inline-block; margin-bottom:4px;">${badgeText}</div>
+                                <div style="font-weight:700; font-size:0.95rem;">${item.reference}</div>
+                            </div>
+                            <div style="text-align:right;">
+                                <div style="font-weight:900; color:var(--tm); font-size:1rem;">ETB ${item.total}</div>
+                                <div style="font-size:0.75rem; color:var(--ts); text-transform:capitalize;">${item.payment_method} · ${item.status}</div>
+                            </div>
+                        </div>
+                        <div style="font-size:0.75rem; color:var(--ts); display:flex; justify-content:space-between; align-items:center;">
+                            <span>${new Date(item.created_at).toLocaleString()}</span>
+                            ${canCancel ? `<button class="btn" style="background:#FEE2E2; color:var(--danger); font-size:0.75rem; padding:4px 10px; border-radius:8px;" onclick="cancelSale('${item.type}', '${item.id}')">Cancel</button>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+    } catch(e) {
+        console.error(e);
+        document.getElementById('historyList').innerHTML = '<div style="color:red">Failed to load history</div>';
+    }
+}
+
+async function cancelSale(type, id) {
+    if (!confirm('Are you sure you want to cancel this sale? Stock will be restored.')) return;
+    try {
+        const res = await fetch('/api/v1/store/sales/cancel', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({manager_id: managerId, type: type, id: id})
+        });
+        const data = await res.json();
+        if (data.success) {
+            alert(data.data.message || 'Cancelled successfully');
+            loadHistory();
+            loadDashboard(); // Refresh dash numbers
+        } else {
+            alert(data.message || 'Failed to cancel');
+        }
+    } catch(e) {
+        console.error(e);
+        alert('Error cancelling sale');
+    }
+}
+
 // ────────────────────────────────────────────────────────
 // POS Logic
 // ────────────────────────────────────────────────────────
@@ -977,7 +1072,7 @@ async function posCheckout() {
             manager_id: managerId,
             items: posCart.map(item => ({ product_id: item.id, quantity: item.quantity, unit_price: item.price })),
             discount_percentage: posDiscountPercent,
-            payment_method: 'cash'
+            payment_method: document.getElementById('posPaymentMethod').value
         };
         
         const res = await fetch('/api/v1/store/pos/checkout', {

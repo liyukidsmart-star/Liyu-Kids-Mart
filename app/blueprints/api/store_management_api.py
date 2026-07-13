@@ -54,6 +54,12 @@ def _active_orders_since(start_dt):
         if o.status not in (OrderStatus.cancelled, OrderStatus.returned)
     ]
 
+def _active_pos_sales_since(start_dt):
+    from app.models.inventory import POSSale, POSSaleStatus
+    return [
+        s for s in POSSale.query.filter(POSSale.created_at >= start_dt).all()
+        if s.status == POSSaleStatus.completed
+    ]
 
 # ─────────────────────────────────────────────────────────────
 # Dashboard
@@ -72,18 +78,24 @@ def store_dashboard():
     bi_weekly_start = today_start - timedelta(days=14)
     monthly_start = today_start - timedelta(days=30)
 
-    # Today's stats
+    # Online Orders
     today_orders = _active_orders_since(today_start)
     week_orders = _active_orders_since(week_start)
     bi_weekly_orders = _active_orders_since(bi_weekly_start)
     monthly_orders = _active_orders_since(monthly_start)
     all_pending = Order.query.filter(Order.status == OrderStatus.pending).count()
     all_confirmed = Order.query.filter(Order.status == OrderStatus.confirmed).count()
+    
+    # POS Sales
+    today_pos = _active_pos_sales_since(today_start)
+    week_pos = _active_pos_sales_since(week_start)
+    bi_weekly_pos = _active_pos_sales_since(bi_weekly_start)
+    monthly_pos = _active_pos_sales_since(monthly_start)
 
-    today_revenue = sum(float(o.total) for o in today_orders)
-    week_revenue = sum(float(o.total) for o in week_orders)
-    bi_weekly_revenue = sum(float(o.total) for o in bi_weekly_orders)
-    monthly_revenue = sum(float(o.total) for o in monthly_orders)
+    today_revenue = sum(float(o.total) for o in today_orders) + sum(float(p.total) for p in today_pos)
+    week_revenue = sum(float(o.total) for o in week_orders) + sum(float(p.total) for p in week_pos)
+    bi_weekly_revenue = sum(float(o.total) for o in bi_weekly_orders) + sum(float(p.total) for p in bi_weekly_pos)
+    monthly_revenue = sum(float(o.total) for o in monthly_orders) + sum(float(p.total) for p in monthly_pos)
 
     # Low stock products
     low_stock = Product.query.filter(Product.is_active == True, Product.stock_qty <= 5).order_by(Product.stock_qty.asc()).limit(5).all()
@@ -697,3 +709,108 @@ def store_pos_checkout():
         import logging
         logging.error(f'[store_pos_checkout] {e}', exc_info=True)
         return error_response(str(e), 500)
+
+
+@api_bp.route('/store/sales/history', methods=['GET'])
+def store_sales_history():
+    manager_id = _get_manager_from_request()
+    if not manager_id: return error_response('Unauthorized', 403)
+    
+    from app.models.inventory import POSSale
+    
+    # Get last 50 online orders
+    orders = Order.query.order_by(Order.created_at.desc()).limit(50).all()
+    
+    # Get last 50 POS sales
+    pos_sales = POSSale.query.order_by(POSSale.created_at.desc()).limit(50).all()
+    
+    history = []
+    for o in orders:
+        history.append({
+            'id': str(o.id),
+            'reference': o.order_number,
+            'type': 'online',
+            'status': o.status.value,
+            'total': float(o.total),
+            'items_count': len(o.items),
+            'created_at': o.created_at.isoformat(),
+            'payment_method': o.payment_method
+        })
+        
+    for p in pos_sales:
+        history.append({
+            'id': str(p.id),
+            'reference': p.sale_number,
+            'type': 'pos',
+            'status': p.status.value,
+            'total': float(p.total),
+            'items_count': len(p.items),
+            'created_at': p.created_at.isoformat(),
+            'payment_method': p.payment_method or 'Cash'
+        })
+        
+    # Sort interleaved by created_at desc
+    history.sort(key=lambda x: x['created_at'], reverse=True)
+    
+    return success_response({'history': history[:50]})
+
+@api_bp.route('/store/sales/cancel', methods=['POST'])
+def store_sales_cancel():
+    manager_id = _get_manager_from_request()
+    if not manager_id: return error_response('Unauthorized', 403)
+    
+    data = request.json or {}
+    sale_type = data.get('type')
+    sale_id = data.get('id')
+    
+    if not sale_type or not sale_id:
+        return error_response('Missing type or id', 400)
+        
+    if sale_type == 'online':
+        order = Order.query.get(sale_id)
+        if not order: return error_response('Order not found', 404)
+        if order.status in (OrderStatus.cancelled, OrderStatus.returned):
+            return error_response('Already cancelled', 400)
+            
+        order.status = OrderStatus.cancelled
+        # Online orders auto-restock via signals or separate job usually, but we must do it manually if we don't have signals
+        for item in order.items:
+            prod = item.product
+            if prod:
+                prod.stock_qty += item.quantity
+                prod.sold_count = max(0, prod.sold_count - item.quantity)
+        db.session.commit()
+        return success_response({'message': 'Online order cancelled'})
+        
+    elif sale_type == 'pos':
+        from app.models.inventory import POSSale, POSSaleStatus, StockTransaction, StockTransactionType
+        sale = POSSale.query.get(sale_id)
+        if not sale: return error_response('POS Sale not found', 404)
+        if sale.status != POSSaleStatus.completed:
+            return error_response(f'Cannot cancel sale with status {sale.status.value}', 400)
+            
+        sale.status = POSSaleStatus.refunded
+        
+        # Restore stock
+        for item in sale.items:
+            prod = Product.query.get(item.product_id)
+            if prod:
+                qty = item.quantity
+                # create transaction
+                txn = StockTransaction(
+                    product_id=prod.id,
+                    transaction_type=StockTransactionType.return_,
+                    quantity_change=qty,
+                    quantity_before=prod.stock_qty,
+                    quantity_after=prod.stock_qty + qty,
+                    reference_id=f"Refund-{sale.sale_number}",
+                    notes="POS Sale Cancelled"
+                )
+                prod.stock_qty += qty
+                prod.sold_count = max(0, prod.sold_count - qty)
+                db.session.add(txn)
+                
+        db.session.commit()
+        return success_response({'message': 'POS sale cancelled and stock restored'})
+        
+    return error_response('Invalid sale type', 400)

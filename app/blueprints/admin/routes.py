@@ -10,6 +10,7 @@ from flask_login import login_required, current_user
 from functools import wraps
 from app.blueprints.admin import admin_bp
 from app.extensions import db
+from app.models.inventory import POSSale, POSSaleStatus
 from app.models.product import Product, Category, ProductImage, prime_product_image_lookup
 from app.models.order import Order, OrderStatus, Coupon, DiscountType, OrderItem
 from app.models.loyalty import LoyaltySettings
@@ -169,12 +170,12 @@ def admin_required(f):
 @admin_bp.route('/')
 @admin_required
 def dashboard():
+    online_rev = db.session.query(db.func.sum(Order.total)).filter(Order.status == OrderStatus.delivered).scalar() or 0
+    pos_rev = db.session.query(db.func.sum(POSSale.total)).filter(POSSale.status == POSSaleStatus.completed).scalar() or 0
     stats = {
-        'total_revenue': db.session.query(db.func.sum(Order.total)).filter(
-            Order.status == OrderStatus.delivered).scalar() or 0,
-        'total_orders': Order.query.count(),
-        'today_orders': Order.query.filter(
-            db.func.date(Order.created_at) == db.func.current_date()).count(),
+        'total_revenue': float(online_rev) + float(pos_rev),
+        'total_orders': Order.query.count() + POSSale.query.count(),
+        'today_orders': Order.query.filter(db.func.date(Order.created_at) == db.func.current_date()).count() + POSSale.query.filter(db.func.date(POSSale.created_at) == db.func.current_date()).count(),
         'pending_orders': Order.query.filter_by(status=OrderStatus.pending).count(),
         'total_products': Product.query.filter_by(is_active=True).count(),
         'total_customers': User.query.filter_by(role=UserRole.customer).count(),
