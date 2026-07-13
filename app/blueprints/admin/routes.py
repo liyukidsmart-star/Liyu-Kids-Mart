@@ -655,28 +655,43 @@ def customers():
 
     # ── Active Carts (Abandonment) ──────────────────────
     from app.models.order import Cart
-    active_carts_query = db.session.query(
+
+    # Fetch all distinct carts that still have items (not checked out)
+    # Group by user_id + session_id. We do this per-row to avoid NULL grouping issues.
+    raw_carts = db.session.query(
         Cart.user_id,
         Cart.session_id,
         func.sum(Cart.quantity).label('total_items'),
         func.max(Cart.added_at).label('last_active'),
-    ).join(Product).group_by(Cart.user_id, Cart.session_id).order_by(func.max(Cart.added_at).desc()).limit(8).all()
+        func.sum(Cart.quantity * db.cast(Product.price, db.Numeric)).label('total_value'),
+    ).join(Product, Cart.product_id == Product.id).group_by(
+        Cart.user_id, Cart.session_id
+    ).order_by(func.max(Cart.added_at).desc()).limit(10).all()
 
     active_carts_data = []
-    for uid, sid, qty, last_active in active_carts_query:
+    for uid, sid, qty, last_active, total_value in raw_carts:
         user = db.session.get(User, uid) if uid else None
-        cart_items = Cart.query.filter_by(user_id=uid, session_id=sid).all()
-        total_price = sum(i.quantity * float(i.product.price) for i in cart_items if i.product)
-        
         name = user.full_name if user else "Anonymous Visitor"
-        identifier = f"@{user.telegram_username}" if (user and user.telegram_username) else (f"User #{user.id}" if user else f"Session {sid[:6] if sid else '?'}")
-        
+        if user and user.telegram_username:
+            identifier = f"@{user.telegram_username}"
+        elif user:
+            identifier = f"User #{user.id}"
+        else:
+            identifier = f"Session …{sid[-6:] if sid else '???'}"
+        # last_active may be a string on some DB drivers
+        if isinstance(last_active, str):
+            try:
+                from datetime import datetime as _dt
+                last_active = _dt.fromisoformat(last_active.replace('Z', '+00:00'))
+            except Exception:
+                last_active = None
+        last_str = last_active.strftime('%b %d, %H:%M') if last_active else '—'
         active_carts_data.append({
             'name': name,
             'identifier': identifier,
-            'items': qty,
-            'total': total_price,
-            'last_active': last_active.strftime('%b %d, %H:%M')
+            'items': int(qty or 0),
+            'total': float(total_value or 0),
+            'last_active': last_str,
         })
 
     # ── Buy Now clicks by product ─────────────────────────────────
