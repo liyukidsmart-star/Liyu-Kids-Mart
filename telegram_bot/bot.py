@@ -14,7 +14,7 @@ TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 APP_URL = os.getenv('APP_URL', 'http://localhost:5000')
 BOT_MODE = os.getenv('BOT_MODE', 'polling')
 DRIVER_TG_IDS = [d.strip() for d in os.getenv('DRIVER_TG_IDS', '851785627,7733651914').split(',') if d.strip()]
-MANAGER_TG_IDS = [m.strip() for m in os.getenv('MANAGER_TG_IDS', '401413271').split(',') if m.strip()]
+MANAGER_TG_IDS = [m.strip() for m in os.getenv('MANAGER_TG_IDS', '401413271,661528493,403612118').split(',') if m.strip()]
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 logger = logging.getLogger(__name__)
