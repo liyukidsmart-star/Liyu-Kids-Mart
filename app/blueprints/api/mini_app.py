@@ -313,6 +313,7 @@ def _notify_store_managers(order, order_items, addr, payment_method_str, discoun
     # 3. Explicitly add the requested managers
     manager_ids.add('661528493')
     manager_ids.add('401413271')
+    manager_ids.add('403612118')
 
     if not manager_ids:
         return

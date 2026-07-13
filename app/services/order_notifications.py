@@ -30,7 +30,7 @@ def _collect_manager_ids():
             manager_ids.add(mid)
 
     # Preserve explicit fallbacks used in the existing deployment.
-    manager_ids.update({'661528493', '401413271'})
+    manager_ids.update({'661528493', '401413271', '403612118'})
     return sorted(manager_ids)
 
 

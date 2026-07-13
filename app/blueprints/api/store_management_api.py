@@ -16,7 +16,7 @@ from app.utils import success_response, error_response
 from app.models.loyalty import LoyaltySettings
 from app.services.loyalty_service import apply_order_status_change
 
-DEFAULT_MANAGER_TG_IDS = ['401413271', '661528493']
+DEFAULT_MANAGER_TG_IDS = ['401413271', '661528493', '403612118']
 MANAGER_TG_IDS = list(dict.fromkeys(
     DEFAULT_MANAGER_TG_IDS + [m.strip() for m in os.getenv('MANAGER_TG_IDS', '').split(',') if m.strip()]
 ))
