@@ -141,6 +141,38 @@
         .launch-badge { display: inline-flex; align-items: center; gap: 6px; border-radius: 100px; padding: 6px 12px; font-size: 0.75rem; font-weight: 800; background: var(--bg); color: var(--p); }
         .launch-badge.locked { background: #FEF3C7; color: #92400E; }
         .launch-badge.open { background: #D1FAE5; color: #065F46; }
+    
+        /* POS View */
+        .pos-container { display: flex; flex-direction: column; gap: 14px; height: 100%; }
+        .pos-scanner-area { background: var(--tm); border-radius: 18px; padding: 30px 20px; text-align: center; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; box-shadow: var(--shadow); position: relative; overflow: hidden; }
+        .pos-scanner-area::after { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(61,139,95,0.2), rgba(0,0,0,0)); pointer-events: none; }
+        .pos-scan-btn { background: var(--g); color: white; border: none; border-radius: 100px; padding: 14px 28px; font-size: 1.05rem; font-weight: 800; display: inline-flex; align-items: center; gap: 10px; cursor: pointer; box-shadow: 0 4px 16px rgba(61,139,95,0.4); transition: transform 0.2s; z-index: 1; }
+        .pos-scan-btn:active { transform: scale(0.96); }
+        .pos-cart { background: var(--sf); border-radius: 18px; border: 1px solid var(--br); padding: 16px; flex: 1; box-shadow: var(--shadow); display: flex; flex-direction: column; }
+        .pos-cart-items { flex: 1; overflow-y: auto; max-height: 250px; margin-bottom: 12px; }
+        .pos-cart-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px dashed var(--br); }
+        .pos-cart-item:last-child { border-bottom: none; }
+        .pci-info { flex: 1; padding-right: 10px; }
+        .pci-name { font-weight: 700; font-size: 0.9rem; margin-bottom: 4px; }
+        .pci-price { font-size: 0.8rem; color: var(--g); font-weight: 800; }
+        .pci-qty-controls { display: flex; align-items: center; gap: 8px; background: var(--bg); border-radius: 8px; padding: 4px; border: 1px solid var(--br); }
+        .pci-qty-btn { width: 28px; height: 28px; border-radius: 6px; background: var(--sf); display: flex; align-items: center; justify-content: center; font-weight: 800; border: none; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .pci-qty-btn:active { background: var(--br); }
+        .pci-qty { font-weight: 800; font-size: 0.9rem; min-width: 20px; text-align: center; }
+        .pci-del { color: var(--danger); background: #FEE2E2; border: none; width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-left: 10px; }
+        .pos-totals { border-top: 2px dashed var(--br); padding-top: 14px; }
+        .pos-totals-row { display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 8px; color: var(--ts); font-weight: 600; }
+        .pos-totals-row.grand { font-size: 1.2rem; color: var(--tm); font-weight: 900; margin-top: 10px; margin-bottom: 0; }
+        .pos-discounts { display: flex; gap: 8px; margin-bottom: 14px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+        .pos-discounts::-webkit-scrollbar { display: none; }
+        .pos-discount-btn { padding: 6px 14px; background: var(--bg); border: 1px solid var(--br); border-radius: 100px; font-size: 0.8rem; font-weight: 800; color: var(--ts); white-space: nowrap; }
+        .pos-discount-btn.active { background: var(--p); color: white; border-color: var(--p); }
+        .pos-checkout-btn { width: 100%; background: linear-gradient(135deg, var(--g), var(--gp)); color: white; border: none; border-radius: 14px; padding: 16px; font-size: 1.05rem; font-weight: 800; margin-top: 14px; box-shadow: 0 4px 16px rgba(61,139,95,0.3); transition: transform 0.2s; }
+        .pos-checkout-btn:active { transform: scale(0.98); }
+        .pos-checkout-btn:disabled { background: #cbd5e1; box-shadow: none; transform: none; }
+        .pos-manual-search { display: flex; gap: 10px; margin-bottom: 14px; }
+        .pos-manual-search input { flex: 1; padding: 12px 14px; border: 1px solid var(--br); border-radius: 12px; outline: none; font-size: 0.9rem; font-family: 'Outfit'; }
+
     </style>
 </head>
 <body>
@@ -237,6 +269,56 @@
         <div id="driversList"></div>
     </div>
 
+    
+    <!-- POS VIEW -->
+    <div id="view-pos" class="view">
+        <h2 style="font-size: 1.1rem; font-weight: 800; margin-bottom: 16px;"><i class="fas fa-cash-register text-g"></i> POS Terminal</h2>
+        <div class="pos-container">
+            <div class="pos-scanner-area">
+                <i class="fas fa-qrcode" style="font-size: 3rem; opacity: 0.5;"></i>
+                <div style="font-size: 0.9rem; font-weight: 600; opacity: 0.8;">Use Telegram Native Scanner</div>
+                <button class="pos-scan-btn" onclick="startNativeScan()"><i class="fas fa-camera"></i> Scan QR Code</button>
+            </div>
+
+            <div class="pos-cart">
+                <div class="pos-manual-search">
+                    <input type="text" id="posSearchInput" placeholder="Enter Product ID or SKU..." onkeypress="if(event.key === 'Enter') posManualLookup()">
+                    <button class="btn btn-primary" style="padding: 12px; border-radius: 12px;" onclick="posManualLookup()"><i class="fas fa-search"></i></button>
+                </div>
+
+                <h3 style="font-size: 0.9rem; font-weight: 800; margin-bottom: 10px; color: var(--ts); text-transform: uppercase;">Current Sale</h3>
+                
+                <div class="pos-cart-items" id="posCartItems">
+                    <!-- Cart items render here -->
+                </div>
+
+                <div class="pos-totals">
+                    <div class="pos-discounts">
+                        <button class="pos-discount-btn active" onclick="setPosDiscount(0, this)">No Discount</button>
+                        <button class="pos-discount-btn" onclick="setPosDiscount(5, this)">5% Off</button>
+                        <button class="pos-discount-btn" onclick="setPosDiscount(10, this)">10% Off</button>
+                        <button class="pos-discount-btn" onclick="setPosDiscount(15, this)">15% Off</button>
+                    </div>
+                    
+                    <div class="pos-totals-row">
+                        <span>Subtotal</span>
+                        <span id="posSubtotal">ETB 0</span>
+                    </div>
+                    <div class="pos-totals-row" style="color: var(--warning); display: none;" id="posDiscountRow">
+                        <span>Discount</span>
+                        <span id="posDiscountAmt">-ETB 0</span>
+                    </div>
+                    <div class="pos-totals-row grand">
+                        <span>Total</span>
+                        <span id="posTotal">ETB 0</span>
+                    </div>
+
+                    <button class="pos-checkout-btn" id="posCheckoutBtn" onclick="posCheckout()" disabled>Complete Sale</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- BOTTOM NAVIGATION -->
     <div id="view-settings" class="view">
         <h2 style="font-size: 1.1rem; font-weight: 800; margin-bottom: 16px;">Settings</h2>
@@ -282,7 +364,13 @@
         <div class="modal-content">
             <div class="modal-handle"></div>
             <div id="orderModalBody"></div>
+        
+        <div class="nav-item" data-tab="pos" onclick="switchTab('pos')">
+            <i class="fas fa-cash-register"></i>
+            <span>POS</span>
         </div>
+
+    </div>
     </div>
 
     <script>
@@ -731,6 +819,192 @@
             closeOrderModal();
             loadOrders();
         }
-    </script>
+    
+// ────────────────────────────────────────────────────────
+// POS Logic
+// ────────────────────────────────────────────────────────
+let posCart = [];
+let posDiscountPercent = 0;
+
+function startNativeScan() {
+    if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.showScanQrPopup) {
+        window.Telegram.WebApp.showScanQrPopup({ text: "Scan Product QR Code to add to Cart" }, function(result) {
+            if (result) {
+                lookupProductForPos(result);
+                return true; // closes scanner
+            }
+        });
+    } else {
+        alert("Native scanner is not available in this environment.");
+    }
+}
+
+function posManualLookup() {
+    const query = document.getElementById('posSearchInput').value.trim();
+    if (!query) return;
+    document.getElementById('posSearchInput').value = '';
+    lookupProductForPos(query);
+}
+
+async function lookupProductForPos(query) {
+    try {
+        if (window.Telegram && window.Telegram.WebApp) window.Telegram.WebApp.HapticFeedback.impactOccurred('light');
+        const res = await fetch(`/api/v1/store/pos/lookup-product?manager_id=${managerId}&q=${encodeURIComponent(query)}`);
+        const data = await res.json();
+        
+        if (data.success && data.data && data.data.product) {
+            if (window.Telegram && window.Telegram.WebApp) window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+            addToPosCart(data.data.product);
+        } else {
+            if (window.Telegram && window.Telegram.WebApp) window.Telegram.WebApp.HapticFeedback.notificationOccurred('error');
+            alert(data.message || 'Product not found');
+        }
+    } catch (e) {
+        console.error(e);
+        alert('Error looking up product');
+    }
+}
+
+function addToPosCart(product) {
+    const existing = posCart.find(item => item.id === product.id);
+    if (existing) {
+        if (existing.quantity >= product.stock_qty) {
+            alert(`Only ${product.stock_qty} in stock!`);
+            return;
+        }
+        existing.quantity++;
+    } else {
+        if (product.stock_qty < 1) {
+            alert('Out of stock!');
+            return;
+        }
+        posCart.push({ ...product, quantity: 1 });
+    }
+    renderPosCart();
+}
+
+function updatePosQty(index, change) {
+    const item = posCart[index];
+    const newQty = item.quantity + change;
+    
+    if (newQty < 1) return;
+    if (newQty > item.stock_qty) {
+        if (window.Telegram && window.Telegram.WebApp) window.Telegram.WebApp.HapticFeedback.notificationOccurred('warning');
+        alert(`Maximum stock available: ${item.stock_qty}`);
+        return;
+    }
+    
+    item.quantity = newQty;
+    if (window.Telegram && window.Telegram.WebApp) window.Telegram.WebApp.HapticFeedback.selectionChanged();
+    renderPosCart();
+}
+
+function removeFromPos(index) {
+    posCart.splice(index, 1);
+    if (window.Telegram && window.Telegram.WebApp) window.Telegram.WebApp.HapticFeedback.impactOccurred('medium');
+    renderPosCart();
+}
+
+function setPosDiscount(percent, btnElement) {
+    posDiscountPercent = percent;
+    document.querySelectorAll('.pos-discount-btn').forEach(btn => btn.classList.remove('active'));
+    if (btnElement) btnElement.classList.add('active');
+    renderPosCart();
+}
+
+function renderPosCart() {
+    const container = document.getElementById('posCartItems');
+    let subtotal = 0;
+    
+    if (posCart.length === 0) {
+        container.innerHTML = '<div style="text-align:center; padding:30px 0; color:var(--ts); font-size:0.9rem;"><i class="fas fa-shopping-basket" style="font-size:2rem; opacity:0.3; margin-bottom:10px;"></i><br>Cart is empty</div>';
+    } else {
+        container.innerHTML = posCart.map((item, idx) => {
+            subtotal += (item.price * item.quantity);
+            return `
+                <div class="pos-cart-item">
+                    <div class="pci-info">
+                        <div class="pci-name">${item.name}</div>
+                        <div class="pci-price">ETB ${item.price.toLocaleString()}</div>
+                    </div>
+                    <div class="pci-qty-controls">
+                        <button class="pci-qty-btn" onclick="updatePosQty(${idx}, -1)"><i class="fas fa-minus"></i></button>
+                        <div class="pci-qty">${item.quantity}</div>
+                        <button class="pci-qty-btn" onclick="updatePosQty(${idx}, 1)"><i class="fas fa-plus"></i></button>
+                    </div>
+                    <button class="pci-del" onclick="removeFromPos(${idx})"><i class="fas fa-trash-alt"></i></button>
+                </div>
+            `;
+        }).join('');
+    }
+    
+    const discountAmt = subtotal * (posDiscountPercent / 100);
+    const total = subtotal - discountAmt;
+    
+    document.getElementById('posSubtotal').textContent = `ETB ${subtotal.toLocaleString()}`;
+    
+    const discRow = document.getElementById('posDiscountRow');
+    if (posDiscountPercent > 0) {
+        discRow.style.display = 'flex';
+        document.getElementById('posDiscountAmt').textContent = `-ETB ${discountAmt.toLocaleString()}`;
+    } else {
+        discRow.style.display = 'none';
+    }
+    
+    document.getElementById('posTotal').textContent = `ETB ${total.toLocaleString()}`;
+    document.getElementById('posCheckoutBtn').disabled = (posCart.length === 0);
+}
+
+async function posCheckout() {
+    if (posCart.length === 0) return;
+    
+    const btn = document.getElementById('posCheckoutBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+    
+    try {
+        const payload = {
+            manager_id: managerId,
+            items: posCart.map(item => ({ product_id: item.id, quantity: item.quantity, unit_price: item.price })),
+            discount_percentage: posDiscountPercent,
+            payment_method: 'cash'
+        };
+        
+        const res = await fetch('/api/v1/store/pos/checkout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        
+        const data = await res.json();
+        if (data.success) {
+            if (window.Telegram && window.Telegram.WebApp) window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+            
+            // Show success alert natively or fallback
+            if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.showAlert) {
+                window.Telegram.WebApp.showAlert(`Sale Completed Successfully!\nTotal: ETB ${data.data.total}\nItems: ${data.data.items_count}`);
+            } else {
+                alert(`Sale Completed Successfully! Total: ETB ${data.data.total}`);
+            }
+            
+            // Clear cart
+            posCart = [];
+            setPosDiscount(0, document.querySelector('.pos-discount-btn'));
+            
+        } else {
+            if (window.Telegram && window.Telegram.WebApp) window.Telegram.WebApp.HapticFeedback.notificationOccurred('error');
+            alert(data.message || 'Checkout failed');
+            btn.disabled = false;
+            btn.textContent = 'Complete Sale';
+        }
+    } catch (e) {
+        console.error(e);
+        alert('Checkout error');
+        btn.disabled = false;
+        btn.textContent = 'Complete Sale';
+    }
+}
+
+</script>
 </body>
 </html>

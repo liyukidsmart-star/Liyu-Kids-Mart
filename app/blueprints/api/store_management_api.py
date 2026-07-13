@@ -555,3 +555,142 @@ def store_customers():
             for u in customers
         ]
     })
+
+
+# ─────────────────────────────────────────────────────────────
+# POS Terminal (Telegram Mini App)
+# ─────────────────────────────────────────────────────────────
+
+@api_bp.route('/store/pos/lookup-product', methods=['GET'])
+def store_pos_lookup():
+    """Lookup a product by ID or SKU for the Mini App POS."""
+    manager_id = _get_manager_from_request()
+    if not manager_id:
+        return error_response('Unauthorized', 403)
+
+    query = request.args.get('q', '').strip()
+    product_id = request.args.get('id', '').strip()
+
+    p = None
+    if product_id and product_id.isdigit():
+        p = db.session.get(Product, int(product_id))
+    elif query:
+        # If it's a scanned URL, try to extract product__<id>
+        if 'startapp=product__' in query:
+            try:
+                pid = query.split('startapp=product__')[1].split('&')[0]
+                p = db.session.get(Product, int(pid))
+            except:
+                pass
+        
+        # If not found yet, check SKU
+        if not p:
+            p = Product.query.filter(Product.sku.ilike(f'%{query}%')).first()
+            
+        # Or exact ID
+        if not p and query.isdigit():
+            p = db.session.get(Product, int(query))
+
+    if not p or not p.is_active:
+        return error_response('Product not found', 404)
+
+    return success_response({
+        'product': {
+            'id': p.id,
+            'name': p.name,
+            'sku': p.sku or f'P-{p.id}',
+            'price': float(p.price),
+            'stock_qty': p.stock_qty,
+            'image': p.primary_image()
+        }
+    })
+
+@api_bp.route('/store/pos/checkout', methods=['POST'])
+def store_pos_checkout():
+    """Process a POS checkout from the Mini App."""
+    manager_id = _get_manager_from_request()
+    if not manager_id:
+        return error_response('Unauthorized', 403)
+
+    data = request.get_json(silent=True) or {}
+    items = data.get('items', [])
+    discount_percentage = float(data.get('discount_percentage', 0))
+    payment_method = data.get('payment_method', 'cash')
+    notes = data.get('notes', '')
+
+    if not items:
+        return error_response('Cart is empty', 400)
+
+    try:
+        from app.models.inventory import POSSale, POSSaleItem, StockTransaction, TransactionType
+        from app.models.user import User
+        
+        manager = User.query.filter_by(telegram_id=str(manager_id)).first()
+        cashier_name = manager.full_name if manager else 'Manager'
+        cashier_id = manager.id if manager else None
+
+        sale = POSSale(
+            cashier_id=cashier_id,
+            cashier_name=cashier_name,
+            discount_percentage=discount_percentage,
+            payment_method=payment_method,
+            notes=notes
+        )
+
+        subtotal = 0.0
+        for item_data in items:
+            pid = item_data.get('product_id')
+            qty = int(item_data.get('quantity', 1))
+            
+            p = db.session.get(Product, pid)
+            if not p:
+                return error_response(f'Product {pid} not found', 404)
+            if p.stock_qty < qty:
+                return error_response(f'Insufficient stock for {p.name} (Available: {p.stock_qty})', 400)
+
+            # Deduct stock
+            p.stock_qty -= qty
+
+            # Log transaction
+            txn = StockTransaction(
+                product_id=p.id,
+                transaction_type=TransactionType.pos_sale,
+                quantity_change=-qty,
+                reference_id=sale.sale_number,
+                notes=f'POS Sale checkout by {cashier_name}'
+            )
+            db.session.add(txn)
+
+            # Add sale item
+            price = float(item_data.get('unit_price', p.price))
+            subtotal += (price * qty)
+
+            sale_item = POSSaleItem(
+                product_id=p.id,
+                product_name=p.name,
+                product_image=p.primary_image(),
+                quantity=qty,
+                unit_price=price,
+                total_price=(price * qty)
+            )
+            sale.items.append(sale_item)
+
+        sale.subtotal = subtotal
+        sale.discount_amount = subtotal * (discount_percentage / 100.0)
+        sale.total = subtotal - sale.discount_amount
+
+        db.session.add(sale)
+        db.session.commit()
+
+        return success_response({
+            'message': f'Sale {sale.sale_number} completed successfully!',
+            'sale_number': sale.sale_number,
+            'total': sale.total,
+            'items_count': len(items)
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        import logging
+        logging.error(f'[store_pos_checkout] {e}', exc_info=True)
+        return error_response(str(e), 500)
