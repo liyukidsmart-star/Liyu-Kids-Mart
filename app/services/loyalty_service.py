@@ -190,7 +190,7 @@ def resolve_loyalty_level(total_spent: float, total_orders: int) -> Optional[Loy
 # Discount Calculation
 # ─────────────────────────────────────────────────────────────
 
-def calculate_loyalty_discount(user, cart_subtotal: float, cart_items=None) -> dict:
+def calculate_loyalty_discount(user, cart_subtotal: float, cart_items=None, qty_items: int = 0) -> dict:
     """
     Calculate the complete discount breakdown for a cart.
 
@@ -278,8 +278,10 @@ def calculate_loyalty_discount(user, cart_subtotal: float, cart_items=None) -> d
     # Count only items meeting the minimum price threshold
     qty_eligible_items = 0
     if qty_allowed:
-        # Use pre-computed eligible count if caller provided it
-        if hasattr(user, '_qty_eligible_item_count') and user is not None:
+        # Priority: explicit qty_items arg > _qty_eligible_item_count attr > _cart_item_count attr
+        if qty_items and qty_items > 0:
+            qty_eligible_items = qty_items
+        elif hasattr(user, '_qty_eligible_item_count') and user is not None:
             qty_eligible_items = user._qty_eligible_item_count
         elif hasattr(user, '_cart_item_count') and user is not None:
             # Fallback: use total item count (caller didn't filter)
@@ -944,7 +946,16 @@ def seed_default_loyalty_data():
             db.session.add(Achievement(**d))
 
     if LoyaltySettings.query.count() == 0:
-        db.session.add(LoyaltySettings())
+        db.session.add(LoyaltySettings(qty_discount_open_to_all=True))
+
+    # Runtime fixup: ensure existing settings rows have qty_discount_open_to_all = True.
+    # This corrects any row created with the wrong server_default='false' in migration.
+    try:
+        db.session.query(LoyaltySettings).filter(
+            LoyaltySettings.qty_discount_open_to_all == False  # noqa: E712
+        ).update({'qty_discount_open_to_all': True})
+    except Exception:
+        pass
 
     db.session.commit()
 

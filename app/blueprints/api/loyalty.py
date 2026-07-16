@@ -144,5 +144,5 @@ def loyalty_discount():
     if user:
         user._cart_item_count = items
 
-    discount_info = calculate_loyalty_discount(user, subtotal)
+    discount_info = calculate_loyalty_discount(user, subtotal, qty_items=items)
     return success_response(discount_info)
