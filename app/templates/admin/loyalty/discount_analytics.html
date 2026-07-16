@@ -1,5 +1,5 @@
 {% extends 'admin/base_admin.html' %}
-{% block title %}Discount Analytics — Liyu Kids Mart{% endblock %}
+{% block title %}Discount Analytics â€” Liyu Kids Mart{% endblock %}
 {% block page_title %}?? Discount Analytics{% endblock %}
 
 {% block extra_css %}
@@ -73,7 +73,7 @@
   </div>
 </div>
 
-<!-- KPI Row 2 — AOV -->
+<!-- KPI Row 2 â€” AOV -->
 <div class="row g-3 mb-4">
   <div class="col-md-4">
     <div class="kpi-card">
@@ -99,7 +99,7 @@
         <div class="kpi-label">Most-Reached Threshold</div>
         <div class="kpi-sub">{{ stats.most_common_threshold.count }} qualifying orders</div>
       {% else %}
-        <div class="kpi-value" style="color:#D1D5DB;">—</div>
+        <div class="kpi-value" style="color:#D1D5DB;">â€”</div>
         <div class="kpi-label">Most-Reached Threshold</div>
         <div class="kpi-sub">no data yet</div>
       {% endif %}
@@ -110,7 +110,7 @@
 <!-- Daily Chart -->
 <div class="chart-card">
   <div class="d-flex justify-content-between align-items-center mb-3">
-    <div class="chart-title"><i class="fas fa-chart-bar me-2" style="color:#6366F1;"></i>Daily Discount Breakdown — Last 30 Days</div>
+    <div class="chart-title"><i class="fas fa-chart-bar me-2" style="color:#6366F1;"></i>Daily Discount Breakdown â€” Last 30 Days</div>
     <div class="d-flex gap-2" style="font-size:.8rem;">
       <span style="background:#DBEAFE; color:#1D4ED8; padding:3px 12px; border-radius:20px; font-weight:600;">?? Spending</span>
       <span style="background:#D1FAE5; color:#065F46; padding:3px 12px; border-radius:20px; font-weight:600;">?? Quantity</span>
@@ -135,9 +135,9 @@
       <div class="stat-row"><span class="text-muted">Total Birr given</span><strong>{{ "{:,.0f}".format(stats.total_spending_disc_birr) }} Birr</strong></div>
       <div class="stat-row">
         <span class="text-muted">Avg discount per order</span>
-        <strong>{% if stats.total_orders_with_spending > 0 %}{{ "{:,.0f}".format(stats.total_spending_disc_birr / stats.total_orders_with_spending) }} Birr{% else %}—{% endif %}</strong>
+        <strong>{% if stats.total_orders_with_spending > 0 %}{{ "{:,.0f}".format(stats.total_spending_disc_birr / stats.total_orders_with_spending) }} Birr{% else %}â€”{% endif %}</strong>
       </div>
-      <div class="stat-row"><span class="text-muted">Most-reached tier</span><strong>{{ stats.most_common_threshold.label if stats.most_common_threshold else '—' }}</strong></div>
+      <div class="stat-row"><span class="text-muted">Most-reached tier</span><strong>{{ stats.most_common_threshold.label if stats.most_common_threshold else 'â€”' }}</strong></div>
       <div class="mt-3">
         <a href="{{ url_for('admin.loyalty_spending_thresholds') }}" class="btn btn-sm rounded-pill" style="background:#DBEAFE; color:#1D4ED8; font-weight:600;">
           <i class="fas fa-cog me-1"></i>Manage Thresholds
@@ -152,7 +152,7 @@
       <div class="stat-row"><span class="text-muted">Total Birr given</span><strong>{{ "{:,.0f}".format(stats.total_qty_disc_birr) }} Birr</strong></div>
       <div class="stat-row">
         <span class="text-muted">Avg discount per order</span>
-        <strong>{% if stats.total_orders_with_qty > 0 %}{{ "{:,.0f}".format(stats.total_qty_disc_birr / stats.total_orders_with_qty) }} Birr{% else %}—{% endif %}</strong>
+        <strong>{% if stats.total_orders_with_qty > 0 %}{{ "{:,.0f}".format(stats.total_qty_disc_birr / stats.total_orders_with_qty) }} Birr{% else %}â€”{% endif %}</strong>
       </div>
       <div class="stat-row"><span class="text-muted">Smart-priced products active</span><strong>{{ stats.smart_product_count }}</strong></div>
       <div class="mt-3 d-flex gap-2">
@@ -183,13 +183,13 @@
         {% for o in recent_orders %}
         <tr>
           <td><a href="{{ url_for('admin.order_detail', order_id=o.id) }}" class="fw-600">#{{ o.order_number }}</a></td>
-          <td>{{ o.user.full_name if o.user else '—' }}</td>
+          <td>{{ o.user.full_name if o.user else 'â€”' }}</td>
           <td>{{ "{:,.0f}".format(o.subtotal | float) }} Birr</td>
-          <td>{% if (o.spending_discount_amount or 0)|float > 0 %}<span class="badge-spending">-{{ "{:,.0f}".format((o.spending_discount_amount or 0)|float) }}</span>{% else %}<span class="badge-none">—</span>{% endif %}</td>
-          <td>{% if (o.qty_discount_amount_saved or 0)|float > 0 %}<span class="badge-qty">-{{ "{:,.0f}".format((o.qty_discount_amount_saved or 0)|float) }}</span>{% else %}<span class="badge-none">—</span>{% endif %}</td>
+          <td>{% if (o.spending_discount_amount or 0)|float > 0 %}<span class="badge-spending">-{{ "{:,.0f}".format((o.spending_discount_amount or 0)|float) }}</span>{% else %}<span class="badge-none">â€”</span>{% endif %}</td>
+          <td>{% if (o.qty_discount_amount_saved or 0)|float > 0 %}<span class="badge-qty">-{{ "{:,.0f}".format((o.qty_discount_amount_saved or 0)|float) }}</span>{% else %}<span class="badge-none">â€”</span>{% endif %}</td>
           <td class="fw-700 text-danger">-{{ "{:,.0f}".format(o.discount_amount|float) }} Birr</td>
           <td class="fw-700">{{ "{:,.0f}".format(o.total|float) }} Birr</td>
-          <td class="text-muted small">{{ o.created_at.strftime('%b %d, %Y') if o.created_at else '—' }}</td>
+          <td class="text-muted small">{{ o.created_at.strftime('%b %d, %Y') if o.created_at else 'â€”' }}</td>
         </tr>
         {% endfor %}
       </tbody>
