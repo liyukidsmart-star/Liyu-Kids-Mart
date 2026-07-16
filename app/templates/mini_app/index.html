@@ -1580,7 +1580,8 @@ async function fetchDiscountFromServer(){
   // Calls the backend which reads admin-configured thresholds from DB
   // Picks best between loyalty tier discount and spending threshold
   const st = sub();
-  const items = cart.reduce((s,i)=>s+i.qty,0);
+  const minPrice = loyaltyProfile?.qty_min_price || 2500;
+  const items = cart.filter(i => i.price >= minPrice).reduce((s,i)=>s+i.qty,0);
   try {
     const params = new URLSearchParams({subtotal: st, items});
     if (TGID) params.set('telegram_id', TGID);
