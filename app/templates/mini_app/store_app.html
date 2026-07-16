@@ -785,7 +785,9 @@
 
                 <div style="margin-bottom:20px;">
                     <div class="detail-row"><span>Subtotal</span><span>ETB ${currentOrder.subtotal.toLocaleString()}</span></div>
-                    ${currentOrder.discount_amount > 0 ? `<div class="detail-row"><span style="color:var(--g)">Discount</span><span style="color:var(--g)">-ETB ${currentOrder.discount_amount.toLocaleString()}</span></div>` : ''}
+                    ${currentOrder.spending_discount_amount > 0 ? `<div class="detail-row"><span style="color:var(--g)">🏷️ Spending Discount</span><span style="color:var(--g)">-ETB ${Math.round(currentOrder.spending_discount_amount).toLocaleString()}</span></div>` : ''}
+                    ${currentOrder.qty_discount_amount_saved > 0 ? `<div class="detail-row"><span style="color:var(--g)">📦 Multi-Buy Discount</span><span style="color:var(--g)">-ETB ${Math.round(currentOrder.qty_discount_amount_saved).toLocaleString()}</span></div>` : ''}
+                    ${(currentOrder.discount_amount > 0 && !currentOrder.spending_discount_amount && !currentOrder.qty_discount_amount_saved) ? `<div class="detail-row"><span style="color:var(--g)">🎁 Discount</span><span style="color:var(--g)">-ETB ${Math.round(currentOrder.discount_amount).toLocaleString()}</span></div>` : ''}
                     <div class="detail-row"><span>Delivery Fee</span><span>ETB ${currentOrder.delivery_fee.toLocaleString()}</span></div>
                     <div class="detail-row" style="font-size:1.1rem;font-weight:800;border:none;margin-top:4px;"><span>Total</span><span style="color:var(--p)">ETB ${currentOrder.total.toLocaleString()}</span></div>
                 </div>

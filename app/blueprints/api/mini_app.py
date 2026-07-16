@@ -352,7 +352,13 @@ def _notify_store_managers(order, order_items, addr, payment_method_str, discoun
     if addr.lat and addr.lng:
         maps_link = f'\n🗺 <a href="https://maps.google.com/?q={addr.lat},{addr.lng}">View on Map</a>'
 
-    discount_line = f'\n🎁 <b>Discount:</b>  -ETB {discount_amount:,.0f}'
+    discount_line = ''
+    if order.spending_discount_amount and float(order.spending_discount_amount) > 0:
+        discount_line += f'\n🏷️ <b>Spending Discount:</b>  -ETB {float(order.spending_discount_amount):,.0f}'
+    if order.qty_discount_amount_saved and float(order.qty_discount_amount_saved) > 0:
+        discount_line += f'\n📦 <b>Multi-Buy Discount:</b>  -ETB {float(order.qty_discount_amount_saved):,.0f}'
+    if float(order.discount_amount) > 0 and not float(order.spending_discount_amount or 0) > 0 and not float(order.qty_discount_amount_saved or 0) > 0:
+        discount_line = f'\n🎁 <b>Discount:</b>  -ETB {float(order.discount_amount):,.0f}'
 
     receipt_line = ''
     if payment_receipt_url and payment_method_str == 'telebirr':

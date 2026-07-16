@@ -1314,7 +1314,8 @@ const i18n = {
     sh_add: "+ Add", sh_out: "Out of Stock", sh_qty: "Quantity",
     empty_p: "No products found", empty_o: "No orders yet",
     sl_pen: "⏳ Pending", sl_con: "✅ Confirmed", sl_pac: "📦 Packed", sl_out: "🚚 On the Way", sl_del: "🎉 Delivered", sl_can: "❌ Cancelled", sl_ret: "↩️ Returned",
-    ai_q1: "Toy for 2yr old", ai_q2: "Under 500 ETB", ai_q3: "Montessori", ai_q4: "My cart", ai_q5: "Gift ideas"
+    ai_q1: "Toy for 2yr old", ai_q2: "Under 500 ETB", ai_q3: "Montessori", ai_q4: "My cart", ai_q5: "Gift ideas",
+    c_qty_disc: "Multi-Buy Discount"
   },
   am: {
     nav_home: "ዋና ገጽ", nav_shop: "ገበያ", nav_ai: "ልዩ AI", nav_cart: "ዘንቢል", nav_orders: "ትዕዛዞች",
@@ -1344,7 +1345,8 @@ const i18n = {
     sh_add: "+ ጨምር", sh_out: "አልቋል", sh_qty: "ብዛት",
     empty_p: "ምንም እቃ አልተገኘም", empty_o: "ምንም ትዕዛዝ የለዎትም",
     sl_pen: "⏳ በመጠባበቅ ላይ", sl_con: "✅ ተረጋግጧል", sl_pac: "📦 ታሽጎል", sl_out: "🚚 በመንገድ ላይ", sl_del: "🎉 ደርሷል", sl_can: "❌ ተሰርዟል", sl_ret: "↩️ ተመልሷል",
-    ai_q1: "ለ 2 ዓመት ልጅ መጫወቻ", ai_q2: "ከ 500 ብር በታች", ai_q3: "ሞንቴሶሪ", ai_q4: "ዘንቢሌ ውስጥ", ai_q5: "የስጦታ ሀሳቦች"
+    ai_q1: "ለ 2 ዓመት ልጅ መጫወቻ", ai_q2: "ከ 500 ብር በታች", ai_q3: "ሞንቴሶሪ", ai_q4: "ዘንቢሌ ውስጥ", ai_q5: "የስጦታ ሀሳቦች",
+    c_qty_disc: "ብዙ ስጦት ቅናሽ"
   }
 }
 let curLang = localStorage.getItem('lkm_lang') || 'en';
@@ -2284,6 +2286,7 @@ function renderCK(){
         </div>
         ${d.loyaltyDiscAmt > 0 ? `<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:.9rem;color:var(--g)"><span>${d.loyaltyLabel}</span><span style="font-weight:700">-ETB ${d.loyaltyDiscAmt.toLocaleString()}</span></div>` : ''}
         ${d.threshDiscAmt > 0 ? `<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:.9rem;color:var(--g)"><span>${d.threshLabel}</span><span style="font-weight:700">-ETB ${d.threshDiscAmt.toLocaleString()}</span></div>` : ''}
+        ${d.qtyDiscAmt > 0 ? `<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:.9rem;color:var(--g)"><span>📦 ${d.qtyLabel || tr('c_qty_disc')}</span><span style="font-weight:700">-ETB ${d.qtyDiscAmt.toLocaleString()}</span></div>` : ''}
         ${d.incentiveDiscAmt > 0 ? `<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:.9rem;color:var(--g)"><span>${d.incentiveLabel}</span><span style="font-weight:700">-ETB ${d.incentiveDiscAmt.toLocaleString()}</span></div>` : ''}
         <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:.9rem;border-bottom:1px solid var(--br)">
           <span>${tr('ck_fee')}</span><span style="font-weight:700;color:var(--g)">${isLaunchLocked?'ETB ***':'ETB '+Math.round(ckDeliveryFee||0).toLocaleString()}</span>
