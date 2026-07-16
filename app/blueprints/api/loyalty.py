@@ -155,17 +155,12 @@ def loyalty_discount():
             price_list = [float(p) for p in raw_prices.split(',') if p.strip()]
             qty_items = sum(1 for p in price_list if p >= qty_min_price)
         except (TypeError, ValueError):
-            qty_items = None
+            qty_items = 0
     else:
-        # Legacy: fall back to explicit items count if prices not provided
-        raw_items = request.args.get('items')
-        if raw_items is not None:
-            try:
-                qty_items = max(0, int(raw_items))
-            except (TypeError, ValueError):
-                qty_items = 0
-        else:
-            qty_items = None
+        # If no prices are provided (old cached frontend), we MUST assume 0 eligible items
+        # to prevent the cart preview from showing false quantity discounts for cheap items.
+        # The actual checkout will compute the true discount correctly from the DB items.
+        qty_items = 0
 
     if user:
         try:
