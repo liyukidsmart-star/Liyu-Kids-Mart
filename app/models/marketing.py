@@ -159,8 +159,8 @@ def _product_compare_price(self):
     return None
 
 
-def _product_to_dict(self, include_description=False):
-    payload = _original_to_dict(self, include_description=include_description)
+def _product_to_dict(self, include_description=False, qty_discount_min_price=None):
+    payload = _original_to_dict(self, include_description=include_description, qty_discount_min_price=qty_discount_min_price)
     current_price = _product_current_price(self)
     base_price = float(self.price or 0)
     compare_price = float(self.compare_price) if self.compare_price and float(self.compare_price) > current_price else None
@@ -181,3 +181,4 @@ Product.discount_label = _product_discount_label
 Product.discount_percentage = _product_discount_percentage
 Product.compare_at_price = _product_compare_price
 Product.to_dict = _product_to_dict
+
