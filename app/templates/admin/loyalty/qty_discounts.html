@@ -40,7 +40,7 @@
   <div class="flex-grow-1">
     <div class="fw-700" style="color:#78350F;">Product Eligibility Threshold</div>
     <div class="small" style="color:#92400E;">
-      Only products priced <strong>{{ settings.qty_discount_min_price | float | int | format_number }}+ Birr</strong> count toward these quantity discount tiers.
+      Only products priced <strong>{{ "{:,.0f}".format(settings.qty_discount_min_price | float) }}+ Birr</strong> count toward these quantity discount tiers.
       Available to <strong>{{ 'all customers' if settings.qty_discount_open_to_all else 'Bronze level and above' }}</strong>.
     </div>
   </div>

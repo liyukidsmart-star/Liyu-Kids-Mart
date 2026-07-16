@@ -1,5 +1,5 @@
-{% extends 'admin/base_admin.html' %}
-{% block title %}Smart Price Adjustment — Liyu Kids Mart{% endblock %}
+ï»¿{% extends 'admin/base_admin.html' %}
+{% block title %}Smart Price Adjustment â€” Liyu Kids Mart{% endblock %}
 {% block page_title %}??? Smart Price Adjustment{% endblock %}
 
 {% block extra_css %}
@@ -30,7 +30,7 @@
 {% block content %}
 <div class="sp-header">
   <h2><i class="fas fa-tag me-2"></i>Smart Price Adjustment</h2>
-  <p class="mb-0 opacity-75">Add a per-product margin buffer to the base price. The adjusted price is shown to customers — no crossed-out pricing.</p>
+  <p class="mb-0 opacity-75">Add a per-product margin buffer to the base price. The adjusted price is shown to customers â€” no crossed-out pricing.</p>
 </div>
 
 <nav aria-label="breadcrumb" class="mb-3">
@@ -47,9 +47,9 @@
     <div class="sp-card mb-3">
       <div class="sp-card-header"><i class="fas fa-info-circle"></i>How It Works</div>
       <div class="sp-card-body" style="font-size:.875rem; color:#374151; line-height:1.7;">
-        <p>For each product, you can enable a <strong>markup percentage</strong>. The customer always sees the adjusted price — there is no crossed-out base price shown.</p>
+        <p>For each product, you can enable a <strong>markup percentage</strong>. The customer always sees the adjusted price â€” there is no crossed-out base price shown.</p>
         <p>Example: Base price 3,000 Birr + 3% = <strong>3,090 Birr</strong> displayed to customer.</p>
-        <p class="mb-0">Products priced <strong>{{ qty_min_price | int | format_number }}+ Birr</strong> (after adjustment) count toward quantity discounts.</p>
+        <p class="mb-0">Products priced <strong>{{ "{:,.0f}".format(qty_min_price | float) }}+ Birr</strong> (after adjustment) count toward quantity discounts.</p>
       </div>
     </div>
 
@@ -97,7 +97,7 @@
         </div>
         <div class="d-flex justify-content-between py-2">
           <span class="text-muted">Qty discount threshold</span>
-          <strong>{{ qty_min_price | int | format_number }} Birr</strong>
+          <strong>{{ "{:,.0f}".format(qty_min_price | float) }} Birr</strong>
         </div>
         <div class="mt-3">
           <a href="{{ url_for('admin.loyalty_discount_analytics') }}" class="btn btn-sm w-100 rounded-pill"
@@ -123,7 +123,7 @@
         <!-- Search + filter -->
         <div class="d-flex gap-2 mb-3">
           <form method="GET" class="flex-grow-1">
-            <input type="text" name="q" value="{{ q }}" placeholder="Search products…" class="search-bar">
+            <input type="text" name="q" value="{{ q }}" placeholder="Search productsâ€¦" class="search-bar">
             {% if show_enabled_only %}<input type="hidden" name="enabled_only" value="1">{% endif %}
           </form>
           <a href="{{ url_for('admin.smart_pricing') }}?enabled_only={{ '0' if show_enabled_only else '1' }}{% if q %}&q={{ q }}{% endif %}"
@@ -192,3 +192,4 @@
   </div>
 </div>
 {% endblock %}
+

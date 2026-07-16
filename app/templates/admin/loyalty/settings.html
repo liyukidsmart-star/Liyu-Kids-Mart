@@ -150,7 +150,7 @@
           </div>
           <div class="mt-3 p-3 rounded-3" style="background:#F0FDF4; border:1px solid #BBF7D0; font-size:.85rem; color:#166534;">
             <i class="fas fa-info-circle me-1"></i>
-            Currently: products priced <strong>{{ settings.qty_discount_min_price | float | int | format_number }}+ Birr</strong>
+            Currently: products priced <strong>{{ "{:,.0f}".format(settings.qty_discount_min_price | float) }}+ Birr</strong>
             count toward quantity discounts, available to
             <strong>{{ 'all customers' if settings.qty_discount_open_to_all else 'Bronze level and above' }}</strong>.
           </div>
