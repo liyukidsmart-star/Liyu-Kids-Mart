@@ -135,12 +135,15 @@ class Order(db.Model):
     coupon_id = db.Column(db.Integer, db.ForeignKey('coupons.id'), nullable=True)
     # Snapshot for address in case it changes later
     delivery_address_snapshot = db.Column(db.Text, nullable=True)
-    # ── Loyalty snapshots ──────────────────────────────────────────
+    # ── Loyalty snapshots ────────────────────────────────────
     savings_amount = db.Column(db.Numeric(10, 2), default=0)        # Birr saved on this order
     reward_earned = db.Column(db.Integer, default=0)                # points awarded
     loyalty_level_id_after = db.Column(db.Integer, db.ForeignKey('loyalty_levels.id'), nullable=True)
     lifetime_total_after = db.Column(db.Numeric(14, 2), nullable=True)  # running lifetime total
     total_items = db.Column(db.Integer, default=0)                  # number of items in this order
+    # ── Per-discount-type amounts (for analytics) ─────────────────
+    spending_discount_amount = db.Column(db.Numeric(10, 2), default=0)  # Birr saved from spending threshold
+    qty_discount_amount_saved = db.Column(db.Numeric(10, 2), default=0) # Birr saved from quantity rules
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc),
                            onupdate=lambda: datetime.now(timezone.utc))

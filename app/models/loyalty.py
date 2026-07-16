@@ -353,6 +353,11 @@ class LoyaltySettings(db.Model):
     # Mini-app visibility controls for category and age-range navigation
     show_categories_in_mini_app = db.Column(db.Boolean, default=True, nullable=False)
     show_age_filter_in_mini_app = db.Column(db.Boolean, default=True, nullable=False)
+    # ── Quantity Discount Eligibility ───────────────────────────
+    # Minimum product price (current_price) to count toward quantity discounts
+    qty_discount_min_price = db.Column(db.Numeric(10, 2), default=2500.00, nullable=False)
+    # When True, all customers (including new/no-tier) can earn quantity discounts
+    qty_discount_open_to_all = db.Column(db.Boolean, default=True, nullable=False)
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc),
                            onupdate=lambda: datetime.now(timezone.utc))
 
@@ -371,4 +376,6 @@ class LoyaltySettings(db.Model):
             'is_enabled': self.is_enabled,
             'show_categories_in_mini_app': self.show_categories_in_mini_app,
             'show_age_filter_in_mini_app': self.show_age_filter_in_mini_app,
+            'qty_discount_min_price': float(self.qty_discount_min_price),
+            'qty_discount_open_to_all': self.qty_discount_open_to_all,
         }

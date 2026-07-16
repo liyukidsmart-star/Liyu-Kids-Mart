@@ -45,13 +45,15 @@ def _default_settings() -> SimpleNamespace:
 
 
 def _repair_loyalty_settings_visibility_columns(missing_columns):
-    """Add missing mini-app visibility columns in-place when the schema is behind."""
+    """Add missing loyalty_settings columns in-place when the schema is behind."""
     if not missing_columns:
         return
 
     ddl_columns = {
         'show_categories_in_mini_app': 'BOOLEAN NOT NULL DEFAULT TRUE',
         'show_age_filter_in_mini_app': 'BOOLEAN NOT NULL DEFAULT TRUE',
+        'qty_discount_min_price': 'NUMERIC(10,2) NOT NULL DEFAULT 2500.00',
+        'qty_discount_open_to_all': 'BOOLEAN NOT NULL DEFAULT TRUE',
     }
 
     try:
@@ -87,7 +89,10 @@ def _get_settings():
     if not columns:
         return _default_settings()
 
-    required_columns = {'show_categories_in_mini_app', 'show_age_filter_in_mini_app'}
+    required_columns = {
+        'show_categories_in_mini_app', 'show_age_filter_in_mini_app',
+        'qty_discount_min_price', 'qty_discount_open_to_all',
+    }
     missing_columns = required_columns - columns
     if missing_columns:
         _repair_loyalty_settings_visibility_columns(missing_columns)
@@ -185,14 +190,16 @@ def resolve_loyalty_level(total_spent: float, total_orders: int) -> Optional[Loy
 # Discount Calculation
 # ─────────────────────────────────────────────────────────────
 
-def calculate_loyalty_discount(user, cart_subtotal: float) -> dict:
+def calculate_loyalty_discount(user, cart_subtotal: float, cart_items=None) -> dict:
     """
     Calculate the complete discount breakdown for a cart.
 
-    Tier gating rules (based on loyalty level sort_order):
-      - sort_order == 0 / None: Guest/New — only Spending Thresholds apply
-      - sort_order 1–2 (Bronze/Silver): + Quantity Discounts
-      - sort_order >= 3 (Gold+): + Quantity Discounts + Cart Incentives
+    Quantity discount eligibility:
+      - Controlled by settings.qty_discount_open_to_all (admin-toggleable)
+      - When True: ALL customers (including new/no-tier) qualify
+      - When False: Bronze (sort_order>=1) and above only
+      - Only items with current_price() >= settings.qty_discount_min_price count
+        toward the eligible item total
 
     Returns a dict with:
       loyalty_discount_pct    — loyalty tier % (e.g. 4.0)
@@ -207,6 +214,7 @@ def calculate_loyalty_discount(user, cart_subtotal: float) -> dict:
       qty_allowed             — bool: customer eligible for quantity discounts
       incentive_allowed       — bool: customer eligible for cart incentives
       tier_sort_order         — int: user's tier sort_order (0 = no tier)
+      qty_eligible_items      — int: number of items that counted toward qty discount
     """
     loyalty_disc_pct = 0.0
     loyalty_disc_amt = 0.0
@@ -216,13 +224,18 @@ def calculate_loyalty_discount(user, cart_subtotal: float) -> dict:
     incentive_disc_amt = 0.0
     savings_breakdown = []
 
+    settings = _get_settings()
+    qty_min_price = float(getattr(settings, 'qty_discount_min_price', 2500))
+    open_to_all = bool(getattr(settings, 'qty_discount_open_to_all', True))
+
     # Determine tier level
     tier_sort_order = 0
     if user and user.loyalty_level and user.loyalty_level.is_active:
         tier_sort_order = int(user.loyalty_level.sort_order or 0)
 
-    # Access flags based on tier
-    qty_allowed = tier_sort_order >= 1        # Bronze (sort_order=1) and above
+    # Access flags based on tier and settings
+    # Quantity discounts: open to all when flag is True, otherwise Bronze+ only
+    qty_allowed = open_to_all or (tier_sort_order >= 1)
     incentive_allowed = tier_sort_order >= 3  # Gold (sort_order=3) and above
 
     # 1. Loyalty tier discount
@@ -243,11 +256,11 @@ def calculate_loyalty_discount(user, cart_subtotal: float) -> dict:
         if cart_subtotal >= float(t.min_amount):
             best_threshold = t
             break
-            
+
     if best_threshold:
         potential_spending_disc_pct = float(best_threshold.discount_percentage)
         potential_spending_disc_amt = round(cart_subtotal * potential_spending_disc_pct / 100, 2)
-        
+
         # Take the better of the two (do not stack)
         if potential_spending_disc_amt > loyalty_disc_amt:
             spending_disc_pct = potential_spending_disc_pct
@@ -261,18 +274,24 @@ def calculate_loyalty_discount(user, cart_subtotal: float) -> dict:
                 'pct': spending_disc_pct,
             }]
 
-    # 3. Quantity discount — Bronze+ only
+    # 3. Quantity discount — now available to all customers (controlled by admin setting)
+    # Count only items meeting the minimum price threshold
+    qty_eligible_items = 0
     if qty_allowed:
-        total_items = 0
-        if hasattr(user, '_cart_item_count'):
-            total_items = user._cart_item_count  # set by caller for performance
+        # Use pre-computed eligible count if caller provided it
+        if hasattr(user, '_qty_eligible_item_count') and user is not None:
+            qty_eligible_items = user._qty_eligible_item_count
+        elif hasattr(user, '_cart_item_count') and user is not None:
+            # Fallback: use total item count (caller didn't filter)
+            qty_eligible_items = user._cart_item_count
+
         qty_discounts = _get_active_quantity_discounts()
         for qd in reversed(qty_discounts):
-            if total_items >= qd.min_items:
+            if qty_eligible_items >= qd.min_items:
                 qty_disc_amt = round(float(qd.discount_amount), 2)
                 if qty_disc_amt > 0:
                     savings_breakdown.append({
-                        'label': qd.label or f'{qd.min_items} Items Discount',
+                        'label': qd.label or f'{qd.min_items} Eligible Items Discount',
                         'amount': qty_disc_amt,
                         'pct': None,
                     })
@@ -312,6 +331,8 @@ def calculate_loyalty_discount(user, cart_subtotal: float) -> dict:
         'qty_allowed': qty_allowed,
         'incentive_allowed': incentive_allowed,
         'tier_sort_order': tier_sort_order,
+        'qty_eligible_items': qty_eligible_items,
+        'qty_min_price': qty_min_price,
     }
 
 
@@ -371,18 +392,81 @@ def get_cart_incentive_context(cart_subtotal: float) -> dict:
     return ctx
 
 
+def get_quantity_incentive_context(qty_eligible_items: int) -> dict:
+    """
+    Return the next quantity discount tier the customer should aim for,
+    based on the count of eligible items (priced at or above qty_discount_min_price).
+    """
+    settings = _get_settings()
+    qty_min_price = float(getattr(settings, 'qty_discount_min_price', 2500))
+    open_to_all = bool(getattr(settings, 'qty_discount_open_to_all', True))
+
+    qty_discounts = _get_active_quantity_discounts()
+    if not qty_discounts:
+        return {'enabled': False}
+
+    # Current tier achieved
+    current_tier = None
+    for qd in reversed(qty_discounts):
+        if qty_eligible_items >= qd.min_items:
+            current_tier = qd
+            break
+
+    # Next tier not yet achieved
+    next_tier = None
+    for qd in qty_discounts:
+        if qty_eligible_items < qd.min_items:
+            next_tier = qd
+            break
+
+    ctx = {
+        'enabled': True,
+        'open_to_all': open_to_all,
+        'qty_min_price': qty_min_price,
+        'qty_eligible_items': qty_eligible_items,
+        'current_tier': current_tier.to_dict() if current_tier else None,
+        'next_tier': next_tier.to_dict() if next_tier else None,
+        'current_savings': float(current_tier.discount_amount) if current_tier else 0.0,
+    }
+
+    if next_tier:
+        items_needed = next_tier.min_items - qty_eligible_items
+        ctx['items_needed'] = items_needed
+        ctx['smart_message'] = _build_qty_smart_message(
+            items_needed, float(next_tier.discount_amount), qty_eligible_items, qty_min_price
+        )
+    else:
+        ctx['items_needed'] = 0
+        ctx['smart_message'] = (
+            f'🏆 Maximum multi-buy reward unlocked! You saved {float(current_tier.discount_amount):,.0f} Birr!'
+            if current_tier else '🛒 Add eligible items to unlock multi-buy savings!'
+        )
+
+    return ctx
+
+
 def _build_smart_message(needed: float, savings: float, current_inc) -> str:
     if needed <= 0:
         return f'🎁 Amazing! You saved {savings:,.0f} Birr today!'
     if needed <= 500:
-        return f'🔥 You\'re so close! Add just {needed:,.0f} Birr more and save {savings:,.0f} Birr!'
-    return f'🎉 Add only {needed:,.0f} Birr more and save {savings:,.0f} Birr.'
+        return f'🔥 So close! Add {needed:,.0f} Birr more → save {savings:,.0f} Birr!'
+    return f'🎉 Add {needed:,.0f} Birr more to unlock {savings:,.0f} Birr off your order.'
 
 
 def _max_tier_message(inc) -> str:
     if inc:
         return f'🏆 Congratulations! You unlocked the maximum reward — saving {inc.discount_offered:,.0f} Birr!'
-    return '🛒 Keep shopping to unlock rewards!'
+    return '🛒 Keep shopping to unlock spending rewards!'
+
+
+def _build_qty_smart_message(items_needed: int, savings: float, current_count: int, min_price: float) -> str:
+    """Build a contextual message about quantity discount progress."""
+    item_word = 'item' if items_needed == 1 else 'items'
+    if items_needed == 1:
+        return f'🛍️ Add just 1 more eligible item (priced {min_price:,.0f}+ Birr) → unlock {savings:,.0f} Birr off!'
+    if items_needed <= 3:
+        return f'🛍️ Add {items_needed} more eligible {item_word} → unlock {savings:,.0f} Birr off!'
+    return f'🛒 Add {items_needed} more qualifying {item_word} (each priced {min_price:,.0f}+ Birr) to unlock {savings:,.0f} Birr savings.'
 
 
 # ─────────────────────────────────────────────────────────────

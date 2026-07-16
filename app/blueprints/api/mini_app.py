@@ -168,10 +168,16 @@ def mini_app_checkout():
     d_fee = delivery.get('delivery_fee')
     delivery_fee = float(d_fee) if d_fee is not None and str(d_fee).strip() != '' else 80.0
 
-    # ── Calculate Loyalty Discount (tier-gated) ──────────────────
-    from app.services.loyalty_service import calculate_loyalty_discount, process_order_rewards
+    # ── Calculate Loyalty Discount ────────────────────────────────
+    from app.services.loyalty_service import calculate_loyalty_discount, process_order_rewards, _get_settings
     total_items = sum(oi['qty'] for oi in order_items)
+    settings = _get_settings()
+    qty_min_price = float(getattr(settings, 'qty_discount_min_price', 2500))
+    qty_eligible_items = sum(
+        oi['qty'] for oi in order_items if oi['unit_price'] >= qty_min_price
+    )
     user._cart_item_count = total_items
+    user._qty_eligible_item_count = qty_eligible_items
     discount_info = calculate_loyalty_discount(user, subtotal)
     discount_amount = round(discount_info.get('total_discount_amount', 0.0), 2)
     total = round(subtotal - discount_amount + delivery_fee, 2)
@@ -213,6 +219,8 @@ def mini_app_checkout():
         subtotal=subtotal,
         delivery_fee=delivery_fee,
         discount_amount=discount_amount,
+        spending_discount_amount=round(discount_info.get('spending_discount_amount', 0.0), 2),
+        qty_discount_amount_saved=round(discount_info.get('qty_discount_amount', 0.0), 2),
         total=total,
         payment_method=payment_method,
         payment_status='pending',

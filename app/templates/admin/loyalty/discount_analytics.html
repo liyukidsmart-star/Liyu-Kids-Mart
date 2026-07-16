@@ -1,0 +1,245 @@
+{% extends 'admin/base_admin.html' %}
+{% block title %}Discount Analytics — Liyu Kids Mart{% endblock %}
+{% block page_title %}?? Discount Analytics{% endblock %}
+
+{% block extra_css %}
+<style>
+.analytics-header { background:linear-gradient(135deg,#6366F1,#4F46E5); border-radius:16px; padding:1.5rem 2rem; color:white; margin-bottom:2rem; }
+.analytics-header h2 { margin:0; font-weight:700; font-size:1.6rem; }
+.kpi-card { background:white; border-radius:16px; box-shadow:0 4px 24px rgba(0,0,0,.07); padding:1.5rem; text-align:center; height:100%; transition:transform .2s; }
+.kpi-card:hover { transform:translateY(-3px); }
+.kpi-icon { font-size:2rem; margin-bottom:.5rem; }
+.kpi-value { font-size:2rem; font-weight:800; line-height:1.1; }
+.kpi-label { font-size:.8rem; color:#6B7280; margin-top:.25rem; font-weight:500; text-transform:uppercase; letter-spacing:.05em; }
+.kpi-sub { font-size:.75rem; color:#9CA3AF; margin-top:.2rem; }
+.chart-card { background:white; border-radius:16px; box-shadow:0 4px 24px rgba(0,0,0,.07); padding:1.5rem; margin-bottom:1.5rem; }
+.chart-title { font-weight:700; color:#1F2937; margin-bottom:1rem; font-size:1rem; }
+.section-header { font-weight:700; color:#374151; margin:1.5rem 0 1rem; font-size:1.1rem; border-left:4px solid #6366F1; padding-left:.75rem; }
+.recent-table th { background:#F9FAFB; font-weight:700; font-size:.8rem; color:#6B7280; text-transform:uppercase; }
+.recent-table td { vertical-align:middle; font-size:.9rem; }
+.badge-spending { background:#DBEAFE; color:#1D4ED8; padding:2px 10px; border-radius:20px; font-size:.75rem; font-weight:600; }
+.badge-qty { background:#D1FAE5; color:#065F46; padding:2px 10px; border-radius:20px; font-size:.75rem; font-weight:600; }
+.badge-none { background:#F3F4F6; color:#6B7280; padding:2px 10px; border-radius:20px; font-size:.75rem; }
+.stat-row { display:flex; justify-content:space-between; align-items:center; padding:.6rem 0; border-bottom:1px solid #F3F4F6; font-size:.9rem; }
+.stat-row:last-child { border-bottom:none; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="analytics-header">
+  <h2><i class="fas fa-chart-bar me-2"></i>Discount Performance Analytics</h2>
+  <p class="mb-0 opacity-75">Monitor how discounts are driving revenue, average order value, and customer behavior.</p>
+</div>
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{{ url_for('admin.loyalty_overview') }}">Loyalty</a></li>
+    <li class="breadcrumb-item active">Discount Analytics</li>
+  </ol>
+</nav>
+
+<!-- KPI Cards Row 1 -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3">
+    <div class="kpi-card">
+      <div class="kpi-icon">???</div>
+      <div class="kpi-value" style="color:#2563EB;">{{ stats.total_orders_with_spending | int }}</div>
+      <div class="kpi-label">Spending Discount Orders</div>
+      <div class="kpi-sub">{{ "{:,.0f}".format(stats.total_spending_disc_birr) }} Birr given</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="kpi-card">
+      <div class="kpi-icon">??</div>
+      <div class="kpi-value" style="color:#059669;">{{ stats.total_orders_with_qty | int }}</div>
+      <div class="kpi-label">Qty Discount Orders</div>
+      <div class="kpi-sub">{{ "{:,.0f}".format(stats.total_qty_disc_birr) }} Birr given</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="kpi-card">
+      <div class="kpi-icon">??</div>
+      <div class="kpi-value" style="color:#7C3AED;">{{ "{:,.0f}".format(stats.total_disc_birr) }}</div>
+      <div class="kpi-label">Total Birr Discounted</div>
+      <div class="kpi-sub">across {{ stats.total_delivered | int }} delivered orders</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="kpi-card">
+      <div class="kpi-icon">???</div>
+      <div class="kpi-value" style="color:#D97706;">{{ stats.smart_product_count | int }}</div>
+      <div class="kpi-label">Smart-Priced Products</div>
+      <div class="kpi-sub">{{ "{:,.0f}".format(stats.smart_revenue) }} Birr revenue</div>
+    </div>
+  </div>
+</div>
+
+<!-- KPI Row 2 — AOV -->
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="kpi-card">
+      <div class="kpi-icon">??</div>
+      <div class="kpi-value" style="color:#0E7490;">{{ "{:,.0f}".format(stats.avg_order_before) }}</div>
+      <div class="kpi-label">Avg. Order Subtotal (Birr)</div>
+      <div class="kpi-sub">before discounts</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="kpi-card">
+      <div class="kpi-icon">??</div>
+      <div class="kpi-value" style="color:#0E7490;">{{ "{:,.0f}".format(stats.avg_order_after) }}</div>
+      <div class="kpi-label">Avg. Order Total (Birr)</div>
+      <div class="kpi-sub">after discounts</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="kpi-card">
+      <div class="kpi-icon">??</div>
+      {% if stats.most_common_threshold %}
+        <div class="kpi-value" style="color:#6366F1; font-size:1.4rem;">{{ stats.most_common_threshold.label }}</div>
+        <div class="kpi-label">Most-Reached Threshold</div>
+        <div class="kpi-sub">{{ stats.most_common_threshold.count }} qualifying orders</div>
+      {% else %}
+        <div class="kpi-value" style="color:#D1D5DB;">—</div>
+        <div class="kpi-label">Most-Reached Threshold</div>
+        <div class="kpi-sub">no data yet</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Daily Chart -->
+<div class="chart-card">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="chart-title"><i class="fas fa-chart-bar me-2" style="color:#6366F1;"></i>Daily Discount Breakdown — Last 30 Days</div>
+    <div class="d-flex gap-2" style="font-size:.8rem;">
+      <span style="background:#DBEAFE; color:#1D4ED8; padding:3px 12px; border-radius:20px; font-weight:600;">?? Spending</span>
+      <span style="background:#D1FAE5; color:#065F46; padding:3px 12px; border-radius:20px; font-weight:600;">?? Quantity</span>
+    </div>
+  </div>
+  {% if chart_labels %}
+    <canvas id="dailyChart" height="90"></canvas>
+  {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="fas fa-chart-bar fa-3x mb-3 opacity-25"></i>
+      <p>No delivered orders with discounts in the last 30 days yet.</p>
+    </div>
+  {% endif %}
+</div>
+
+<!-- Breakdown side-by-side -->
+<div class="row g-4 mb-4">
+  <div class="col-md-6">
+    <div class="chart-card h-100">
+      <div class="chart-title"><i class="fas fa-tags me-2" style="color:#2563EB;"></i>Spending Discount Details</div>
+      <div class="stat-row"><span class="text-muted">Orders using spending discount</span><strong>{{ stats.total_orders_with_spending }}</strong></div>
+      <div class="stat-row"><span class="text-muted">Total Birr given</span><strong>{{ "{:,.0f}".format(stats.total_spending_disc_birr) }} Birr</strong></div>
+      <div class="stat-row">
+        <span class="text-muted">Avg discount per order</span>
+        <strong>{% if stats.total_orders_with_spending > 0 %}{{ "{:,.0f}".format(stats.total_spending_disc_birr / stats.total_orders_with_spending) }} Birr{% else %}—{% endif %}</strong>
+      </div>
+      <div class="stat-row"><span class="text-muted">Most-reached tier</span><strong>{{ stats.most_common_threshold.label if stats.most_common_threshold else '—' }}</strong></div>
+      <div class="mt-3">
+        <a href="{{ url_for('admin.loyalty_spending_thresholds') }}" class="btn btn-sm rounded-pill" style="background:#DBEAFE; color:#1D4ED8; font-weight:600;">
+          <i class="fas fa-cog me-1"></i>Manage Thresholds
+        </a>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="chart-card h-100">
+      <div class="chart-title"><i class="fas fa-cubes me-2" style="color:#059669;"></i>Quantity Discount Details</div>
+      <div class="stat-row"><span class="text-muted">Orders using qty discount</span><strong>{{ stats.total_orders_with_qty }}</strong></div>
+      <div class="stat-row"><span class="text-muted">Total Birr given</span><strong>{{ "{:,.0f}".format(stats.total_qty_disc_birr) }} Birr</strong></div>
+      <div class="stat-row">
+        <span class="text-muted">Avg discount per order</span>
+        <strong>{% if stats.total_orders_with_qty > 0 %}{{ "{:,.0f}".format(stats.total_qty_disc_birr / stats.total_orders_with_qty) }} Birr{% else %}—{% endif %}</strong>
+      </div>
+      <div class="stat-row"><span class="text-muted">Smart-priced products active</span><strong>{{ stats.smart_product_count }}</strong></div>
+      <div class="mt-3 d-flex gap-2">
+        <a href="{{ url_for('admin.loyalty_qty_discounts') }}" class="btn btn-sm rounded-pill" style="background:#D1FAE5; color:#065F46; font-weight:600;">
+          <i class="fas fa-cubes me-1"></i>Qty Rules
+        </a>
+        <a href="{{ url_for('admin.smart_pricing') }}" class="btn btn-sm rounded-pill" style="background:#FEF3C7; color:#92400E; font-weight:600;">
+          <i class="fas fa-tag me-1"></i>Smart Pricing
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Recent orders table -->
+<div class="section-header"><i class="fas fa-receipt me-2"></i>Recent Discounted Orders</div>
+<div class="chart-card">
+  {% if recent_orders %}
+  <div class="table-responsive">
+    <table class="table table-hover recent-table mb-0">
+      <thead>
+        <tr>
+          <th>Order</th><th>Customer</th><th>Subtotal</th>
+          <th>Spending</th><th>Qty</th><th>Total Saved</th><th>Final</th><th>Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for o in recent_orders %}
+        <tr>
+          <td><a href="{{ url_for('admin.order_detail', order_id=o.id) }}" class="fw-600">#{{ o.order_number }}</a></td>
+          <td>{{ o.user.full_name if o.user else '—' }}</td>
+          <td>{{ "{:,.0f}".format(o.subtotal | float) }} Birr</td>
+          <td>{% if (o.spending_discount_amount or 0)|float > 0 %}<span class="badge-spending">-{{ "{:,.0f}".format((o.spending_discount_amount or 0)|float) }}</span>{% else %}<span class="badge-none">—</span>{% endif %}</td>
+          <td>{% if (o.qty_discount_amount_saved or 0)|float > 0 %}<span class="badge-qty">-{{ "{:,.0f}".format((o.qty_discount_amount_saved or 0)|float) }}</span>{% else %}<span class="badge-none">—</span>{% endif %}</td>
+          <td class="fw-700 text-danger">-{{ "{:,.0f}".format(o.discount_amount|float) }} Birr</td>
+          <td class="fw-700">{{ "{:,.0f}".format(o.total|float) }} Birr</td>
+          <td class="text-muted small">{{ o.created_at.strftime('%b %d, %Y') if o.created_at else '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="text-center py-5 text-muted">
+    <i class="fas fa-receipt fa-3x mb-3 opacity-25"></i>
+    <p>No discounted delivered orders yet.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if chart_labels %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+(function() {
+  const labels = {{ chart_labels | tojson }};
+  const spendingData = {{ chart_spending | tojson }};
+  const qtyData = {{ chart_qty | tojson }};
+  const ordersData = {{ chart_orders | tojson }};
+  const ctx = document.getElementById('dailyChart').getContext('2d');
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Spending Discount (Birr)', data: spendingData, backgroundColor: 'rgba(37,99,235,.7)', borderColor: '#2563EB', borderWidth:1.5, borderRadius:6 },
+        { label: 'Qty Discount (Birr)', data: qtyData, backgroundColor: 'rgba(5,150,105,.7)', borderColor: '#059669', borderWidth:1.5, borderRadius:6 },
+      ]
+    },
+    options: {
+      responsive:true,
+      interaction:{ mode:'index', intersect:false },
+      plugins:{
+        legend:{ position:'top', labels:{ font:{ weight:'600' }, usePointStyle:true } },
+        tooltip:{ callbacks:{
+          label: ctx => `${ctx.dataset.label}: ${ctx.raw.toLocaleString()} Birr`,
+          afterBody: (items) => { const i = items[0]?.dataIndex; return i !== undefined ? [`Orders: ${ordersData[i]}`] : []; }
+        }}
+      },
+      scales:{
+        x:{ grid:{ display:false }, ticks:{ font:{ size:11 }, maxTicksLimit:15 } },
+        y:{ beginAtZero:true, grid:{ color:'rgba(0,0,0,.05)' }, ticks:{ callback: v => v.toLocaleString()+' Birr' } }
+      }
+    }
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}

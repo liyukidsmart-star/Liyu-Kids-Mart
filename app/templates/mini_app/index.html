@@ -997,7 +997,11 @@ function pcard(p,v='grid'){
   const bdgs=[p.is_new_arrival?'<span class="bpill bnew">New</span>':'',
     p.compare_price>p.price?'<span class="bpill bsale">Sale</span>':'',
     p.sales_count>20?'<span class="bpill bhot">Hot</span>':'',
-    isPremium?'<span class="bpill" style="background:linear-gradient(135deg,#7C3AED,#C084FC);color:#fff">💎 Premium</span>':''].join('');
+    isPremium?'<span class="bpill" style="background:linear-gradient(135deg,#7C3AED,#C084FC);color:#fff">💎 Premium</span>':'',
+    qtyEligBadge].filter(Boolean).join('');
+  const qtyEligBadge = (!isLaunchLocked && p.qty_discount_eligible)
+    ? `<span class="bpill" style="background:linear-gradient(135deg,#059669,#10B981);color:#fff;font-size:.6rem">📦 Multi-Buy</span>`
+    : '';
   const priceHTML=isLaunchLocked
     ?'<div class="pcard-price" style="color:#7C3AED;font-size:.78rem">ETB ***</div>'
     :priceHidden&&isLocked
@@ -1551,6 +1555,17 @@ function renderCart(){
     const b = document.getElementById('cartLoyaltyBanner');
     if(b) b.innerHTML = html;
   });
+  // Render quantity incentive banner separately
+  renderQtyIncentiveBanner().then(html => {
+    let qb = document.getElementById('cartQtyBanner');
+    if(!qb) {
+      qb = document.createElement('div');
+      qb.id = 'cartQtyBanner';
+      const loyBanner = document.getElementById('cartLoyaltyBanner');
+      if(loyBanner && loyBanner.parentNode) loyBanner.parentNode.insertBefore(qb, loyBanner.nextSibling);
+    }
+    if(qb) qb.innerHTML = html;
+  });
 }
 function cqty(idx,d){cart[idx].qty=Math.max(1,cart[idx].qty+d);saveCart();_discountCache=null;renderCart();fetchDiscountFromServer().then(()=>{renderCart();updateGlobalLoyaltyBar();});}
 function crm(idx){const n=cart[idx].name.slice(0,22);cart.splice(idx,1);saveCart();_discountCache=null;renderCart();toast('🗑 '+n+'… removed');}
@@ -1716,6 +1731,54 @@ async function renderCartLoyaltyBanner(subtotal){
   return bannerHTML;
 }
 
+async function renderQtyIncentiveBanner() {
+  if(isLaunchLocked || !_discountCache) return '';
+  const raw = _discountCache.raw || {};
+  const qtyMinPrice = raw.qty_min_price || 2500;
+  const qtyEligItems = raw.qty_eligible_items || 0;
+  const qtyAllowed = raw.qty_allowed !== false; // open to all by default
+  if(!qtyAllowed) return '';
+
+  // Build from server data
+  const nextTierAmt = raw.next_qty_tier_amount || 0;
+  const nextTierItems = raw.next_qty_tier_items || 0;
+  const currentSavings = Math.round(_discountCache.qtyDiscAmt || 0);
+
+  // Generate message based on eligible items
+  let msg = '';
+  let itemsNeeded = 0;
+  if(_discountCache.qtyDiscAmt > 0) {
+    msg = `🏆 Multi-buy reward active! You're saving ETB ${currentSavings.toLocaleString()}`;
+  } else if(qtyEligItems === 0) {
+    msg = curLang==='am'
+      ? `📦 ETB ${Math.round(qtyMinPrice).toLocaleString()}+ ዋጋ ያላቸው ምርቶችን ይጨምሩ — ብዙ ቅናሽ ያግኙ!`
+      : `📦 Add products priced ETB ${Math.round(qtyMinPrice).toLocaleString()}+ to unlock multi-buy discounts!`;
+  } else {
+    // Find next qty tier from the server-cached profile
+    const qtyRules = loyaltyProfile?.qty_discounts || [];
+    let nextRule = null;
+    for(const r of qtyRules) {
+      if(r.min_items > qtyEligItems) { nextRule = r; break; }
+    }
+    if(nextRule) {
+      itemsNeeded = nextRule.min_items - qtyEligItems;
+      const savingAmt = Math.round(nextRule.discount_amount);
+      msg = itemsNeeded === 1
+        ? `🛍️ Add just 1 more eligible item → unlock ETB ${savingAmt.toLocaleString()} off!`
+        : `🛍️ Add ${itemsNeeded} more eligible items → unlock ETB ${savingAmt.toLocaleString()} off!`;
+    } else {
+      msg = `🏆 Maximum multi-buy tier unlocked!`;
+    }
+  }
+
+  if(!msg) return '';
+  const isActive = _discountCache.qtyDiscAmt > 0;
+  return `<div class="loy-cart-banner" style="background:linear-gradient(135deg,${isActive?'#065F46,#059669':'#1E3A5F,#2563EB'});color:#fff;margin:6px 14px 0;border-radius:14px;padding:12px 14px;font-size:.85rem;display:flex;align-items:center;gap:10px;">
+    <span style="font-size:1.4rem;">${isActive?'🏆':'📦'}</span>
+    <span style="font-weight:600;line-height:1.4;">${msg}</span>
+  </div>`;
+}
+
 /* ── Me Tab Sub-Navigation ─────────────────────── */
 function switchMeTab(tabId){
   document.querySelectorAll('.me-stab').forEach(btn => btn.classList.remove('on'));
@@ -1741,7 +1804,8 @@ function calcClientDiscount() {
 
   // Determine user tier level (0 = guest, 1 = Bronze, 2 = Silver, 3 = Gold, 4+ = higher)
   const tierSortOrder = loyaltyProfile?.level?.sort_order || 0;
-  const qtyAllowed = tierSortOrder >= 1;       // Bronze and above
+  // qty discounts: default open to all unless server says otherwise
+  const qtyAllowed = _discountCache?.raw?.qty_allowed !== false ? true : (tierSortOrder >= 1);
   const incentiveAllowed = tierSortOrder >= 3; // Gold and above
 
   if (loyaltyProfile?.level?.discount_percentage > 0) {

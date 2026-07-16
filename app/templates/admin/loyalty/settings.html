@@ -124,6 +124,39 @@
         </div>
       </div>
 
+      <!-- Quantity Discount Eligibility -->
+      <div class="settings-card">
+        <div class="settings-section-header" style="background:linear-gradient(135deg,#F0FDF4,#DCFCE7); color:#15803D; border-bottom:1px solid #BBF7D0;">
+          <i class="fas fa-tags"></i>Quantity Discount Eligibility
+        </div>
+        <div class="settings-body">
+          <div class="setting-row">
+            <div>
+              <div class="setting-label">Minimum Product Price (Birr)</div>
+              <div class="setting-desc">Only products priced at or above this amount count toward multi-buy quantity discounts</div>
+            </div>
+            <input type="number" name="qty_discount_min_price" class="form-control setting-input" min="0" step="100"
+              value="{{ settings.qty_discount_min_price | float | int }}">
+          </div>
+          <div class="setting-row">
+            <div>
+              <div class="setting-label">Open to All Customers</div>
+              <div class="setting-desc">When ON: all customers (including new) can earn quantity discounts. When OFF: Bronze level and above only.</div>
+            </div>
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" name="qty_discount_open_to_all" id="qtyOpenAll" role="switch"
+                style="width:3rem; height:1.5rem;" {{ 'checked' if settings.qty_discount_open_to_all }}>
+            </div>
+          </div>
+          <div class="mt-3 p-3 rounded-3" style="background:#F0FDF4; border:1px solid #BBF7D0; font-size:.85rem; color:#166534;">
+            <i class="fas fa-info-circle me-1"></i>
+            Currently: products priced <strong>{{ settings.qty_discount_min_price | float | int | format_number }}+ Birr</strong>
+            count toward quantity discounts, available to
+            <strong>{{ 'all customers' if settings.qty_discount_open_to_all else 'Bronze level and above' }}</strong>.
+          </div>
+        </div>
+      </div>
+
       <!-- System Toggle -->
       <div class="settings-card">
         <div class="settings-section-header"><i class="fas fa-power-off"></i>System Status</div>

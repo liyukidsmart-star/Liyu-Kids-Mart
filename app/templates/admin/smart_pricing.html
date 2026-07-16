@@ -1,0 +1,194 @@
+{% extends 'admin/base_admin.html' %}
+{% block title %}Smart Price Adjustment — Liyu Kids Mart{% endblock %}
+{% block page_title %}??? Smart Price Adjustment{% endblock %}
+
+{% block extra_css %}
+<style>
+.sp-header { background:linear-gradient(135deg,#F59E0B,#D97706); border-radius:16px; padding:1.5rem 2rem; color:white; margin-bottom:2rem; }
+.sp-header h2 { margin:0; font-weight:700; font-size:1.6rem; }
+.sp-card { background:white; border-radius:16px; box-shadow:0 4px 24px rgba(0,0,0,.07); overflow:hidden; margin-bottom:1.5rem; }
+.sp-card-header { padding:1rem 1.5rem; background:linear-gradient(135deg,#FFFBEB,#FEF3C7); border-bottom:1px solid #FDE68A; font-weight:700; color:#78350F; display:flex; align-items:center; gap:.5rem; }
+.sp-card-body { padding:1.5rem; }
+.form-control, .form-select { border-radius:10px; border:1.5px solid #E5E7EB; padding:.5rem .9rem; }
+.form-control:focus,.form-select:focus { border-color:#F59E0B; box-shadow:0 0 0 3px rgba(245,158,11,.12); }
+.product-row { display:flex; align-items:center; gap:1rem; padding:.85rem 1rem; border-radius:12px; border:1.5px solid #F3F4F6; margin-bottom:.5rem; transition:border-color .2s, box-shadow .2s; }
+.product-row:hover { border-color:#F59E0B; box-shadow:0 2px 12px rgba(245,158,11,.1); }
+.product-row.enabled { border-color:#F59E0B; background:#FFFBEB; }
+.product-thumb { width:44px; height:44px; border-radius:8px; object-fit:cover; background:#F3F4F6; flex-shrink:0; }
+.product-name { font-weight:600; color:#1F2937; font-size:.9rem; flex-grow:1; }
+.product-base-price { font-size:.8rem; color:#6B7280; }
+.effective-price { font-weight:700; color:#059669; font-size:.9rem; }
+.qty-eligible-badge { background:#D1FAE5; color:#065F46; font-size:.7rem; padding:2px 8px; border-radius:20px; font-weight:600; }
+.qty-not-eligible { background:#F3F4F6; color:#9CA3AF; font-size:.7rem; padding:2px 8px; border-radius:20px; }
+.pct-input { width:90px; }
+.enabled-count-badge { background:#F59E0B; color:white; font-size:.8rem; padding:3px 12px; border-radius:20px; font-weight:700; }
+.search-bar { border-radius:12px; border:1.5px solid #E5E7EB; padding:.6rem 1rem; font-size:.9rem; width:100%; }
+.search-bar:focus { border-color:#F59E0B; box-shadow:0 0 0 3px rgba(245,158,11,.12); outline:none; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="sp-header">
+  <h2><i class="fas fa-tag me-2"></i>Smart Price Adjustment</h2>
+  <p class="mb-0 opacity-75">Add a per-product margin buffer to the base price. The adjusted price is shown to customers — no crossed-out pricing.</p>
+</div>
+
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{{ url_for('admin.products') }}">Products</a></li>
+    <li class="breadcrumb-item active">Smart Price Adjustment</li>
+  </ol>
+</nav>
+
+<div class="row g-4">
+  <!-- Left: Bulk actions -->
+  <div class="col-lg-4">
+    <!-- Info card -->
+    <div class="sp-card mb-3">
+      <div class="sp-card-header"><i class="fas fa-info-circle"></i>How It Works</div>
+      <div class="sp-card-body" style="font-size:.875rem; color:#374151; line-height:1.7;">
+        <p>For each product, you can enable a <strong>markup percentage</strong>. The customer always sees the adjusted price — there is no crossed-out base price shown.</p>
+        <p>Example: Base price 3,000 Birr + 3% = <strong>3,090 Birr</strong> displayed to customer.</p>
+        <p class="mb-0">Products priced <strong>{{ qty_min_price | int | format_number }}+ Birr</strong> (after adjustment) count toward quantity discounts.</p>
+      </div>
+    </div>
+
+    <!-- Bulk enable -->
+    <div class="sp-card">
+      <div class="sp-card-header"><i class="fas fa-magic"></i>Bulk Enable</div>
+      <div class="sp-card-body">
+        <form method="POST">
+          <input type="hidden" name="action" value="bulk_enable">
+          <div class="mb-3">
+            <label class="form-label fw-600" style="font-size:.85rem; color:#374151;">Min Product Price (Birr)</label>
+            <input type="number" name="bulk_min_price" class="form-control" value="0" min="0" step="100"
+              placeholder="e.g. 2500">
+            <div class="form-text">Apply to all active products priced at or above this amount.</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-600" style="font-size:.85rem; color:#374151;">Adjustment %</label>
+            <input type="number" name="bulk_pct" class="form-control" value="" min="0.1" max="50" step="0.1"
+              placeholder="e.g. 3.5">
+          </div>
+          <button type="submit" class="btn w-100 rounded-pill fw-600 text-white" style="background:linear-gradient(135deg,#F59E0B,#D97706);">
+            <i class="fas fa-bolt me-1"></i>Apply Bulk Adjustment
+          </button>
+        </form>
+        <hr>
+        <form method="POST" onsubmit="return confirm('Disable smart pricing for ALL products?')">
+          <input type="hidden" name="action" value="disable_all">
+          <button type="submit" class="btn btn-sm w-100 rounded-pill" style="border:1.5px solid #EF4444; color:#EF4444; background:transparent;">
+            <i class="fas fa-times me-1"></i>Disable All Smart Pricing
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Summary stats -->
+    <div class="sp-card mt-3">
+      <div class="sp-card-header"><i class="fas fa-chart-pie"></i>Summary</div>
+      <div class="sp-card-body" style="font-size:.9rem;">
+        <div class="d-flex justify-content-between py-2 border-bottom">
+          <span class="text-muted">Total active products</span><strong>{{ products | length }}</strong>
+        </div>
+        <div class="d-flex justify-content-between py-2 border-bottom">
+          <span class="text-muted">Smart pricing enabled</span>
+          <span class="enabled-count-badge">{{ enabled_count }}</span>
+        </div>
+        <div class="d-flex justify-content-between py-2">
+          <span class="text-muted">Qty discount threshold</span>
+          <strong>{{ qty_min_price | int | format_number }} Birr</strong>
+        </div>
+        <div class="mt-3">
+          <a href="{{ url_for('admin.loyalty_discount_analytics') }}" class="btn btn-sm w-100 rounded-pill"
+            style="background:#F0F4FF; color:#4F46E5; font-weight:600;">
+            <i class="fas fa-chart-bar me-1"></i>View Discount Analytics
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: Product list -->
+  <div class="col-lg-8">
+    <div class="sp-card">
+      <div class="sp-card-header">
+        <i class="fas fa-list"></i>
+        <span>All Products</span>
+        {% if enabled_count > 0 %}
+          <span class="ms-auto enabled-count-badge">{{ enabled_count }} enabled</span>
+        {% endif %}
+      </div>
+      <div class="sp-card-body">
+        <!-- Search + filter -->
+        <div class="d-flex gap-2 mb-3">
+          <form method="GET" class="flex-grow-1">
+            <input type="text" name="q" value="{{ q }}" placeholder="Search products…" class="search-bar">
+            {% if show_enabled_only %}<input type="hidden" name="enabled_only" value="1">{% endif %}
+          </form>
+          <a href="{{ url_for('admin.smart_pricing') }}?enabled_only={{ '0' if show_enabled_only else '1' }}{% if q %}&q={{ q }}{% endif %}"
+            class="btn btn-sm rounded-pill fw-600"
+            style="white-space:nowrap; background:{{ '#FEF3C7' if show_enabled_only else '#F3F4F6' }}; color:{{ '#92400E' if show_enabled_only else '#374151' }};">
+            <i class="fas fa-filter me-1"></i>{{ 'Show All' if show_enabled_only else 'Enabled Only' }}
+          </a>
+        </div>
+
+        {% if not products %}
+          <div class="text-center py-5 text-muted">
+            <i class="fas fa-box-open fa-3x mb-3 opacity-25"></i>
+            <p>No products found.</p>
+          </div>
+        {% else %}
+          {% for product in products %}
+          <form method="POST" class="mb-1">
+            <input type="hidden" name="action" value="update_product">
+            <input type="hidden" name="product_id" value="{{ product.id }}">
+            <div class="product-row {{ 'enabled' if product.smart_price_enabled }}">
+              <!-- Thumbnail -->
+              <img src="{{ product.primary_image() }}" alt="{{ product.name }}"
+                class="product-thumb" onerror="this.src='/static/images/placeholder.png'">
+
+              <!-- Name + price info -->
+              <div class="flex-grow-1 min-w-0">
+                <div class="product-name text-truncate">{{ product.name }}</div>
+                <div class="product-base-price">
+                  Base: {{ "{:,.0f}".format(product.price | float) }} Birr
+                  {% if product.smart_price_enabled and product.smart_price_adjustment_pct > 0 %}
+                    ? <span class="effective-price">{{ "{:,.0f}".format(product.current_price()) }} Birr</span>
+                    <span class="ms-1" style="font-size:.75rem; color:#D97706;">(+{{ product.smart_price_adjustment_pct | float }}%)</span>
+                  {% endif %}
+                </div>
+                <!-- Qty eligibility badge -->
+                {% if product.current_price() >= qty_min_price %}
+                  <span class="qty-eligible-badge mt-1 d-inline-block">? Qty Discount Eligible</span>
+                {% else %}
+                  <span class="qty-not-eligible mt-1 d-inline-block">Below qty threshold</span>
+                {% endif %}
+              </div>
+
+              <!-- Controls -->
+              <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                <div class="form-check form-switch mb-0" title="Enable smart pricing for this product">
+                  <input class="form-check-input" type="checkbox" name="smart_price_enabled" id="sp_{{ product.id }}"
+                    style="width:2.5rem; height:1.3rem;"
+                    {{ 'checked' if product.smart_price_enabled }}
+                    onchange="this.closest('form').submit()">
+                </div>
+                <input type="number" name="smart_price_adjustment_pct" class="form-control pct-input"
+                  value="{{ product.smart_price_adjustment_pct | float }}"
+                  min="0" max="100" step="0.1" placeholder="%"
+                  title="Markup percentage">
+                <button type="submit" class="btn btn-sm rounded-pill fw-600"
+                  style="background:#F59E0B; color:white; white-space:nowrap; padding:.3rem .85rem;">
+                  <i class="fas fa-check"></i>
+                </button>
+              </div>
+            </div>
+          </form>
+          {% endfor %}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

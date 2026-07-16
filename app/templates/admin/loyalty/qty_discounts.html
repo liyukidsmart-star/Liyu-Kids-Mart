@@ -33,6 +33,23 @@
   </ol>
 </nav>
 
+<!-- Eligibility info banner -->
+<div class="alert d-flex align-items-center gap-3 mb-4 rounded-3 border-0"
+  style="background:linear-gradient(135deg,#FFFBEB,#FEF3C7); border-left:4px solid #F59E0B !important; border-left-style:solid !important;">
+  <i class="fas fa-tags fs-4" style="color:#D97706;"></i>
+  <div class="flex-grow-1">
+    <div class="fw-700" style="color:#78350F;">Product Eligibility Threshold</div>
+    <div class="small" style="color:#92400E;">
+      Only products priced <strong>{{ settings.qty_discount_min_price | float | int | format_number }}+ Birr</strong> count toward these quantity discount tiers.
+      Available to <strong>{{ 'all customers' if settings.qty_discount_open_to_all else 'Bronze level and above' }}</strong>.
+    </div>
+  </div>
+  <a href="{{ url_for('admin.loyalty_settings') }}#qty-eligibility" class="btn btn-sm fw-600 rounded-pill"
+    style="background:#F59E0B; color:white; white-space:nowrap;">
+    <i class="fas fa-cog me-1"></i>Change Settings
+  </a>
+</div>
+
 <div class="row g-4">
   <div class="col-lg-4">
     <div class="config-card">

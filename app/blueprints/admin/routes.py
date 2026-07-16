@@ -430,6 +430,77 @@ def edit_product(product_id):
     return render_template('admin/product_form.html', product=product, categories=categories, loyalty_levels=loyalty_levels)
 
 
+# ─────────────────────────────────────────────────────────────
+# SMART PRICE ADJUSTMENT
+# ─────────────────────────────────────────────────────────────
+
+@admin_bp.route('/products/smart-pricing', methods=['GET', 'POST'])
+@admin_required
+def smart_pricing():
+    """Admin page to manage per-product smart price adjustment percentages."""
+    if request.method == 'POST':
+        action = request.form.get('action', '')
+
+        if action == 'update_product':
+            pid = int(request.form.get('product_id', 0))
+            product = db.session.get(Product, pid)
+            if product:
+                product.smart_price_enabled = 'smart_price_enabled' in request.form
+                pct_raw = request.form.get('smart_price_adjustment_pct', '0')
+                product.smart_price_adjustment_pct = float(pct_raw) if pct_raw.strip() else 0.0
+                db.session.commit()
+                flash(f'✅ Smart pricing updated for "{product.name}".', 'success')
+
+        elif action == 'bulk_enable':
+            # Enable smart pricing at a given % for all products above a price threshold
+            min_price = float(request.form.get('bulk_min_price', 0) or 0)
+            bulk_pct = float(request.form.get('bulk_pct', 0) or 0)
+            if bulk_pct > 0:
+                products_to_update = Product.query.filter(
+                    Product.is_active == True,
+                    Product.price >= min_price,
+                ).all()
+                for p in products_to_update:
+                    p.smart_price_enabled = True
+                    p.smart_price_adjustment_pct = bulk_pct
+                db.session.commit()
+                flash(f'✅ Enabled {bulk_pct}% smart pricing on {len(products_to_update)} products priced {min_price:,.0f}+ Birr.', 'success')
+            else:
+                flash('Please enter a valid percentage greater than 0.', 'warning')
+
+        elif action == 'disable_all':
+            Product.query.update({'smart_price_enabled': False, 'smart_price_adjustment_pct': 0.0})
+            db.session.commit()
+            flash('Smart pricing disabled for all products.', 'info')
+
+        return redirect(url_for('admin.smart_pricing'))
+
+    # GET — list all active products with pricing info
+    q = request.args.get('q', '').strip()
+    show_enabled_only = request.args.get('enabled_only', '') == '1'
+    query = Product.query.filter_by(is_active=True)
+    if q:
+        query = query.filter(Product.name.ilike(f'%{q}%'))
+    if show_enabled_only:
+        query = query.filter_by(smart_price_enabled=True)
+
+    products_list = query.order_by(Product.name.asc()).all()
+    enabled_count = Product.query.filter_by(is_active=True, smart_price_enabled=True).count()
+
+    from app.services.loyalty_service import _get_settings
+    settings = _get_settings()
+    qty_min_price = float(getattr(settings, 'qty_discount_min_price', 2500))
+
+    return render_template(
+        'admin/smart_pricing.html',
+        products=products_list,
+        enabled_count=enabled_count,
+        q=q,
+        show_enabled_only=show_enabled_only,
+        qty_min_price=qty_min_price,
+    )
+
+
 @admin_bp.route('/products/<int:product_id>/delete', methods=['POST'])
 @admin_required
 def delete_product(product_id):

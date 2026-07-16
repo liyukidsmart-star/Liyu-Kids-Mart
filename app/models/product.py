@@ -68,6 +68,11 @@ class Product(db.Model):
     price_hidden = db.Column(db.Boolean, default=False)  # hide price until unlocked
     # minimum loyalty level required to see & purchase this product
     min_loyalty_level_id = db.Column(db.Integer, db.ForeignKey('loyalty_levels.id'), nullable=True)
+    # ── Smart Price Adjustment ────────────────────────────────
+    # Whether this product has an admin-controlled price markup enabled
+    smart_price_enabled = db.Column(db.Boolean, default=False, nullable=False)
+    # Markup % (0 = no change; 3.0 = 3% increase on top of base price)
+    smart_price_adjustment_pct = db.Column(db.Numeric(5, 2), default=0.00, nullable=False)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc),
                            onupdate=lambda: datetime.now(timezone.utc))
@@ -88,6 +93,15 @@ class Product(db.Model):
 
     def _resolved_images(self):
         return get_product_image_urls(self.id)
+
+    def current_price(self) -> float:
+        """Return the effective selling price, including any smart price adjustment."""
+        base = float(self.price)
+        if self.smart_price_enabled and self.smart_price_adjustment_pct:
+            pct = float(self.smart_price_adjustment_pct or 0)
+            if pct > 0:
+                return round(base * (1 + pct / 100), 2)
+        return base
 
     def primary_image(self):
         for url in self._resolved_images():
@@ -118,7 +132,8 @@ class Product(db.Model):
             return f'{y}yr' + (f' {rem}m' if rem else '')
         return f'{fmt(self.age_min_months)} – {fmt(self.age_max_months)}'
 
-    def to_dict(self, include_description=False):
+    def to_dict(self, include_description=False, qty_discount_min_price=None):
+        display_price = self.current_price()
         d = {
             'id': self.id,
             'name': self.name,
@@ -126,9 +141,13 @@ class Product(db.Model):
             'slug': self.slug,
             'short_description': self.short_description,
             'short_description_am': self.short_description_am,
-            'price': float(self.price),
+            'price': display_price,
+            'base_price': float(self.price),
             'compare_price': float(self.compare_price) if self.compare_price else None,
+            'smart_price_enabled': bool(self.smart_price_enabled),
+            'smart_price_adjustment_pct': float(self.smart_price_adjustment_pct or 0),
             'stock_qty': self.stock_qty,
+            'qty_discount_eligible': bool(qty_discount_min_price is not None and display_price >= qty_discount_min_price),
             'category_id': self.category_id,
             'category_name': self.category.name if self.category else None,
             'age_min_months': self.age_min_months,

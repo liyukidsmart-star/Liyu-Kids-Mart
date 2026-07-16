@@ -169,8 +169,11 @@ def get_products():
     page_items = sorted_products[start:end]
     prime_product_image_lookup(page_items)
 
+    settings = _get_settings()
+    qty_min_price = float(getattr(settings, 'qty_discount_min_price', 2500))
+
     return success_response({
-        'products': [p.to_dict(include_description=True) for p in page_items],
+        'products': [p.to_dict(include_description=True, qty_discount_min_price=qty_min_price) for p in page_items],
         'total': total,
         'pages': pages,
         'page': page,
@@ -193,14 +196,18 @@ def search_products():
     results.sort(key=lambda product: (-_search_score(product, q_str), -(product.sales_count or 0), -(product.view_count or 0), product.id))
     results = results[:limit]
     prime_product_image_lookup(results)
-    return success_response({'products': [p.to_dict(include_description=True) for p in results]})
+    settings = _get_settings()
+    qty_min_price = float(getattr(settings, 'qty_discount_min_price', 2500))
+    return success_response({'products': [p.to_dict(include_description=True, qty_discount_min_price=qty_min_price) for p in results]})
 
 
 @api_bp.route('/products/featured')
 def featured_products():
     products = Product.query.filter_by(is_featured=True, is_active=True).limit(8).all()
     prime_product_image_lookup(products)
-    return success_response({'products': [p.to_dict(include_description=True) for p in products]})
+    settings = _get_settings()
+    qty_min_price = float(getattr(settings, 'qty_discount_min_price', 2500))
+    return success_response({'products': [p.to_dict(include_description=True, qty_discount_min_price=qty_min_price) for p in products]})
 
 
 @api_bp.route('/products/trending')
@@ -208,7 +215,9 @@ def trending_products():
     products = Product.query.filter_by(is_active=True).order_by(
         Product.sales_count.desc()).limit(8).all()
     prime_product_image_lookup(products)
-    return success_response({'products': [p.to_dict(include_description=True) for p in products]})
+    settings = _get_settings()
+    qty_min_price = float(getattr(settings, 'qty_discount_min_price', 2500))
+    return success_response({'products': [p.to_dict(include_description=True, qty_discount_min_price=qty_min_price) for p in products]})
 
 
 @api_bp.route('/products/<int:product_id>')
@@ -216,7 +225,9 @@ def get_product(product_id):
     product = db.session.get(Product, product_id)
     if not product or not product.is_active:
         return error_response('Product not found', 404)
-    return success_response(product.to_dict(include_description=True))
+    settings = _get_settings()
+    qty_min_price = float(getattr(settings, 'qty_discount_min_price', 2500))
+    return success_response(product.to_dict(include_description=True, qty_discount_min_price=qty_min_price))
 
 
 @api_bp.route('/products/<int:product_id>/recommendations')
@@ -230,7 +241,9 @@ def product_recommendations(product_id):
         Product.is_active == True
     ).order_by(Product.sales_count.desc()).limit(6).all()
     prime_product_image_lookup(similar)
-    return success_response({'products': [p.to_dict() for p in similar]})
+    settings = _get_settings()
+    qty_min_price = float(getattr(settings, 'qty_discount_min_price', 2500))
+    return success_response({'products': [p.to_dict(include_description=False, qty_discount_min_price=qty_min_price) for p in similar]})
 
 
 @api_bp.route('/products/repair-images', methods=['POST'])

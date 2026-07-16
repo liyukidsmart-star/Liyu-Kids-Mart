@@ -225,7 +225,9 @@ def loyalty_qty_discounts():
         return redirect(url_for('admin.loyalty_qty_discounts'))
 
     discounts = QuantityDiscount.query.order_by(QuantityDiscount.min_items.asc()).all()
-    return render_template('admin/loyalty/qty_discounts.html', discounts=discounts)
+    from app.services.loyalty_service import _get_settings
+    settings = _get_settings()
+    return render_template('admin/loyalty/qty_discounts.html', discounts=discounts, settings=settings)
 
 
 # ─────────────────────────────────────────────────────────────
@@ -335,6 +337,9 @@ def loyalty_settings():
         settings.point_value_birr = float(request.form.get('point_value_birr', 0.10) or 0.10)
         settings.min_redemption_points = int(request.form.get('min_redemption_points', 500) or 500)
         settings.is_enabled = 'is_enabled' in request.form
+        # Quantity discount eligibility settings
+        settings.qty_discount_min_price = float(request.form.get('qty_discount_min_price', 2500) or 2500)
+        settings.qty_discount_open_to_all = 'qty_discount_open_to_all' in request.form
         db.session.commit()
         flash('✅ Loyalty settings updated!', 'success')
         return redirect(url_for('admin.loyalty_settings'))
@@ -394,6 +399,135 @@ def loyalty_analytics():
         'admin/loyalty/analytics.html',
         tier_dist=tier_dist, top_spenders=top_spenders,
         top_savers=top_savers, stats=stats,
+    )
+
+
+# ─────────────────────────────────────────────────────────────
+# DISCOUNT ANALYTICS
+# ─────────────────────────────────────────────────────────────
+
+@admin_bp.route('/loyalty/discount-analytics')
+@admin_required
+def loyalty_discount_analytics():
+    from datetime import timedelta
+    from sqlalchemy import func, cast, Date
+
+    # ---- Aggregate KPIs ----
+    delivered_orders = Order.query.filter(Order.status == OrderStatus.delivered)
+
+    total_orders_with_spending = delivered_orders.filter(
+        Order.spending_discount_amount > 0
+    ).count()
+    total_orders_with_qty = delivered_orders.filter(
+        Order.qty_discount_amount_saved > 0
+    ).count()
+    total_spending_disc_birr = float(
+        db.session.query(func.sum(Order.spending_discount_amount))
+        .filter(Order.status == OrderStatus.delivered).scalar() or 0
+    )
+    total_qty_disc_birr = float(
+        db.session.query(func.sum(Order.qty_discount_amount_saved))
+        .filter(Order.status == OrderStatus.delivered).scalar() or 0
+    )
+    total_disc_birr = float(
+        db.session.query(func.sum(Order.discount_amount))
+        .filter(Order.status == OrderStatus.delivered).scalar() or 0
+    )
+    avg_order_before = float(
+        db.session.query(func.avg(Order.subtotal))
+        .filter(Order.status == OrderStatus.delivered).scalar() or 0
+    )
+    avg_order_after = float(
+        db.session.query(func.avg(Order.total))
+        .filter(Order.status == OrderStatus.delivered).scalar() or 0
+    )
+    total_delivered = delivered_orders.count()
+
+    # ---- Daily chart data (last 30 days) ----
+    thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
+    daily_rows = (
+        db.session.query(
+            cast(Order.created_at, Date).label('day'),
+            func.count(Order.id).label('orders'),
+            func.sum(Order.discount_amount).label('disc_total'),
+            func.sum(Order.spending_discount_amount).label('spending_disc'),
+            func.sum(Order.qty_discount_amount_saved).label('qty_disc'),
+        )
+        .filter(
+            Order.status == OrderStatus.delivered,
+            Order.created_at >= thirty_days_ago,
+        )
+        .group_by(cast(Order.created_at, Date))
+        .order_by(cast(Order.created_at, Date).asc())
+        .all()
+    )
+    chart_labels = [str(row.day) for row in daily_rows]
+    chart_spending = [float(row.spending_disc or 0) for row in daily_rows]
+    chart_qty = [float(row.qty_disc or 0) for row in daily_rows]
+    chart_orders = [int(row.orders or 0) for row in daily_rows]
+
+    # ---- Most common spending threshold reached ----
+    from app.models.loyalty import SpendingThreshold
+    thresholds = SpendingThreshold.query.filter_by(is_active=True).order_by(
+        SpendingThreshold.min_amount.desc()
+    ).all()
+    most_common_threshold = None
+    for t in thresholds:
+        cnt = delivered_orders.filter(
+            Order.spending_discount_amount > 0,
+            Order.subtotal >= float(t.min_amount)
+        ).count()
+        if cnt > 0:
+            most_common_threshold = {'label': t.label or f'{t.min_amount:.0f}+ Birr', 'count': cnt}
+            break
+
+    # ---- Revenue from smart-price-adjusted products ----
+    from app.models.product import Product as _Product
+    from app.models.order import OrderItem as _OrderItem
+    smart_revenue = float(
+        db.session.query(func.sum(_OrderItem.total_price))
+        .join(_Product, _OrderItem.product_id == _Product.id)
+        .filter(_Product.smart_price_enabled == True)
+        .scalar() or 0
+    )
+    smart_product_count = _Product.query.filter_by(
+        smart_price_enabled=True, is_active=True
+    ).count()
+
+    # ---- Recent discounted orders ----
+    recent_orders = (
+        Order.query
+        .filter(
+            Order.status == OrderStatus.delivered,
+            Order.discount_amount > 0,
+        )
+        .order_by(Order.created_at.desc())
+        .limit(20)
+        .all()
+    )
+
+    stats = {
+        'total_orders_with_spending': total_orders_with_spending,
+        'total_orders_with_qty': total_orders_with_qty,
+        'total_spending_disc_birr': total_spending_disc_birr,
+        'total_qty_disc_birr': total_qty_disc_birr,
+        'total_disc_birr': total_disc_birr,
+        'avg_order_before': avg_order_before,
+        'avg_order_after': avg_order_after,
+        'total_delivered': total_delivered,
+        'smart_revenue': smart_revenue,
+        'smart_product_count': smart_product_count,
+        'most_common_threshold': most_common_threshold,
+    }
+
+    return render_template(
+        'admin/loyalty/discount_analytics.html',
+        stats=stats,
+        chart_labels=chart_labels,
+        chart_spending=chart_spending,
+        chart_qty=chart_qty,
+        chart_orders=chart_orders,
+        recent_orders=recent_orders,
     )
 
 
