@@ -1580,10 +1580,12 @@ async function fetchDiscountFromServer(){
   // Calls the backend which reads admin-configured thresholds from DB
   // Picks best between loyalty tier discount and spending threshold
   const st = sub();
-  const minPrice = loyaltyProfile?.qty_min_price || 2500;
-  const items = cart.filter(i => i.price >= minPrice).reduce((s,i)=>s+i.qty,0);
+  // Send each unit's price as a flat list so the backend can apply the min-price
+  // threshold itself — avoids any frontend race condition with loyaltyProfile loading.
+  const priceList = cart.flatMap(i => Array(i.qty).fill(i.price)).join(',');
   try {
-    const params = new URLSearchParams({subtotal: st, items});
+    const params = new URLSearchParams({subtotal: st});
+    if (priceList) params.set('prices', priceList);
     if (TGID) params.set('telegram_id', TGID);
     const r = await fetch('/api/v1/loyalty/discount?' + params.toString());
     const d = await r.json();

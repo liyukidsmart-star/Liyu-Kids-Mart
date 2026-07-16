@@ -126,7 +126,9 @@ def loyalty_settings_api():
 
 
 # ─────────────────────────────────────────────────────────────
-# GET /api/v1/loyalty/discount?subtotal=X&telegram_id=Y&items=N
+# GET /api/v1/loyalty/discount?subtotal=X&telegram_id=Y&prices=P1,P2,P2,...
+# prices = comma-separated list of unit prices (one entry per unit quantity)
+# e.g. a cart with 2x item@800 and 1x item@3000 → prices=800,800,3000
 # ─────────────────────────────────────────────────────────────
 
 @api_bp.route('/loyalty/discount', methods=['GET'])
@@ -135,28 +137,42 @@ def loyalty_discount():
     Calculate the discount for a given cart subtotal.
     Used by the cart page to show real-time savings.
     """
+    from app.services.loyalty_service import _get_settings
     user = _get_user_from_request()
     try:
         subtotal = float(request.args.get('subtotal', 0))
     except (TypeError, ValueError):
         subtotal = 0.0
 
-    # qty_items: pass None if not provided, so the service knows the caller didn't filter.
-    # When explicitly provided (even as 0), it is the price-filtered eligible item count.
-    raw_items = request.args.get('items')
-    if raw_items is not None:
+    # Compute qty_eligible_items server-side from the list of prices sent by the frontend.
+    # This is authoritative — the backend applies the configured min price threshold.
+    settings = _get_settings()
+    qty_min_price = float(getattr(settings, 'qty_discount_min_price', 2500))
+
+    raw_prices = request.args.get('prices', '')
+    if raw_prices:
         try:
-            qty_items = max(0, int(raw_items))
+            price_list = [float(p) for p in raw_prices.split(',') if p.strip()]
+            qty_items = sum(1 for p in price_list if p >= qty_min_price)
         except (TypeError, ValueError):
-            qty_items = 0
+            qty_items = None
     else:
-        qty_items = None
+        # Legacy: fall back to explicit items count if prices not provided
+        raw_items = request.args.get('items')
+        if raw_items is not None:
+            try:
+                qty_items = max(0, int(raw_items))
+            except (TypeError, ValueError):
+                qty_items = 0
+        else:
+            qty_items = None
 
     if user:
-        # Store total item count separately (used only for other logic, not qty discount)
         try:
-            user._cart_item_count = int(request.args.get('items', 0))
-        except (TypeError, ValueError):
+            user._cart_item_count = sum(
+                1 for p in (raw_prices or '').split(',') if p.strip()
+            )
+        except Exception:
             user._cart_item_count = 0
 
     discount_info = calculate_loyalty_discount(user, subtotal, qty_items=qty_items)

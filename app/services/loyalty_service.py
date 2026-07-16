@@ -791,6 +791,7 @@ def get_customer_loyalty_profile(user) -> dict:
     qty_discounts = _get_active_quantity_discounts()
     qty_discounts_ctx = [qd.to_dict() for qd in qty_discounts]
 
+    settings = _get_settings()
     return {
         'user_id': user.id,
         'full_name': user.full_name,
@@ -812,6 +813,7 @@ def get_customer_loyalty_profile(user) -> dict:
         'progress': progress,
         'spending_thresholds': spending_thresholds_ctx,
         'qty_discounts': qty_discounts_ctx,
+        'qty_min_price': float(getattr(settings, 'qty_discount_min_price', 2500)),
         'unlocked_achievements': unlocked,
         'locked_achievements': locked,
         'recent_transactions': [t.to_dict() for t in recent_txns],
