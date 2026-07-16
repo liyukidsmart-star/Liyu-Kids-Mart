@@ -138,13 +138,26 @@ def loyalty_discount():
     user = _get_user_from_request()
     try:
         subtotal = float(request.args.get('subtotal', 0))
-        items = int(request.args.get('items', 0))
     except (TypeError, ValueError):
         subtotal = 0.0
-        items = 0
+
+    # qty_items: pass None if not provided, so the service knows the caller didn't filter.
+    # When explicitly provided (even as 0), it is the price-filtered eligible item count.
+    raw_items = request.args.get('items')
+    if raw_items is not None:
+        try:
+            qty_items = max(0, int(raw_items))
+        except (TypeError, ValueError):
+            qty_items = 0
+    else:
+        qty_items = None
 
     if user:
-        user._cart_item_count = items
+        # Store total item count separately (used only for other logic, not qty discount)
+        try:
+            user._cart_item_count = int(request.args.get('items', 0))
+        except (TypeError, ValueError):
+            user._cart_item_count = 0
 
-    discount_info = calculate_loyalty_discount(user, subtotal, qty_items=items)
+    discount_info = calculate_loyalty_discount(user, subtotal, qty_items=qty_items)
     return success_response(discount_info)

@@ -190,7 +190,7 @@ def resolve_loyalty_level(total_spent: float, total_orders: int) -> Optional[Loy
 # Discount Calculation
 # ─────────────────────────────────────────────────────────────
 
-def calculate_loyalty_discount(user, cart_subtotal: float, cart_items=None, qty_items: int = 0) -> dict:
+def calculate_loyalty_discount(user, cart_subtotal: float, cart_items=None, qty_items=None) -> dict:
     """
     Calculate the complete discount breakdown for a cart.
 
@@ -278,14 +278,13 @@ def calculate_loyalty_discount(user, cart_subtotal: float, cart_items=None, qty_
     # Count only items meeting the minimum price threshold
     qty_eligible_items = 0
     if qty_allowed:
-        # Priority: explicit qty_items arg > _qty_eligible_item_count attr > _cart_item_count attr
-        if qty_items and qty_items > 0:
-            qty_eligible_items = qty_items
+        # Priority: explicit qty_items arg (None = not provided) > _qty_eligible_item_count attr
+        # IMPORTANT: qty_items=0 is a valid explicit value meaning "no eligible items"
+        # Never fall back to _cart_item_count (that is unfiltered total, not price-filtered)
+        if qty_items is not None:
+            qty_eligible_items = max(0, int(qty_items))
         elif hasattr(user, '_qty_eligible_item_count') and user is not None:
             qty_eligible_items = user._qty_eligible_item_count
-        elif hasattr(user, '_cart_item_count') and user is not None:
-            # Fallback: use total item count (caller didn't filter)
-            qty_eligible_items = user._cart_item_count
 
         qty_discounts = _get_active_quantity_discounts()
         for qd in reversed(qty_discounts):

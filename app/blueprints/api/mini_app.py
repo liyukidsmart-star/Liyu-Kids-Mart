@@ -178,7 +178,7 @@ def mini_app_checkout():
     )
     user._cart_item_count = total_items
     user._qty_eligible_item_count = qty_eligible_items
-    discount_info = calculate_loyalty_discount(user, subtotal)
+    discount_info = calculate_loyalty_discount(user, subtotal, qty_items=qty_eligible_items)
     discount_amount = round(discount_info.get('total_discount_amount', 0.0), 2)
     total = round(subtotal - discount_amount + delivery_fee, 2)
 
