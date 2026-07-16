@@ -994,14 +994,14 @@ function pcard(p,v='grid'){
   const prodLvlOrder=p.min_loyalty_level_sort_order||0;
   const isLocked=minLvl&&(userLvlOrder<prodLvlOrder);
   const lockLvlName=p.min_loyalty_level_name||'a higher tier';
+  const qtyEligBadge = (!isLaunchLocked && p.qty_discount_eligible)
+    ? `<span class="bpill" style="background:linear-gradient(135deg,#059669,#10B981);color:#fff;font-size:.6rem">📦 Multi-Buy</span>`
+    : '';
   const bdgs=[p.is_new_arrival?'<span class="bpill bnew">New</span>':'',
     p.compare_price>p.price?'<span class="bpill bsale">Sale</span>':'',
     p.sales_count>20?'<span class="bpill bhot">Hot</span>':'',
     isPremium?'<span class="bpill" style="background:linear-gradient(135deg,#7C3AED,#C084FC);color:#fff">💎 Premium</span>':'',
     qtyEligBadge].filter(Boolean).join('');
-  const qtyEligBadge = (!isLaunchLocked && p.qty_discount_eligible)
-    ? `<span class="bpill" style="background:linear-gradient(135deg,#059669,#10B981);color:#fff;font-size:.6rem">📦 Multi-Buy</span>`
-    : '';
   const priceHTML=isLaunchLocked
     ?'<div class="pcard-price" style="color:#7C3AED;font-size:.78rem">ETB ***</div>'
     :priceHidden&&isLocked

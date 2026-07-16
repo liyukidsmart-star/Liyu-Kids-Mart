@@ -444,7 +444,7 @@ def loyalty_discount_analytics():
     total_delivered = delivered_orders.count()
 
     # ---- Daily chart data (last 30 days) ----
-    thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
+    thirty_days_ago = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=30)
     daily_rows = (
         db.session.query(
             cast(Order.created_at, Date).label('day'),
