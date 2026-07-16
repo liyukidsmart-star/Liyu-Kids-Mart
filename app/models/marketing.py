@@ -1,4 +1,4 @@
-﻿from datetime import datetime, timezone
+from datetime import datetime, timezone
 from sqlalchemy import or_, and_
 
 from app.extensions import db
@@ -128,8 +128,10 @@ def _product_active_discount(self):
     return q.order_by(ProductDiscount.priority.asc(), ProductDiscount.created_at.desc()).first()
 
 
+_original_current_price = Product.current_price
+
 def _product_current_price(self):
-    base_price = float(self.price or 0)
+    base_price = _original_current_price(self)
     discount = _product_active_discount(self)
     if not discount:
         return round(base_price, 2)
