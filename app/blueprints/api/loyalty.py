@@ -46,10 +46,12 @@ def loyalty_profile():
     """Return the full loyalty profile for the current user."""
     user = _get_user_from_request()
     if not user:
-        from app.services.loyalty_service import _get_active_thresholds
+        from app.services.loyalty_service import _get_active_thresholds, _get_active_quantity_discounts
         thresholds = _get_active_thresholds()
+        qty_discounts = _get_active_quantity_discounts()
         return success_response({
-            'spending_thresholds': [t.to_dict() for t in thresholds]
+            'spending_thresholds': [t.to_dict() for t in thresholds],
+            'qty_discounts': [q.to_dict() for q in qty_discounts]
         })
     profile = get_customer_loyalty_profile(user)
     return success_response(profile)

@@ -786,6 +786,10 @@ def get_customer_loyalty_profile(user) -> dict:
     thresholds = _get_active_thresholds()
     spending_thresholds_ctx = [t.to_dict() for t in thresholds]
 
+    # Quantity discounts
+    qty_discounts = _get_active_quantity_discounts()
+    qty_discounts_ctx = [qd.to_dict() for qd in qty_discounts]
+
     return {
         'user_id': user.id,
         'full_name': user.full_name,
@@ -806,6 +810,7 @@ def get_customer_loyalty_profile(user) -> dict:
         'referral_code': user.referral_code,
         'progress': progress,
         'spending_thresholds': spending_thresholds_ctx,
+        'qty_discounts': qty_discounts_ctx,
         'unlocked_achievements': unlocked,
         'locked_achievements': locked,
         'recent_transactions': [t.to_dict() for t in recent_txns],
