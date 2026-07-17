@@ -849,16 +849,21 @@ function _resolveStartTab(raw){
   return '';
 }
 
-async function openStartParamTarget(){
-  const params=new URLSearchParams(window.location.search);
-  let raw=params.get('tab')||params.get('startapp')||TG_START_PARAM;
-  let query=(params.get('query')||'').trim();
-  if(!query && raw.includes('__')){
-    const splitAt=raw.indexOf('__');
-    query=decodeURIComponent(raw.slice(splitAt+2).replace(/\+/g,' '));
-    raw=raw.slice(0,splitAt);
+async function openStartParamTarget(intent=null){
+  const data=intent || getStartupIntent();
+  if(data.productId){
+    try{
+      const r=await fetch('/api/v1/products/'+encodeURIComponent(data.productId));
+      const d=await r.json();
+      if(d.success && d.data){
+        openSheet(JSON.stringify(d.data));
+        return true;
+      }
+    }catch{}
   }
-  const target=_resolveStartTab(raw);
+
+  const target=data.target || (data.productId ? 'tab-shop' : '');
+  const query=data.query;
   if(target==='tab-ai' && query){
     const inp=document.getElementById('aiInp');
     if(inp) inp.value=query;
@@ -869,16 +874,8 @@ async function openStartParamTarget(){
       const inp=document.getElementById('aiInp');
       if(inp) inp.focus();
     }
-    if(target==='tab-shop' && raw==='product' && query){
-      fetch('/api/v1/products/'+query)
-        .then(r=>r.json())
-        .then(d=>{
-          if(d.success && d.data) {
-            openSheet(JSON.stringify(d.data));
-          }
-        }).catch(()=>{});
-    }
   }
+  return false;
 }
 
 /* ── Toast ────────────────────────────────────── */
@@ -978,6 +975,38 @@ function toggleWish(id,el){
 /* ── Loyalty state ────────────────────────────── */
 let loyaltyProfile=null;
 let suggestProducts=[];
+let startupIntent=null;
+
+function esc(s){return s.replace(/'/g,"\'").replace(/"/g,'&quot;');}
+
+function getStartupIntent(){
+  if(startupIntent) return startupIntent;
+  const params=new URLSearchParams(window.location.search);
+  let raw=(tg?.initDataUnsafe?.start_param || params.get('startapp') || '').trim();
+  let query=(params.get('query')||'').trim();
+  if(!query && raw.includes('__')){
+    const splitAt=raw.indexOf('__');
+    query=decodeURIComponent(raw.slice(splitAt+2).replace(/\+/g,' '));
+    raw=raw.slice(0,splitAt);
+  }
+  const tabParam=(params.get('tab')||'').trim();
+  const target=_resolveStartTab(tabParam || raw);
+  const normalized=raw.toLowerCase();
+  let productId='';
+  if(normalized === 'product' && query){
+    productId=query;
+  } else if(normalized.startsWith('product__')){
+    productId=raw.split('__')[1] || '';
+  }
+  startupIntent={target, query, raw, productId};
+  return startupIntent;
+}
+
+function warmMiniApp(){
+  loadHomeCats().catch(()=>{});
+  loadHomeSections().catch(()=>{});
+  loadShop(true);
+}
 
 function esc(s){return s.replace(/'/g,"\\'").replace(/"/g,'&quot;');}
 
@@ -1279,9 +1308,16 @@ async function init(){
         updateGlobalLoyaltyBar();
       }
     }).catch(()=>{});
-  await Promise.all([loadHomeCats(),loadHomeSections()]);
-  loadShop(true);
-  await openStartParamTarget();
+
+  const intent = getStartupIntent();
+  if(intent.productId){
+    const handled = await openStartParamTarget(intent);
+    setTimeout(() => warmMiniApp(), handled ? 300 : 0);
+    return;
+  }
+
+  setTimeout(() => warmMiniApp(), 0);
+  await openStartParamTarget(intent);
 }
 
 /* ── i18n ─────────────────────────────────────── */

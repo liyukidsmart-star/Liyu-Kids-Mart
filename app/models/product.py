@@ -141,7 +141,11 @@ class Product(db.Model):
             'slug': self.slug,
             'short_description': self.short_description,
             'short_description_am': self.short_description_am,
+            'description': self.description,
+            'description_am': self.description_am,
             'price': display_price,
+            'description': self.description,
+            'description_am': self.description_am,
             'base_price': float(self.price),
             'compare_price': float(self.compare_price) if self.compare_price else None,
             'smart_price_enabled': bool(self.smart_price_enabled),
@@ -160,6 +164,7 @@ class Product(db.Model):
             'price_hidden': self.price_hidden,
             'min_loyalty_level_id': self.min_loyalty_level_id,
             'min_loyalty_level_name': self.min_loyalty_level.name if self.min_loyalty_level else None,
+            'min_loyalty_level_sort_order': self.min_loyalty_level.sort_order if self.min_loyalty_level else 0,
             'view_count': self.view_count,
             'sales_count': self.sales_count,
             'primary_image': self.primary_image(),
@@ -172,6 +177,41 @@ class Product(db.Model):
             d['description'] = self.description
             d['description_am'] = self.description_am
         return d
+
+    def to_card_dict(self, qty_discount_min_price=None):
+        """Lightweight payload for catalog grids and lists."""
+        display_price = self.current_price()
+        return {
+            'id': self.id,
+            'name': self.name,
+            'name_am': self.name_am,
+            'slug': self.slug,
+            'short_description': self.short_description,
+            'short_description_am': self.short_description_am,
+            'description': self.description,
+            'description_am': self.description_am,
+            'price': display_price,
+            'base_price': float(self.price),
+            'compare_price': float(self.compare_price) if self.compare_price else None,
+            'smart_price_enabled': bool(self.smart_price_enabled),
+            'smart_price_adjustment_pct': float(self.smart_price_adjustment_pct or 0),
+            'stock_qty': self.stock_qty,
+            'qty_discount_eligible': bool(qty_discount_min_price is not None and display_price >= qty_discount_min_price),
+            'age_min_months': self.age_min_months,
+            'age_max_months': self.age_max_months,
+            'age_label': self.age_label(),
+            'is_featured': self.is_featured,
+            'is_new_arrival': self.is_new_arrival,
+            'is_active': self.is_active,
+            'is_premium': self.is_premium,
+            'price_hidden': self.price_hidden,
+            'min_loyalty_level_id': self.min_loyalty_level_id,
+            'min_loyalty_level_name': self.min_loyalty_level.name if self.min_loyalty_level else None,
+            'min_loyalty_level_sort_order': self.min_loyalty_level.sort_order if self.min_loyalty_level else 0,
+            'view_count': self.view_count,
+            'sales_count': self.sales_count,
+            'primary_image': self.primary_image(),
+        }
 
     def __repr__(self):
         return f'<Product {self.name}>'
