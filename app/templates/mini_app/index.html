@@ -1002,27 +1002,54 @@ function getStartupIntent(){
   return startupIntent;
 }
 
+function fetchJsonWithTimeout(url, opts={}, timeoutMs=7000){
+  const timeoutController = new AbortController();
+  const externalSignal = opts.signal;
+  if(externalSignal){
+    if(externalSignal.aborted) timeoutController.abort();
+    else externalSignal.addEventListener('abort', ()=>timeoutController.abort(), {once:true});
+  }
+  const timer = setTimeout(()=>timeoutController.abort(), timeoutMs);
+  return fetch(url, {...opts, signal: timeoutController.signal})
+    .then(r=>r.json())
+    .finally(()=>clearTimeout(timer));
+}
+
 function loadMiniBootstrap(){
   if(miniBootstrap) return Promise.resolve(miniBootstrap);
   if(miniBootstrapPromise) return miniBootstrapPromise;
-  miniBootstrapPromise = fetch('/api/v1/mini-app/bootstrap')
-    .then(r=>r.json())
-    .then(d=>{
-      if(d.success){
-        miniBootstrap = d.data || null;
-        if(miniBootstrap?.shop_page?.products){
-          const page = miniBootstrap.shop_page;
-          sCache.set('/api/v1/products?page=1&per_page=12&sort=bestselling&order=desc', {
-            products: page.products,
-            hasMore: !!page.has_more,
-          });
+  miniBootstrapPromise = new Promise(resolve => {
+    let settled = false;
+    const finish = value => {
+      if(settled) return;
+      settled = true;
+      miniBootstrapPromise = null;
+      resolve(value);
+    };
+    const timer = setTimeout(()=>finish(null), 2500);
+    fetchJsonWithTimeout('/api/v1/mini-app/bootstrap', {}, 2500)
+      .then(d=>{
+        if(d?.success){
+          miniBootstrap = d.data || null;
+          if(miniBootstrap?.shop_page?.products){
+            const page = miniBootstrap.shop_page;
+            sCache.set('/api/v1/products?page=1&per_page=12&sort=bestselling&order=desc', {
+              products: page.products,
+              hasMore: !!page.has_more,
+            });
+          }
+          clearTimeout(timer);
+          finish(miniBootstrap);
+          return;
         }
-        return miniBootstrap;
-      }
-      return null;
-    })
-    .catch(()=>null)
-    .finally(()=>{ miniBootstrapPromise=null; });
+        clearTimeout(timer);
+        finish(null);
+      })
+      .catch(()=>{
+        clearTimeout(timer);
+        finish(null);
+      });
+  });
   return miniBootstrapPromise;
 }
 
@@ -1167,9 +1194,8 @@ function shAddCart(){if(!shProd)return;addCart(shProd.id,shProd.name,shProd.pric
 /* -- Home: Categories --------------------------- */
 async function loadHomeCats(){
   try{
-    const boot = miniBootstrap || await loadMiniBootstrap();
-    const cats = boot?.categories || [];
-    if(cats.length){
+    if(miniBootstrap?.categories?.length){
+      const cats = miniBootstrap.categories;
       document.getElementById('homeCats').innerHTML=cats.map(c=>`<div class="cgitem" onclick="shopCat(${c.id});showTab('tab-shop')">
           <div class="cg-ico">${c.icon||'??'}</div><div class="cg-name">${c.name}</div></div>`).join('');
       const row=document.getElementById('shopCats');
@@ -1178,7 +1204,8 @@ async function loadHomeCats(){
         b.textContent=(c.icon||'??')+' '+c.name;b.onclick=()=>shopCat(c.id,b);row.appendChild(b);});
       return;
     }
-    const d=await(await fetch('/api/v1/categories')).json();
+    loadMiniBootstrap().catch(()=>{});
+    const d=await fetchJsonWithTimeout('/api/v1/categories', {}, 5000);
     const fallbackCats=(d.data||[]);
     document.getElementById('homeCats').innerHTML=fallbackCats.length
       ?fallbackCats.map(c=>`<div class="cgitem" onclick="shopCat(${c.id});showTab('tab-shop')">
@@ -1194,24 +1221,30 @@ async function loadHomeCats(){
 /* -- Home: Sections ----------------------------- */
 async function loadHomeSections(){
   try{
-    const boot = miniBootstrap || await loadMiniBootstrap();
-    const fp=boot?.featured||[], np=boot?.new_arrivals||[], bp=boot?.best_sellers||[];
-    if(fp.length || np.length || bp.length){
+    if(miniBootstrap?.featured?.length || miniBootstrap?.new_arrivals?.length || miniBootstrap?.best_sellers?.length){
+      const fp=miniBootstrap.featured||[], np=miniBootstrap.new_arrivals||[], bp=miniBootstrap.best_sellers||[];
       document.getElementById('featRow').innerHTML=fp.length?fp.map(p=>pcard(p,'h')).join(''):'<div class="empty"><p>No featured products</p></div>';
       document.getElementById('newRow').innerHTML=np.length?np.map(p=>pcard(p,'h')).join(''):'<div class="empty"><p>No new arrivals</p></div>';
       document.getElementById('homeGrid').innerHTML=bp.length?bp.map(p=>pcard(p)).join(''):'<div class="empty" style="grid-column:span 2"><p>No products</p></div>';
       return;
     }
-    const [fr,nr,br]=await Promise.all([
-      fetch('/api/v1/products?featured=true&per_page=8'),
-      fetch('/api/v1/products?new_arrival=true&per_page=8'),
-      fetch('/api/v1/products?sort=bestselling&per_page=6')]);
-    const [fd,nd,bd]=await Promise.all([fr.json(),nr.json(),br.json()]);
-    const fp2=fd.data?.products||[], np2=nd.data?.products||[], bp2=bd.data?.products||[];
+    loadMiniBootstrap().catch(()=>{});
+    const [fd,nd,bd] = await Promise.allSettled([
+      fetchJsonWithTimeout('/api/v1/products?featured=true&per_page=8', {}, 8000),
+      fetchJsonWithTimeout('/api/v1/products?new_arrival=true&per_page=8', {}, 8000),
+      fetchJsonWithTimeout('/api/v1/products?sort=bestselling&per_page=6', {}, 8000),
+    ]);
+    const fp2 = fd.status==='fulfilled' ? (fd.value.data?.products||[]) : [];
+    const np2 = nd.status==='fulfilled' ? (nd.value.data?.products||[]) : [];
+    const bp2 = bd.status==='fulfilled' ? (bd.value.data?.products||[]) : [];
     document.getElementById('featRow').innerHTML=fp2.length?fp2.map(p=>pcard(p,'h')).join(''):'<div class="empty"><p>No featured products</p></div>';
     document.getElementById('newRow').innerHTML=np2.length?np2.map(p=>pcard(p,'h')).join(''):'<div class="empty"><p>No new arrivals</p></div>';
     document.getElementById('homeGrid').innerHTML=bp2.length?bp2.map(p=>pcard(p)).join(''):'<div class="empty" style="grid-column:span 2"><p>No products</p></div>';
-  }catch{document.getElementById('featRow').innerHTML='<div class="empty"><p>Failed to load</p></div>';}
+  }catch{
+    document.getElementById('featRow').innerHTML='<div class="empty"><p>Failed to load</p></div>';
+    document.getElementById('newRow').innerHTML='<div class="empty"><p>Failed to load</p></div>';
+    document.getElementById('homeGrid').innerHTML='<div class="empty" style="grid-column:span 2"><p>Failed to load</p></div>';
+  }
 }
 
 /* -- Age filter --------------------------------- */
@@ -1267,7 +1300,6 @@ async function loadShop(reset=false){
   }
 
   if(reset){
-    if(!miniBootstrap) await loadMiniBootstrap().catch(()=>{});
     if(miniBootstrap?.shop_page?.products && url === '/api/v1/products?page=1&per_page=12&sort=bestselling&order=desc'){
       sAll=[...miniBootstrap.shop_page.products];
       sHasMore=!!miniBootstrap.shop_page.has_more;
@@ -1285,13 +1317,14 @@ async function loadShop(reset=false){
       setupShopObserver();
       return;
     }
+    loadMiniBootstrap().catch(()=>{});
   }
 
   if(sReqCtrl) sReqCtrl.abort();
   sReqCtrl=new AbortController();
   setShopLoading(true);
   try{
-    const d=await(await fetch(url,{signal:sReqCtrl.signal})).json();
+    const d=await fetchJsonWithTimeout(url,{signal:sReqCtrl.signal},8000);
     const ps=d.data?.products||[];
     const tot=d.data?.total||0;
     sAll=reset?[...ps]:[...sAll,...ps];
@@ -1306,8 +1339,13 @@ async function loadShop(reset=false){
     if(reset) sCache.set(url,{products:sAll,hasMore:sHasMore});
     document.getElementById('lmbtn').style.display=sHasMore?'block':'none';
     setupShopObserver();
-  }catch(err){if(err?.name==='AbortError') return; if(reset)grid.innerHTML='<div class="empty" style="grid-column:span 2"><p>Failed to load</p></div>';}
-  finally{if(sReqCtrl && !sReqCtrl.signal.aborted) sReqCtrl=null; setShopLoading(false);}
+  }catch(err){
+    if(err?.name==='AbortError'){
+      if(reset && !sAll.length) grid.innerHTML='<div class="empty" style="grid-column:span 2"><p>Loading took too long. Please try again.</p></div>';
+      return;
+    }
+    if(reset)grid.innerHTML='<div class="empty" style="grid-column:span 2"><p>Failed to load</p></div>';
+  }finally{if(sReqCtrl && !sReqCtrl.signal.aborted) sReqCtrl=null; setShopLoading(false);}
 }
 function loadMore(){if(!sLoading&&sHasMore){spg++;loadShop(false);}}
 function shopCat(id,btn){
