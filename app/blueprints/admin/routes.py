@@ -516,6 +516,19 @@ def delete_product(product_id):
 def hard_delete_product(product_id):
     product = db.session.get(Product, product_id)
     if product:
+        from app.models.inventory import StockTransaction, POSSaleItem
+        from app.models.ai_conversation import ProductRecommendation
+        from app.models.marketing import TelegramChannelPost
+        from app.models.order import OrderItem
+        
+        # Clean up related records to prevent IntegrityError
+        StockTransaction.query.filter_by(product_id=product.id).delete()
+        ProductRecommendation.query.filter_by(product_id=product.id).delete()
+        
+        POSSaleItem.query.filter_by(product_id=product.id).update({'product_id': None})
+        TelegramChannelPost.query.filter_by(product_id=product.id).update({'product_id': None})
+        OrderItem.query.filter_by(product_id=product.id).update({'product_id': None})
+        
         product.cart_items.delete()
         product.wishlist_items.delete()
         db.session.delete(product)
