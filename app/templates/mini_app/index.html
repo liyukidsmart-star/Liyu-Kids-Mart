@@ -1002,7 +1002,32 @@ function getStartupIntent(){
   return startupIntent;
 }
 
+function loadMiniBootstrap(){
+  if(miniBootstrap) return Promise.resolve(miniBootstrap);
+  if(miniBootstrapPromise) return miniBootstrapPromise;
+  miniBootstrapPromise = fetch('/api/v1/mini-app/bootstrap')
+    .then(r=>r.json())
+    .then(d=>{
+      if(d.success){
+        miniBootstrap = d.data || null;
+        if(miniBootstrap?.shop_page?.products){
+          const page = miniBootstrap.shop_page;
+          sCache.set('/api/v1/products?page=1&per_page=12&sort=bestselling&order=desc', {
+            products: page.products,
+            hasMore: !!page.has_more,
+          });
+        }
+        return miniBootstrap;
+      }
+      return null;
+    })
+    .catch(()=>null)
+    .finally(()=>{ miniBootstrapPromise=null; });
+  return miniBootstrapPromise;
+}
+
 function warmMiniApp(){
+  loadMiniBootstrap().catch(()=>{});
   loadHomeCats().catch(()=>{});
   loadHomeSections().catch(()=>{});
   loadShop(true);
@@ -1142,15 +1167,26 @@ function shAddCart(){if(!shProd)return;addCart(shProd.id,shProd.name,shProd.pric
 /* -- Home: Categories --------------------------- */
 async function loadHomeCats(){
   try{
+    const boot = miniBootstrap || await loadMiniBootstrap();
+    const cats = boot?.categories || [];
+    if(cats.length){
+      document.getElementById('homeCats').innerHTML=cats.map(c=>`<div class="cgitem" onclick="shopCat(${c.id});showTab('tab-shop')">
+          <div class="cg-ico">${c.icon||'??'}</div><div class="cg-name">${c.name}</div></div>`).join('');
+      const row=document.getElementById('shopCats');
+      row.innerHTML='<button class="chip on" data-id="0" onclick="shopCat(0,this)" data-i18n="s_all">All</button>';
+      cats.forEach(c=>{const b=document.createElement('button');b.className='chip';b.dataset.id=c.id;
+        b.textContent=(c.icon||'??')+' '+c.name;b.onclick=()=>shopCat(c.id,b);row.appendChild(b);});
+      return;
+    }
     const d=await(await fetch('/api/v1/categories')).json();
-    const cats=(d.data||[]);
-    document.getElementById('homeCats').innerHTML=cats.length
-      ?cats.map(c=>`<div class="cgitem" onclick="shopCat(${c.id});showTab('tab-shop')">
+    const fallbackCats=(d.data||[]);
+    document.getElementById('homeCats').innerHTML=fallbackCats.length
+      ?fallbackCats.map(c=>`<div class="cgitem" onclick="shopCat(${c.id});showTab('tab-shop')">
           <div class="cg-ico">${c.icon||'??'}</div><div class="cg-name">${c.name}</div></div>`).join('')
       :'';
     const row=document.getElementById('shopCats');
     row.innerHTML='<button class="chip on" data-id="0" onclick="shopCat(0,this)" data-i18n="s_all">All</button>';
-    cats.forEach(c=>{const b=document.createElement('button');b.className='chip';b.dataset.id=c.id;
+    fallbackCats.forEach(c=>{const b=document.createElement('button');b.className='chip';b.dataset.id=c.id;
       b.textContent=(c.icon||'??')+' '+c.name;b.onclick=()=>shopCat(c.id,b);row.appendChild(b);});
   }catch{document.getElementById('homeCats').innerHTML='';}
 }
@@ -1158,30 +1194,27 @@ async function loadHomeCats(){
 /* -- Home: Sections ----------------------------- */
 async function loadHomeSections(){
   try{
+    const boot = miniBootstrap || await loadMiniBootstrap();
+    const fp=boot?.featured||[], np=boot?.new_arrivals||[], bp=boot?.best_sellers||[];
+    if(fp.length || np.length || bp.length){
+      document.getElementById('featRow').innerHTML=fp.length?fp.map(p=>pcard(p,'h')).join(''):'<div class="empty"><p>No featured products</p></div>';
+      document.getElementById('newRow').innerHTML=np.length?np.map(p=>pcard(p,'h')).join(''):'<div class="empty"><p>No new arrivals</p></div>';
+      document.getElementById('homeGrid').innerHTML=bp.length?bp.map(p=>pcard(p)).join(''):'<div class="empty" style="grid-column:span 2"><p>No products</p></div>';
+      return;
+    }
     const [fr,nr,br]=await Promise.all([
       fetch('/api/v1/products?featured=true&per_page=8'),
       fetch('/api/v1/products?new_arrival=true&per_page=8'),
       fetch('/api/v1/products?sort=bestselling&per_page=6')]);
     const [fd,nd,bd]=await Promise.all([fr.json(),nr.json(),br.json()]);
-    const fp=fd.data?.products||[], np=nd.data?.products||[], bp=bd.data?.products||[];
-    document.getElementById('featRow').innerHTML=fp.length?fp.map(p=>pcard(p,'h')).join(''):'<div class="empty"><p>No featured products</p></div>';
-    document.getElementById('newRow').innerHTML=np.length?np.map(p=>pcard(p,'h')).join(''):'<div class="empty"><p>No new arrivals</p></div>';
-    document.getElementById('homeGrid').innerHTML=bp.length?bp.map(p=>pcard(p)).join(''):'<div class="empty" style="grid-column:span 2"><p>No products</p></div>';
+    const fp2=fd.data?.products||[], np2=nd.data?.products||[], bp2=bd.data?.products||[];
+    document.getElementById('featRow').innerHTML=fp2.length?fp2.map(p=>pcard(p,'h')).join(''):'<div class="empty"><p>No featured products</p></div>';
+    document.getElementById('newRow').innerHTML=np2.length?np2.map(p=>pcard(p,'h')).join(''):'<div class="empty"><p>No new arrivals</p></div>';
+    document.getElementById('homeGrid').innerHTML=bp2.length?bp2.map(p=>pcard(p)).join(''):'<div class="empty" style="grid-column:span 2"><p>No products</p></div>';
   }catch{document.getElementById('featRow').innerHTML='<div class="empty"><p>Failed to load</p></div>';}
 }
 
 /* -- Age filter --------------------------------- */
-function ageFilter(btn,all=false){
-  document.querySelectorAll('.achip').forEach(b=>b.classList.remove('on'));btn.classList.add('on');
-  if(all||btn.dataset.mn==='-1'){loadHomeSections();return;}
-  fetch('/api/v1/products?age_min='+btn.dataset.mn+'&age_max='+btn.dataset.mx+'&per_page=6')
-    .then(r=>r.json()).then(d=>{
-      const ps=d.data?.products||[];
-      document.getElementById('homeGrid').innerHTML=ps.length?ps.map(p=>pcard(p)).join('')
-        :'<div class="empty" style="grid-column:span 2"><div class="ei">??</div><p>No products for this age</p></div>';
-    }).catch(()=>{});
-}
-
 /* ?? Shop tab ??????????????????????????????????? */
 function setShopLoading(on){
   sLoading=on;
@@ -1233,13 +1266,25 @@ async function loadShop(reset=false){
     else url+='&sort=bestselling&order=desc';
   }
 
-  if(reset && sCache.has(url)){
-    const cached=sCache.get(url);
-    sAll=[...cached.products]; sHasMore=cached.hasMore;
-    grid.innerHTML=sAll.length?sAll.map(p=>pcard(p)).join(''):'<div class="empty" style="grid-column:span 2"><div class="ei">??</div><p>No products found</p></div>';
-    document.getElementById('lmbtn').style.display=sHasMore?'block':'none';
-    setupShopObserver();
-    return;
+  if(reset){
+    if(!miniBootstrap) await loadMiniBootstrap().catch(()=>{});
+    if(miniBootstrap?.shop_page?.products && url === '/api/v1/products?page=1&per_page=12&sort=bestselling&order=desc'){
+      sAll=[...miniBootstrap.shop_page.products];
+      sHasMore=!!miniBootstrap.shop_page.has_more;
+      grid.innerHTML=sAll.length?sAll.map(p=>pcard(p)).join(''):'<div class="empty" style="grid-column:span 2"><div class="ei">??</div><p>No products found</p></div>';
+      document.getElementById('lmbtn').style.display=sHasMore?'block':'none';
+      sCache.set(url,{products:[...sAll],hasMore:sHasMore});
+      setupShopObserver();
+      return;
+    }
+    if(sCache.has(url)){
+      const cached=sCache.get(url);
+      sAll=[...cached.products]; sHasMore=cached.hasMore;
+      grid.innerHTML=sAll.length?sAll.map(p=>pcard(p)).join(''):'<div class="empty" style="grid-column:span 2"><div class="ei">??</div><p>No products found</p></div>';
+      document.getElementById('lmbtn').style.display=sHasMore?'block':'none';
+      setupShopObserver();
+      return;
+    }
   }
 
   if(sReqCtrl) sReqCtrl.abort();
@@ -1335,8 +1380,7 @@ const i18n = {
     c_cart: "Cart", c_empty: "Your cart is empty", c_empty_p: "Browse our products and add something for your little one!",
     c_start: "Start Shopping",
     c_fd_prog: "Free Delivery Progress", c_sub: "Subtotal", c_df: "Delivery fee", c_tot: "Total", c_co: "Checkout Now",
-    ck_order_sum: "Order Summary", ck_contact: "Contact Information", ck_full_name: "Full Name *", ck_phone: "Phone Number *", ck_location: "Specific Location / Landmark *", ck_notes: "Notes / Sub-City", ck_continue: "Continue to Delivery Map", ck_secure: "Secure Checkout", ck_pin: "Pin Location", ck_tap_map: "Tap the map to set location", ck_locate: "Locate Me", ck_fee: "Delivery Fee", ck_select_loc: "Select location", ck_tap_any: "Tap anywhere on the map", ck_select_pin: "Select Pin", ck_final_review: "Final Review", ck_summary: "Summary", ck_payment: "Payment Method", ck_place_order: "Place Order", ck_view_orders: "View My Orders", ck_continue_shopping: "Continue Shopping", ck_order_placed: "Order Placed!", ck_thanks: "Thank you! Your order has been received.
-Our team will confirm it shortly.", ck_questions: "Questions? Call", ck_map_first: "Please select a delivery location first", ck_pin_first: "Please drop a pin on the map first", ck_name_err: "Please enter your name", ck_phone_err: "Please enter a valid phone number", ck_loc_err: "Please enter your delivery location", ck_free_delivery: "You qualify for FREE delivery!", ck_more_free: "Add ETB {amount} more for free delivery",
+    ck_order_sum: "Order Summary", ck_contact: "Contact Information", ck_full_name: "Full Name *", ck_phone: "Phone Number *", ck_location: "Specific Location / Landmark *", ck_notes: "Notes / Sub-City", ck_continue: "Continue to Delivery Map", ck_secure: "Secure Checkout", ck_pin: "Pin Location", ck_tap_map: "Tap the map to set location", ck_locate: "Locate Me", ck_fee: "Delivery Fee", ck_select_loc: "Select location", ck_tap_any: "Tap anywhere on the map", ck_select_pin: "Select Pin", ck_final_review: "Final Review", ck_summary: "Summary", ck_payment: "Payment Method", ck_place_order: "Place Order", ck_view_orders: "View My Orders", ck_continue_shopping: "Continue Shopping", ck_order_placed: "Order Placed!", ck_thanks: "Thank you! Your order has been received.\nOur team will confirm it shortly.", ck_questions: "Questions? Call", ck_map_first: "Please select a delivery location first", ck_pin_first: "Please drop a pin on the map first", ck_name_err: "Please enter your name", ck_phone_err: "Please enter a valid phone number", ck_loc_err: "Please enter your delivery location", ck_free_delivery: "You qualify for FREE delivery!", ck_more_free: "Add ETB {amount} more for free delivery",
     o_orders: "My Orders",
     ck_rev: "Order Review", ck_del: "Delivery Information", ck_pm: "Payment Method",
     f_nm: "Full Name *", f_ph: "Phone Number *", f_sc: "Sub-City", f_loc: "Specific Location *", f_not: "Delivery Notes",
@@ -1367,8 +1411,7 @@ Our team will confirm it shortly.", ck_questions: "Questions? Call", ck_map_firs
     c_cart: "ዘንቢል", c_empty: "ዘንቢልዎ ባዶ ነው", c_empty_p: "ለልጅዎ የሚሆኑ ምርጥ እቃዎችን ይመልከቱ!",
     c_start: "ገበያ ጀምር",
     c_fd_prog: "የነፃ መላኪያ ሂደት", c_sub: "ድምር", c_df: "የመላኪያ ክፍያ", c_tot: "አጠቃላይ ክፍያ", c_co: "ወደ ክፍያ",
-    ck_order_sum: "የትዕዛዝ ማጠቃለያ", ck_contact: "የአድራሻ መረጃ", ck_full_name: "ሙሉ ስም *", ck_phone: "ስልክ ቁጥር *", ck_location: "ትክክለኛ ቦታ / መለያ *", ck_notes: "ማስታወሻ / ክፍለ ከተማ", ck_continue: "ወደ ካርታ ይቀጥሉ", ck_secure: "ደህንነቱ የተጠበቀ ክፍያ", ck_pin: "ፒን ያስቀምጡ", ck_tap_map: "ቦታዎን ለማስቀመጥ ካርታውን ይንኩ", ck_locate: "እኔን አግኝ", ck_fee: "የመላኪያ ክፍያ", ck_select_loc: "ቦታ ይምረጡ", ck_tap_any: "በካርታው ላይ የትም ይንኩ", ck_select_pin: "ፒን ይምረጡ", ck_final_review: "የመጨረሻ እይታ", ck_summary: "ማጠቃለያ", ck_payment: "የክፍያ ዘዴ", ck_place_order: "ትዕዛዝ ያስገቡ", ck_view_orders: "ትዕዛዞቼን አሳይ", ck_continue_shopping: "ግብይት ይቀጥሉ", ck_order_placed: "ትዕዛዝ ተላከ!", ck_thanks: "እናመሰግናለን! ትዕዛዝዎን ተቀብለናል.
-ቡድናችን በቅርቡ ያረጋግጣል.", ck_questions: "ጥያቄ አለዎት? ይደውሉ", ck_map_first: "እባክዎ በመጀመሪያ የመላኪያ ቦታ ይምረጡ", ck_pin_first: "እባክዎ መጀመሪያ በካርታው ላይ ፒን ያድርጉ", ck_name_err: "እባክዎ ስምዎን ያስገቡ", ck_phone_err: "እባክዎ ትክክለኛ ስልክ ቁጥር ያስገቡ", ck_loc_err: "እባክዎ የመላኪያ ቦታዎን ያስገቡ", ck_free_delivery: "ነፃ መላኪያ ብቁ ነዎት!", ck_more_free: "ነፃ መላኪያ ለማግኘት ETB {amount} ተጨማሪ ያክሉ",
+    ck_order_sum: "የትዕዛዝ ማጠቃለያ", ck_contact: "የአድራሻ መረጃ", ck_full_name: "ሙሉ ስም *", ck_phone: "ስልክ ቁጥር *", ck_location: "ትክክለኛ ቦታ / መለያ *", ck_notes: "ማስታወሻ / ክፍለ ከተማ", ck_continue: "ወደ ካርታ ይቀጥሉ", ck_secure: "ደህንነቱ የተጠበቀ ክፍያ", ck_pin: "ፒን ያስቀምጡ", ck_tap_map: "ቦታዎን ለማስቀመጥ ካርታውን ይንኩ", ck_locate: "እኔን አግኝ", ck_fee: "የመላኪያ ክፍያ", ck_select_loc: "ቦታ ይምረጡ", ck_tap_any: "በካርታው ላይ የትም ይንኩ", ck_select_pin: "ፒን ይምረጡ", ck_final_review: "የመጨረሻ እይታ", ck_summary: "ማጠቃለያ", ck_payment: "የክፍያ ዘዴ", ck_place_order: "ትዕዛዝ ያስገቡ", ck_view_orders: "ትዕዛዞቼን አሳይ", ck_continue_shopping: "ግብይት ይቀጥሉ", ck_order_placed: "ትዕዛዝ ተላከ!", ck_thanks: "እናመሰግናለን! ትዕዛዝዎን ተቀብለናል.\nቡድናችን በቅርቡ ያረጋግጣል.", ck_questions: "ጥያቄ አለዎት? ይደውሉ", ck_map_first: "እባክዎ በመጀመሪያ የመላኪያ ቦታ ይምረጡ", ck_pin_first: "እባክዎ መጀመሪያ በካርታው ላይ ፒን ያድርጉ", ck_name_err: "እባክዎ ስምዎን ያስገቡ", ck_phone_err: "እባክዎ ትክክለኛ ስልክ ቁጥር ያስገቡ", ck_loc_err: "እባክዎ የመላኪያ ቦታዎን ያስገቡ", ck_free_delivery: "ነፃ መላኪያ ብቁ ነዎት!", ck_more_free: "ነፃ መላኪያ ለማግኘት ETB {amount} ተጨማሪ ያክሉ",
     o_orders: "የእኔ ትዕዛዞች",
     ck_rev: "የትዕዛዝ ግምገማ", ck_del: "የመላኪያ መረጃ", ck_pm: "የክፍያ ዘዴ",
     f_nm: "ሙሉ ስም *", f_ph: "ስልክ ቁጥር *", f_sc: "ክፍለ ከተማ", f_loc: "ልዩ ቦታ *", f_not: "ተጨማሪ መረጃ",
