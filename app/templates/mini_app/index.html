@@ -120,7 +120,7 @@ ul{list-style:none}
 
 /* HOME BANNER */
 .banner{background:linear-gradient(135deg,var(--g),var(--gm));padding:20px 16px 28px;position:relative;overflow:hidden}
-.banner::after{content:'??';position:absolute;right:-10px;top:-10px;font-size:7rem;opacity:.12;transform:rotate(20deg)}
+.banner::after{content:'*';position:absolute;right:-10px;top:-10px;font-size:7rem;opacity:.12;transform:rotate(20deg)}
 .banner .greet{color:rgba(255,255,255,.8);font-size:.85rem;margin-bottom:2px}
 .banner h1{color:#fff;font-size:1.25rem;font-weight:800}
 .banner p{color:rgba(255,255,255,.75);font-size:.82rem;margin-top:4px}
@@ -252,7 +252,7 @@ ul{list-style:none}
 @keyframes sovi{from{opacity:0}to{opacity:1}}
 .sheet{width:100%;max-height:85vh;background:var(--sf);border-radius:var(--rl) var(--rl) 0 0;overflow-y:auto;animation:shu .3s var(--spr)}
 .sh-img-wrap{position:relative;cursor:zoom-in}
-.sh-img-wrap::after{content:'?? Tap to zoom';position:absolute;bottom:10px;left:10px;background:rgba(26,26,46,.75);color:#fff;padding:6px 10px;border-radius:999px;font-size:.7rem;font-weight:700}
+.sh-img-wrap::after{content:'Tap to zoom';position:absolute;bottom:10px;left:10px;background:rgba(26,26,46,.75);color:#fff;padding:6px 10px;border-radius:999px;font-size:.7rem;font-weight:700}
 .img-lightbox{position:fixed;inset:0;background:rgba(10,12,18,.92);display:none;align-items:center;justify-content:center;z-index:260;padding:18px}
 .img-lightbox.on{display:flex}
 .img-lightbox img{max-width:100%;max-height:100%;object-fit:contain;border-radius:16px;box-shadow:0 16px 40px rgba(0,0,0,.35)}
@@ -434,7 +434,7 @@ ul{list-style:none}
 .sh-premium-cta{display:block;width:100%;background:linear-gradient(135deg,#7C3AED,#9F4AFF);color:#fff;border-radius:100px;padding:12px;font-size:.85rem;font-weight:800;margin-top:10px;cursor:pointer;border:none}
 /* ME TAB — sub-navigation */
 .me-hdr{background:linear-gradient(135deg,var(--g),var(--gm));padding:16px 16px 20px;position:relative;overflow:hidden}
-.me-hdr::after{content:'??';position:absolute;right:-10px;top:-10px;font-size:7rem;opacity:.08}
+.me-hdr::after{content:'*';position:absolute;right:-10px;top:-10px;font-size:7rem;opacity:.08}
 .me-av{width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.25);border:2px solid rgba(255,255,255,.5);display:flex;align-items:center;justify-content:center;font-size:1.4rem;font-weight:900;color:#fff;flex-shrink:0}
 .me-info .me-name{color:#fff;font-weight:800;font-size:1rem}
 .me-info .me-status{color:rgba(255,255,255,.75);font-size:.75rem}
@@ -465,7 +465,7 @@ ul{list-style:none}
       <img src="/static/images/liyu_kids_mart_logo.png" alt="Liyu Kids Mart" style="height: 56px; width: auto; max-width: none; border-radius: 8px; object-fit: contain;">
     </div>
     <div class="hdr-acts">
-      <button class="hdr-btn" id="langBtn" style="font-weight:bold;font-size:0.9rem;border:1px solid rgba(255,255,255,0.3)" onclick="toggleLang()">??</button>
+      <button class="hdr-btn" id="langBtn" style="font-weight:bold;font-size:0.9rem;border:1px solid rgba(255,255,255,0.3)" onclick="toggleLang()">AM</button>
       <button class="hdr-btn" onclick="showTab('tab-cart')">
         <i class="fas fa-shopping-bag"></i>
         <span class="hdr-bdg" id="hdrBdg">0</span>
@@ -474,7 +474,7 @@ ul{list-style:none}
   </header>
   <div style="overflow-y:auto;flex:1" id="homeScroll">
     <div class="banner">
-      <div class="greet">?? Hello, <span id="hname">there</span>!</div>
+      <div class="greet">Hello, <span id="hname">there</span>!</div>
       <h1 data-i18n="h_find">Find the Perfect Toy</h1>
       <p data-i18n="h_sub">Ethiopia\'s premier educational toy store</p>
     </div>
@@ -569,7 +569,7 @@ ul{list-style:none}
 <div id="tab-me" class="tab">
   <div class="me-hdr" id="meHdr">
     <div style="display:flex;align-items:center;gap:12px;position:relative;z-index:1">
-      <div class="me-av" id="meAv">??</div>
+      <div class="me-av" id="meAv">U</div>
       <div class="me-info" style="flex:1">
         <div class="me-name" id="meName">My Account</div>
         <div class="me-status" id="meStatus">Loading...</div>
@@ -580,8 +580,8 @@ ul{list-style:none}
     </div>
   </div>
   <div class="me-subtabs">
-    <button class="me-stab on" id="stab-rewards" onclick="switchMeTab('rewards')">?? Rewards</button>
-    <button class="me-stab" id="stab-orders" onclick="switchMeTab('orders')">?? My Orders</button>
+    <button class="me-stab on" id="stab-rewards" onclick="switchMeTab('rewards')">Rewards</button>
+    <button class="me-stab" id="stab-orders" onclick="switchMeTab('orders')">My Orders</button>
   </div>
   <!-- Rewards Section -->
   <div class="me-section on" id="me-sec-rewards">
@@ -592,10 +592,10 @@ ul{list-style:none}
       <div class="rwd-prog-labels"><span id="rwdProgLow"></span><span id="rwdProgHigh"></span></div>
     </div>
     <div class="rwd-stats-grid">
-      <div class="rwd-stat"><div class="rwd-stat-ico">??</div><div class="rwd-stat-val" id="rwdSavings">ETB 0</div><div class="rwd-stat-lbl">Total Saved</div></div>
-      <div class="rwd-stat"><div class="rwd-stat-ico">??</div><div class="rwd-stat-val" id="rwdOrders">0</div><div class="rwd-stat-lbl">Total Orders</div></div>
-      <div class="rwd-stat"><div class="rwd-stat-ico">??</div><div class="rwd-stat-val" id="rwdAchCount">0</div><div class="rwd-stat-lbl">Achievements</div></div>
-      <div class="rwd-stat"><div class="rwd-stat-ico">??</div><div class="rwd-stat-val" id="rwdSpent">ETB 0</div><div class="rwd-stat-lbl">Lifetime Spent</div></div>
+      <div class="rwd-stat"><div class="rwd-stat-ico">S</div><div class="rwd-stat-val" id="rwdSavings">ETB 0</div><div class="rwd-stat-lbl">Total Saved</div></div>
+      <div class="rwd-stat"><div class="rwd-stat-ico">O</div><div class="rwd-stat-val" id="rwdOrders">0</div><div class="rwd-stat-lbl">Total Orders</div></div>
+      <div class="rwd-stat"><div class="rwd-stat-ico">A</div><div class="rwd-stat-val" id="rwdAchCount">0</div><div class="rwd-stat-lbl">Achievements</div></div>
+      <div class="rwd-stat"><div class="rwd-stat-ico">P</div><div class="rwd-stat-val" id="rwdSpent">ETB 0</div><div class="rwd-stat-lbl">Lifetime Spent</div></div>
     </div>
     <div id="rwdNextUnlock"></div>
     <div class="rwd-section-title"><i class="fas fa-trophy" style="color:#F59E0B"></i> Achievements</div>
@@ -945,7 +945,7 @@ function addCart(id,name,price,img,qty=1){
     
     // Only toast if a NEW discount rule (threshold/tier) is applied
     if (newBreakdowns > prevBreakdowns && newTotal > 0) {
-      showRewardToast('?? Discount unlocked! You save ETB ' + Math.round(newTotal).toLocaleString() + ' on this order!');
+      showRewardToast('Discount unlocked! You save ETB ' + Math.round(newTotal).toLocaleString() + ' on this order!');
     }
     
     // Update Popup details
@@ -1029,7 +1029,7 @@ function pcard(p,v='grid'){
   const bdgs=[p.is_new_arrival?'<span class="bpill bnew">New</span>':'',
     p.compare_price>p.price?'<span class="bpill bsale">Sale</span>':'',
     p.sales_count>20?'<span class="bpill bhot">Hot</span>':'',
-    isPremium?'<span class="bpill" style="background:linear-gradient(135deg,#7C3AED,#C084FC);color:#fff">?? Premium</span>':'',
+    isPremium?'<span class="bpill" style="background:linear-gradient(135deg,#7C3AED,#C084FC);color:#fff">Premium</span>':'',
     qtyEligBadge].filter(Boolean).join('');
   const priceHTML=isLaunchLocked
     ?'<div class="pcard-price" style="color:#7C3AED;font-size:.78rem">ETB ***</div>'
@@ -1056,7 +1056,7 @@ function pcard(p,v='grid'){
         <i class="fas fa-heart"></i></button>
       <img src="${p.primary_image}" alt="${esc(n)}" class="pcard-img"
            loading="lazy" decoding="async" onerror="this.src='/static/images/placeholder.png'"/>
-      ${isLocked?`<div class="ppremium"><div class="ppremium-ico">??</div><div class="ppremium-label">${lockLvlName} Tier</div></div>`:''}
+      ${isLocked?`<div class="ppremium"><div class="ppremium-ico">P</div><div class="ppremium-label">${lockLvlName} Tier</div></div>`:''}
       <div class="pcard-body">
         <div class="age-bdg">${p.age_label||''}</div>
         <div class="pcard-name">${n}</div>
@@ -1096,7 +1096,7 @@ function openSheet(pJson){
   document.getElementById('shName').textContent=n;
   // Price display
   if(priceHidden&&isLocked){
-    document.getElementById('shPrice').innerHTML='<span style="color:#7C3AED;font-size:1rem;font-weight:900">?? Price unlocks at '+lockLvlName+'</span>';
+    document.getElementById('shPrice').innerHTML='<span style="color:#7C3AED;font-size:1rem;font-weight:900">Price unlocks at '+lockLvlName+'</span>';
     document.getElementById('shCmp').style.display='none';
   } else {
     document.getElementById('shPrice').textContent=isLaunchLocked?'ETB ***':'ETB '+Math.round(p.price).toLocaleString();
@@ -1111,15 +1111,15 @@ function openSheet(pJson){
   const premBlock=document.getElementById('shPremiumBlock');
   if(isPremium&&isLocked){
     premBlock.innerHTML=`<div class="sh-premium-block">
-      <div class="sh-premium-title">?? Premium Product</div>
+      <div class="sh-premium-title">Premium Product</div>
       <div class="sh-premium-sub">Reach <strong>${lockLvlName}</strong> tier to unlock purchasing & full details.</div>
-      <button class="sh-premium-cta" onclick="closeSheet();showTab('tab-rewards')">View My Rewards Progress ?</button>
+      <button class="sh-premium-cta" onclick="closeSheet();showTab('tab-rewards')">View My Rewards Progress -></button>
     </div>`;
   } else premBlock.innerHTML='';
   // CTA button
   const btn=document.getElementById('shAdd');
   if(isLocked){
-    btn.innerHTML='?? Unlock at '+lockLvlName+' Tier';
+    btn.innerHTML='Unlock at '+lockLvlName+' Tier';
     btn.disabled=false;
     btn.onclick=()=>{closeSheet();showTab('tab-rewards');};
     btn.style.background='linear-gradient(135deg,#7C3AED,#9F4AFF)';
@@ -1132,7 +1132,7 @@ function openSheet(pJson){
   const bdg=document.getElementById('shBdgs');
   bdg.innerHTML=(p.is_new_arrival?'<span class="bpill bnew">New</span>':'')+
     (p.compare_price>p.price?'<span class="bpill bsale">Sale</span>':'')+
-    (isPremium?'<span class="bpill" style="background:linear-gradient(135deg,#7C3AED,#C084FC);color:#fff">?? Premium</span>':'');
+    (isPremium?'<span class="bpill" style="background:linear-gradient(135deg,#7C3AED,#C084FC);color:#fff">Premium</span>':'');
   document.getElementById('sov').classList.add('on'); hap();
 }
 function closeSheet(){closeImageLightbox();document.getElementById('sov').classList.remove('on');shProd=null;}
@@ -1326,16 +1326,17 @@ const i18n = {
     nav_home: "Home", nav_shop: "Shop", nav_ai: "Liyu AI", nav_cart: "Cart", nav_orders: "Orders",
     h_find: "Find the Perfect Toy", h_sub: "Ethiopia's premier educational toy store",
     h_age: "Shop by Age", a_u1: "Under 1yr", a_13: "1 - 3 yrs", a_37: "3 - 7 yrs", a_7p: "7+ yrs", a_all: "All Ages",
-    c_cats: "?? Categories", c_feat: "? Featured", c_new: "? New Arrivals", c_best: "?? Best Sellers",
+    c_cats: "🗂 Categories", c_feat: "⭐ Featured", c_new: "✨ New Arrivals", c_best: "🔥 Best Sellers",
     see_all: "See all",
     s_shop: "Shop", s_srch: "Search toys, Montessori…", s_all: "All",
-    s_pop: "?? Popular", s_newest: "? Newest", s_asc: "Price ?", s_desc: "Price ?",
+    s_pop: "🔥 Popular", s_newest: "✨ Newest", s_asc: "Price ↑", s_desc: "Price ↓",
     l_more: "Load More",
     ai_online: "Online & ready to help", ai_ask: "Ask Liyu anything…",
     c_cart: "Cart", c_empty: "Your cart is empty", c_empty_p: "Browse our products and add something for your little one!",
     c_start: "Start Shopping",
     c_fd_prog: "Free Delivery Progress", c_sub: "Subtotal", c_df: "Delivery fee", c_tot: "Total", c_co: "Checkout Now",
-    ck_order_sum: "Order Summary", ck_contact: "Contact Information", ck_full_name: "Full Name *", ck_phone: "Phone Number *", ck_location: "Specific Location / Landmark *", ck_notes: "Notes / Sub-City", ck_continue: "Continue to Delivery Map", ck_secure: "Secure Checkout", ck_pin: "Pin Location", ck_tap_map: "Tap the map to set location", ck_locate: "Locate Me", ck_fee: "Delivery Fee", ck_select_loc: "Select location", ck_tap_any: "Tap anywhere on the map", ck_select_pin: "Select Pin", ck_final_review: "Final Review", ck_summary: "Summary", ck_payment: "Payment Method", ck_place_order: "Place Order", ck_view_orders: "View My Orders", ck_continue_shopping: "Continue Shopping", ck_order_placed: "Order Placed!", ck_thanks: "Thank you! Your order has been received.\nOur team will confirm it shortly.", ck_questions: "Questions? Call", ck_map_first: "Please select a delivery location first", ck_pin_first: "Please drop a pin on the map first", ck_name_err: "Please enter your name", ck_phone_err: "Please enter a valid phone number", ck_loc_err: "Please enter your delivery location", ck_free_delivery: "You qualify for FREE delivery!", ck_more_free: "Add ETB {amount} more for free delivery",
+    ck_order_sum: "Order Summary", ck_contact: "Contact Information", ck_full_name: "Full Name *", ck_phone: "Phone Number *", ck_location: "Specific Location / Landmark *", ck_notes: "Notes / Sub-City", ck_continue: "Continue to Delivery Map", ck_secure: "Secure Checkout", ck_pin: "Pin Location", ck_tap_map: "Tap the map to set location", ck_locate: "Locate Me", ck_fee: "Delivery Fee", ck_select_loc: "Select location", ck_tap_any: "Tap anywhere on the map", ck_select_pin: "Select Pin", ck_final_review: "Final Review", ck_summary: "Summary", ck_payment: "Payment Method", ck_place_order: "Place Order", ck_view_orders: "View My Orders", ck_continue_shopping: "Continue Shopping", ck_order_placed: "Order Placed!", ck_thanks: "Thank you! Your order has been received.
+Our team will confirm it shortly.", ck_questions: "Questions? Call", ck_map_first: "Please select a delivery location first", ck_pin_first: "Please drop a pin on the map first", ck_name_err: "Please enter your name", ck_phone_err: "Please enter a valid phone number", ck_loc_err: "Please enter your delivery location", ck_free_delivery: "You qualify for FREE delivery!", ck_more_free: "Add ETB {amount} more for free delivery",
     o_orders: "My Orders",
     ck_rev: "Order Review", ck_del: "Delivery Information", ck_pm: "Payment Method",
     f_nm: "Full Name *", f_ph: "Phone Number *", f_sc: "Sub-City", f_loc: "Specific Location *", f_not: "Delivery Notes",
@@ -1343,46 +1344,47 @@ const i18n = {
     p_tb: "TeleBirr", p_tb_s: "Pay via TeleBirr — send money & upload receipt",
     p_tb_number: "Send to: +251 91 162 3758", p_tb_name: "Martha Aynalem",
     p_tb_instr: "Send the total amount to the number above, then upload your receipt below.",
-    p_tb_upload: "Upload Payment Receipt", p_tb_uploading: "Uploading…", p_tb_done: "? Receipt uploaded",
+    p_tb_upload: "Upload Payment Receipt", p_tb_uploading: "Uploading…", p_tb_done: "✅ Receipt uploaded",
     p_tb_required: "Please upload your TeleBirr receipt before placing the order.",
     p_ch: "Chapa", p_ch_s: "Credit/Debit via Chapa",
     plc_btn: "Place Order", plc_placing: "Placing order…",
     sh_add: "+ Add", sh_out: "Out of Stock", sh_qty: "Quantity",
     empty_p: "No products found", empty_o: "No orders yet",
-    sl_pen: "? Pending", sl_con: "? Confirmed", sl_pac: "?? Packed", sl_out: "?? On the Way", sl_del: "?? Delivered", sl_can: "? Cancelled", sl_ret: "?? Returned",
+    sl_pen: "⏳ Pending", sl_con: "✅ Confirmed", sl_pac: "📦 Packed", sl_out: "🚚 On the Way", sl_del: "🎉 Delivered", sl_can: "❌ Cancelled", sl_ret: "↩️ Returned",
     ai_q1: "Toy for 2yr old", ai_q2: "Under 500 ETB", ai_q3: "Montessori", ai_q4: "My cart", ai_q5: "Gift ideas",
     c_qty_disc: "Multi-Buy Discount"
   },
   am: {
-    nav_home: "?? ??", nav_shop: "???", nav_ai: "?? AI", nav_cart: "????", nav_orders: "?????",
-    h_find: "??? ???? ???", h_sub: "???? ????? ???? ??????",
-    h_age: "???? ????", a_u1: "?1 ??? ???", a_13: "1 - 3 ???", a_37: "3 - 7 ???", a_7p: "7+ ???", a_all: "???",
-    c_cats: "????", c_feat: "????", c_new: "????", c_best: "????",
-    see_all: "???? ??",
-    s_shop: "???", s_srch: "????? ????...", s_all: "???",
-    s_pop: "????", s_newest: "???", s_asc: "?? ?", s_desc: "?? ?",
-    l_more: "???? ???",
-    ai_online: "????? ??? ??", ai_ask: "??? ????...",
-    c_cart: "????", c_empty: "????? ?? ??", c_empty_p: "???? ???? ??? ????? ?????!",
-    c_start: "??? ???",
-    c_fd_prog: "??? ???? ???", c_sub: "???", c_df: "????? ???", c_tot: "????? ???", c_co: "?? ???",
-    ck_order_sum: "????? ?????", ck_contact: "????? ???", ck_full_name: "?? ?? *", ck_phone: "??? ??? *", ck_location: "????? ?? / ??? *", ck_notes: "????? / ??? ???", ck_continue: "?? ??? ????", ck_secure: "????? ????? ???", ck_pin: "?? ?????", ck_tap_map: "???? ?????? ????? ???", ck_locate: "??? ???", ck_fee: "????? ???", ck_select_loc: "?? ????", ck_tap_any: "????? ?? ??? ???", ck_select_pin: "?? ????", ck_final_review: "????? ???", ck_summary: "?????", ck_payment: "???? ??", ck_place_order: "???? ????", ck_view_orders: "?????? ???", ck_continue_shopping: "???? ????", ck_order_placed: "???? ???!", ck_thanks: "????????! ?????? ??????.\n????? ???? ??????.", ck_questions: "??? ????? ????", ck_map_first: "???? ?????? ????? ?? ????", ck_pin_first: "???? ????? ????? ?? ?? ????", ck_name_err: "???? ???? ????", ck_phone_err: "???? ????? ??? ??? ????", ck_loc_err: "???? ????? ???? ????", ck_free_delivery: "?? ???? ?? ???!", ck_more_free: "?? ???? ????? ETB {amount} ???? ???",
-    o_orders: "??? ?????",
-    ck_rev: "????? ????", ck_del: "????? ???", ck_pm: "???? ??",
-    f_nm: "?? ?? *", f_ph: "??? ??? *", f_sc: "??? ???", f_loc: "?? ?? *", f_not: "???? ???",
-    p_cod: "??? ???? ???", p_cod_s: "????? ???? ????",
-    p_tb: "????", p_tb_s: "????? ???? — ???? ?? ?? ???? ????",
-    p_tb_number: "???? ???: +251 91 162 3758", p_tb_name: "??? ?????",
-    p_tb_instr: "????? ????? ?? ?? ?? ?????? ??? ???? ???? ?????? ??? ?????",
-    p_tb_upload: "???? ??? ????", p_tb_uploading: "????? ??…", p_tb_done: "? ???? ????",
-    p_tb_required: "???? ??????? ??? ???? ????? ?????? ?????",
-    p_ch: "??", p_ch_s: "???? ??? ???? ????",
-    plc_btn: "???? ????", plc_placing: "???? ????? ??…",
-    sh_add: "+ ???", sh_out: "????", sh_qty: "???",
-    empty_p: "??? ?? ??????", empty_o: "??? ???? ?????",
-    sl_pen: "? ?????? ??", sl_con: "? ??????", sl_pac: "?? ????", sl_out: "?? ????? ??", sl_del: "?? ????", sl_can: "? ?????", sl_ret: "?? ?????",
-    ai_q1: "? 2 ??? ?? ????", ai_q2: "? 500 ?? ???", ai_q3: "?????", ai_q4: "???? ???", ai_q5: "???? ????",
-    c_qty_disc: "?? ??? ???"
+    nav_home: "ዋና ገጽ", nav_shop: "ገበያ", nav_ai: "ልዩ AI", nav_cart: "ዘንቢል", nav_orders: "ትዕዛዞች",
+    h_find: "ምርጥ መጫወቻ ያግኙ", h_sub: "የልጆች እድገትን የሚረዱ መጫወቻዎች",
+    h_age: "በእድሜ ይፈልጉ", a_u1: "ከ1 ዓመት በታች", a_13: "1 - 3 ዓመት", a_37: "3 - 7 ዓመት", a_7p: "7+ ዓመት", a_all: "ሁሉም",
+    c_cats: "ምድቦች", c_feat: "ተመራጭ", c_new: "አዳዲስ", c_best: "ተወዳጅ",
+    see_all: "ሁሉንም እይ",
+    s_shop: "ገበያ", s_srch: "ምርቶችን ይፈልጉ...", s_all: "ሁሉም",
+    s_pop: "ተወዳጅ", s_newest: "አዲስ", s_asc: "ዋጋ ↑", s_desc: "ዋጋ ↓",
+    l_more: "ተጨማሪ አሳይ",
+    ai_online: "ለመርዳት ዝግጁ ነኝ", ai_ask: "ሊዩን ይጠይቁ...",
+    c_cart: "ዘንቢል", c_empty: "ዘንቢልዎ ባዶ ነው", c_empty_p: "ለልጅዎ የሚሆኑ ምርጥ እቃዎችን ይመልከቱ!",
+    c_start: "ገበያ ጀምር",
+    c_fd_prog: "የነፃ መላኪያ ሂደት", c_sub: "ድምር", c_df: "የመላኪያ ክፍያ", c_tot: "አጠቃላይ ክፍያ", c_co: "ወደ ክፍያ",
+    ck_order_sum: "የትዕዛዝ ማጠቃለያ", ck_contact: "የአድራሻ መረጃ", ck_full_name: "ሙሉ ስም *", ck_phone: "ስልክ ቁጥር *", ck_location: "ትክክለኛ ቦታ / መለያ *", ck_notes: "ማስታወሻ / ክፍለ ከተማ", ck_continue: "ወደ ካርታ ይቀጥሉ", ck_secure: "ደህንነቱ የተጠበቀ ክፍያ", ck_pin: "ፒን ያስቀምጡ", ck_tap_map: "ቦታዎን ለማስቀመጥ ካርታውን ይንኩ", ck_locate: "እኔን አግኝ", ck_fee: "የመላኪያ ክፍያ", ck_select_loc: "ቦታ ይምረጡ", ck_tap_any: "በካርታው ላይ የትም ይንኩ", ck_select_pin: "ፒን ይምረጡ", ck_final_review: "የመጨረሻ እይታ", ck_summary: "ማጠቃለያ", ck_payment: "የክፍያ ዘዴ", ck_place_order: "ትዕዛዝ ያስገቡ", ck_view_orders: "ትዕዛዞቼን አሳይ", ck_continue_shopping: "ግብይት ይቀጥሉ", ck_order_placed: "ትዕዛዝ ተላከ!", ck_thanks: "እናመሰግናለን! ትዕዛዝዎን ተቀብለናል.
+ቡድናችን በቅርቡ ያረጋግጣል.", ck_questions: "ጥያቄ አለዎት? ይደውሉ", ck_map_first: "እባክዎ በመጀመሪያ የመላኪያ ቦታ ይምረጡ", ck_pin_first: "እባክዎ መጀመሪያ በካርታው ላይ ፒን ያድርጉ", ck_name_err: "እባክዎ ስምዎን ያስገቡ", ck_phone_err: "እባክዎ ትክክለኛ ስልክ ቁጥር ያስገቡ", ck_loc_err: "እባክዎ የመላኪያ ቦታዎን ያስገቡ", ck_free_delivery: "ነፃ መላኪያ ብቁ ነዎት!", ck_more_free: "ነፃ መላኪያ ለማግኘት ETB {amount} ተጨማሪ ያክሉ",
+    o_orders: "የእኔ ትዕዛዞች",
+    ck_rev: "የትዕዛዝ ግምገማ", ck_del: "የመላኪያ መረጃ", ck_pm: "የክፍያ ዘዴ",
+    f_nm: "ሙሉ ስም *", f_ph: "ስልክ ቁጥር *", f_sc: "ክፍለ ከተማ", f_loc: "ልዩ ቦታ *", f_not: "ተጨማሪ መረጃ",
+    p_cod: "በጥሬ ገንዘብ ክፈሉ", p_cod_s: "ትዕዛዝዎ ሲደርስ ይክፈሉ",
+    p_tb: "ቴሌብር", p_tb_s: "በቴሌብር ይክፈሉ — ገንዘብ ላኩ እና ደረሰኝ ያቅርቡ",
+    p_tb_number: "ወደዚህ ይላኩ: +251 91 162 3758", p_tb_name: "ማርታ አይናለም",
+    p_tb_instr: "አጠቃላይ ክፍያውን ወደ ላይ ወደ ተዘረዘረው ቁጥር ይላኩ፤ ከዚያም ደረሰኝዎን ከታች ያቅርቡ።",
+    p_tb_upload: "ደረሰኝ ስዕል ያስገቡ", p_tb_uploading: "እየተጫነ ነው…", p_tb_done: "✅ ደረሰኝ ተጭኗል",
+    p_tb_required: "ትዕዛዝ ከማስቀመጥዎ በፊት እባክዎ የቴሌብር ደረሰኝዎን ያቅርቡ።",
+    p_ch: "ቻፓ", p_ch_s: "በካርድ ወይም በባንክ ይክፈሉ",
+    plc_btn: "ትዕዛዝ ያስገቡ", plc_placing: "ትዕዛዝ እየተላከ ነው…",
+    sh_add: "+ ጨምር", sh_out: "አልቋል", sh_qty: "ብዛት",
+    empty_p: "ምንም እቃ አልተገኘም", empty_o: "ምንም ትዕዛዝ የለዎትም",
+    sl_pen: "⏳ በመጠባበቅ ላይ", sl_con: "✅ ተረጋግጧል", sl_pac: "📦 ታሽጎል", sl_out: "🚚 በመንገድ ላይ", sl_del: "🎉 ደርሷል", sl_can: "❌ ተሰርዟል", sl_ret: "↩️ ተመልሷል",
+    ai_q1: "ለ 2 ዓመት ልጅ መጫወቻ", ai_q2: "ከ 500 ብር በታች", ai_q3: "ሞንቴሶሪ", ai_q4: "ዘንቢሌ ውስጥ", ai_q5: "የስጦታ ሀሳቦች",
+    c_qty_disc: "ብዙ ስጦት ቅናሽ"
   }
 }
 let curLang = localStorage.getItem('lkm_lang') || 'en';
@@ -1393,7 +1395,7 @@ function setLang(l) {
   curLang = l;
   localStorage.setItem('lkm_lang', l);
   const btn = document.getElementById('langBtn');
-  if(btn) btn.textContent = l === 'en' ? '??' : 'EN';
+  if(btn) btn.textContent = l === 'en' ? 'AM' : 'EN';
   
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const k = el.dataset.i18n;
@@ -1531,7 +1533,7 @@ function renderCart(){
   const body=document.getElementById('cartBody');
   if(!cart.length){
     body.innerHTML=`<div class="empty-cart">
-      <div class="ei">??</div><h3 data-i18n="c_empty">Your cart is empty</h3>
+      <div class="ei">Cart</div><h3 data-i18n="c_empty">Your cart is empty</h3>
       <p data-i18n="c_empty_p">Browse our products and add something for your little one!</p>
       <button class="empty-cart-btn" onclick="showTab('tab-shop')">?? ${tr("c_start")}</button>
     </div>`;
