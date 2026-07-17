@@ -131,6 +131,19 @@ def _sort_products(products, sort, order=''):
     return sorted(products, key=lambda p: p.created_at or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
 
 
+def _default_products_query(*, category_id=None, featured=False, new_arrival=False):
+    query = Product.query.filter_by(is_active=True).options(selectinload(Product.category), selectinload(Product.min_loyalty_level))
+    if category_id:
+        category_ids = _collect_category_ids(category_id)
+        if category_ids:
+            query = query.filter(Product.category_id.in_(category_ids))
+    if featured:
+        query = query.filter(Product.is_featured == True)  # noqa: E712
+    if new_arrival:
+        query = query.filter(Product.is_new_arrival == True)  # noqa: E712
+    return query
+
+
 @api_bp.route('/products')
 def get_products():
     page = request.args.get('page', 1, type=int)
@@ -144,33 +157,72 @@ def get_products():
     max_price = request.args.get('max_price', 99999, type=float)
     q_str = request.args.get('q', '').strip().lower()
 
-    all_products = (
-        Product.query.filter_by(is_active=True)
-        .options(selectinload(Product.category), selectinload(Product.min_loyalty_level))
-        .all()
-    )
-    filtered = _filter_products(
-        all_products,
+    settings = _get_settings()
+    qty_min_price = float(getattr(settings, 'qty_discount_min_price', 2500))
+
+    if q_str:
+        all_products = (
+            Product.query.filter_by(is_active=True)
+            .options(selectinload(Product.category), selectinload(Product.min_loyalty_level))
+            .all()
+        )
+        filtered = _filter_products(
+            all_products,
+            category_id=category_id,
+            featured=featured in ('True', 'true', '1'),
+            new_arrival=new_arrival in ('True', 'true', '1'),
+            min_price=min_price,
+            max_price=max_price,
+            q_str=q_str,
+        )
+        sorted_products = sorted(filtered, key=lambda product: (-_search_score(product, q_str), -(product.sales_count or 0), -(product.view_count or 0), product.id))
+        total = len(sorted_products)
+        pages = max(1, ceil(total / per_page)) if per_page else 1
+        start = max(0, (page - 1) * per_page)
+        end = start + per_page
+        page_items = sorted_products[start:end]
+        prime_product_image_lookup(page_items)
+        return success_response({
+            'products': [p.to_card_dict(qty_discount_min_price=qty_min_price) for p in page_items],
+            'total': total,
+            'pages': pages,
+            'page': page,
+        })
+
+    query = _default_products_query(
         category_id=category_id,
         featured=featured in ('True', 'true', '1'),
         new_arrival=new_arrival in ('True', 'true', '1'),
-        min_price=min_price,
-        max_price=max_price,
-        q_str=q_str,
     )
-    if q_str:
-        sorted_products = sorted(filtered, key=lambda product: (-_search_score(product, q_str), -(product.sales_count or 0), -(product.view_count or 0), product.id))
-    else:
-        sorted_products = _sort_products(filtered, sort, order)
-    total = len(sorted_products)
-    pages = max(1, ceil(total / per_page)) if per_page else 1
-    start = max(0, (page - 1) * per_page)
-    end = start + per_page
-    page_items = sorted_products[start:end]
-    prime_product_image_lookup(page_items)
 
-    settings = _get_settings()
-    qty_min_price = float(getattr(settings, 'qty_discount_min_price', 2500))
+    if sort in ('price', 'price_asc', 'price_desc') or (sort == 'asc' and order != 'desc') or (sort == 'desc' and order != 'asc'):
+        all_products = query.all()
+        filtered = _filter_products(
+            all_products,
+            category_id=category_id,
+            featured=featured in ('True', 'true', '1'),
+            new_arrival=new_arrival in ('True', 'true', '1'),
+            min_price=min_price,
+            max_price=max_price,
+            q_str='',
+        )
+        sorted_products = _sort_products(filtered, sort, order)
+        total = len(sorted_products)
+        pages = max(1, ceil(total / per_page)) if per_page else 1
+        start = max(0, (page - 1) * per_page)
+        end = start + per_page
+        page_items = sorted_products[start:end]
+    else:
+        if sort in ('bestselling', 'sales_count', 'popular'):
+            query = query.order_by(Product.sales_count.desc(), Product.created_at.desc(), Product.id.desc())
+        else:
+            query = query.order_by(Product.created_at.desc(), Product.id.desc())
+        total = query.count()
+        pages = max(1, ceil(total / per_page)) if per_page else 1
+        start = max(0, (page - 1) * per_page)
+        page_items = query.offset(start).limit(per_page).all()
+
+    prime_product_image_lookup(page_items)
 
     return success_response({
         'products': [p.to_card_dict(qty_discount_min_price=qty_min_price) for p in page_items],

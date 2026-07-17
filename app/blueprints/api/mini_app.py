@@ -8,13 +8,13 @@ from flask import request
 from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
 from app.blueprints.api import api_bp
 from app.extensions import db
-from app.models.product import Product
+from app.models.product import Product, Category, prime_product_image_lookup
 from app.models.order import (Cart, Order, OrderItem, Address,
                                OrderStatus, PaymentMethod)
 from app.models.user import User, UserRole
 from app.utils import success_response, error_response, generate_order_number
 from app.services.order_notifications import notify_store_managers
-from app.services.loyalty_service import calculate_loyalty_discount, process_order_rewards, is_store_launch_locked, get_store_launch_state
+from app.services.loyalty_service import calculate_loyalty_discount, process_order_rewards, is_store_launch_locked, get_store_launch_state, _get_settings
 
 
 def _resolve_mini_app_user():
@@ -62,6 +62,54 @@ def shop_init():
     user = _resolve_mini_app_user()
     _log_activity('mini_app_visit', user_id=getattr(user, 'id', None))
     return success_response(get_store_launch_state())
+
+
+@api_bp.route('/mini-app/bootstrap', methods=['GET'])
+def mini_app_bootstrap():
+    # Shared initial payload for the mini app home/store views.
+    from sqlalchemy.orm import selectinload
+
+    settings = _get_settings()
+    qty_min_price = float(getattr(settings, 'qty_discount_min_price', 2500))
+
+    categories = []
+    if getattr(settings, 'show_categories_in_mini_app', True):
+        categories = [
+            {
+                'id': c.id,
+                'name': c.name,
+                'icon': c.icon,
+                'icon_url': c.icon_url,
+                'slug': c.slug,
+            }
+            for c in Category.query.filter_by(is_active=True, parent_id=None).order_by(Category.sort_order).all()
+        ]
+
+    featured = Product.query.filter_by(is_featured=True, is_active=True).options(selectinload(Product.category), selectinload(Product.min_loyalty_level)).order_by(Product.sales_count.desc(), Product.created_at.desc()).limit(8).all()
+    new_arrivals = Product.query.filter_by(is_new_arrival=True, is_active=True).options(selectinload(Product.category), selectinload(Product.min_loyalty_level)).order_by(Product.created_at.desc(), Product.id.desc()).limit(8).all()
+    best_sellers = Product.query.filter_by(is_active=True).options(selectinload(Product.category), selectinload(Product.min_loyalty_level)).order_by(Product.sales_count.desc(), Product.created_at.desc()).limit(6).all()
+    shop_products = Product.query.filter_by(is_active=True).options(selectinload(Product.category), selectinload(Product.min_loyalty_level)).order_by(Product.sales_count.desc(), Product.created_at.desc(), Product.id.desc()).limit(12).all()
+
+    prime_product_image_lookup([*featured, *new_arrivals, *best_sellers, *shop_products])
+    total = Product.query.filter_by(is_active=True).count()
+    pages = max(1, (total + 12 - 1) // 12)
+
+    return success_response({
+        'categories': categories,
+        'featured': [p.to_card_dict(qty_discount_min_price=qty_min_price) for p in featured],
+        'new_arrivals': [p.to_card_dict(qty_discount_min_price=qty_min_price) for p in new_arrivals],
+        'best_sellers': [p.to_card_dict(qty_discount_min_price=qty_min_price) for p in best_sellers],
+        'shop_page': {
+            'products': [p.to_card_dict(qty_discount_min_price=qty_min_price) for p in shop_products],
+            'total': total,
+            'pages': pages,
+            'page': 1,
+            'has_more': total > 12,
+            'sort': 'bestselling',
+            'order': 'desc',
+            'per_page': 12,
+        },
+    })
 
 
 @api_bp.route('/mini-app/track', methods=['POST'])
