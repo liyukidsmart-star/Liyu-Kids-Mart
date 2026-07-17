@@ -695,6 +695,7 @@ let aiSid=localStorage.getItem('lkm_s')||gid(); localStorage.setItem('lkm_s',aiS
 let shProd=null, shQty=1;
 let spg=1,scat=0,ssort='popular',sq='',sHasMore=false,sDbt=null,sAll=[],sLoading=false,sObserver=null,sReqCtrl=null,sCache=new Map();
 let miniAppVisibility={show_categories_in_mini_app:true,show_age_filter_in_mini_app:true};
+let miniBootstrap=null, miniBootstrapPromise=null;
 
 function gid(){return Math.random().toString(36).slice(2)+Date.now().toString(36);}
 
@@ -1054,10 +1055,9 @@ function loadMiniBootstrap(){
 }
 
 function warmMiniApp(){
-  loadMiniBootstrap().catch(()=>{});
-  loadHomeCats().catch(()=>{});
-  loadHomeSections().catch(()=>{});
-  loadShop(true);
+  // Fire bootstrap first, then let section loaders await it
+  const bootP = loadMiniBootstrap().catch(()=>{});
+  bootP.then(()=>{ loadHomeCats().catch(()=>{}); loadHomeSections().catch(()=>{}); loadShop(true); });
 }
 
 function esc(s){return s.replace(/'/g,"\\'").replace(/"/g,'&quot;');}
@@ -1194,41 +1194,44 @@ function shAddCart(){if(!shProd)return;addCart(shProd.id,shProd.name,shProd.pric
 /* -- Home: Categories --------------------------- */
 async function loadHomeCats(){
   try{
-    if(miniBootstrap?.categories?.length){
-      const cats = miniBootstrap.categories;
-      document.getElementById('homeCats').innerHTML=cats.map(c=>`<div class="cgitem" onclick="shopCat(${c.id});showTab('tab-shop')">
-          <div class="cg-ico">${c.icon||'??'}</div><div class="cg-name">${c.name}</div></div>`).join('');
+    const boot = await loadMiniBootstrap();
+    if(boot?.categories?.length){
+      const cats = boot.categories;
+      document.getElementById('homeCats').innerHTML=cats.length
+        ?cats.map(c=>`<div class="cgitem" onclick="shopCat(${c.id});showTab('tab-shop')">
+          <div class="cg-ico">${c.icon||'🛍'}</div><div class="cg-name">${c.name}</div></div>`).join('')
+        :'';
       const row=document.getElementById('shopCats');
       row.innerHTML='<button class="chip on" data-id="0" onclick="shopCat(0,this)" data-i18n="s_all">All</button>';
       cats.forEach(c=>{const b=document.createElement('button');b.className='chip';b.dataset.id=c.id;
-        b.textContent=(c.icon||'??')+' '+c.name;b.onclick=()=>shopCat(c.id,b);row.appendChild(b);});
+        b.textContent=(c.icon||'🛍')+' '+c.name;b.onclick=()=>shopCat(c.id,b);row.appendChild(b);});
       return;
     }
-    loadMiniBootstrap().catch(()=>{});
     const d=await fetchJsonWithTimeout('/api/v1/categories', {}, 5000);
     const fallbackCats=(d.data||[]);
     document.getElementById('homeCats').innerHTML=fallbackCats.length
       ?fallbackCats.map(c=>`<div class="cgitem" onclick="shopCat(${c.id});showTab('tab-shop')">
-          <div class="cg-ico">${c.icon||'??'}</div><div class="cg-name">${c.name}</div></div>`).join('')
+          <div class="cg-ico">${c.icon||'🛍'}</div><div class="cg-name">${c.name}</div></div>`).join('')
       :'';
     const row=document.getElementById('shopCats');
     row.innerHTML='<button class="chip on" data-id="0" onclick="shopCat(0,this)" data-i18n="s_all">All</button>';
     fallbackCats.forEach(c=>{const b=document.createElement('button');b.className='chip';b.dataset.id=c.id;
-      b.textContent=(c.icon||'??')+' '+c.name;b.onclick=()=>shopCat(c.id,b);row.appendChild(b);});
+      b.textContent=(c.icon||'🛍')+' '+c.name;b.onclick=()=>shopCat(c.id,b);row.appendChild(b);});
   }catch{document.getElementById('homeCats').innerHTML='';}
 }
 
 /* -- Home: Sections ----------------------------- */
 async function loadHomeSections(){
   try{
-    if(miniBootstrap?.featured?.length || miniBootstrap?.new_arrivals?.length || miniBootstrap?.best_sellers?.length){
-      const fp=miniBootstrap.featured||[], np=miniBootstrap.new_arrivals||[], bp=miniBootstrap.best_sellers||[];
+    const boot = await loadMiniBootstrap();
+    if(boot?.featured?.length || boot?.new_arrivals?.length || boot?.best_sellers?.length){
+      const fp=boot.featured||[], np=boot.new_arrivals||[], bp=boot.best_sellers||[];
       document.getElementById('featRow').innerHTML=fp.length?fp.map(p=>pcard(p,'h')).join(''):'<div class="empty"><p>No featured products</p></div>';
       document.getElementById('newRow').innerHTML=np.length?np.map(p=>pcard(p,'h')).join(''):'<div class="empty"><p>No new arrivals</p></div>';
       document.getElementById('homeGrid').innerHTML=bp.length?bp.map(p=>pcard(p)).join(''):'<div class="empty" style="grid-column:span 2"><p>No products</p></div>';
       return;
     }
-    loadMiniBootstrap().catch(()=>{});
+    // Bootstrap returned nothing — fall back to individual requests
     const [fd,nd,bd] = await Promise.allSettled([
       fetchJsonWithTimeout('/api/v1/products?featured=true&per_page=8', {}, 8000),
       fetchJsonWithTimeout('/api/v1/products?new_arrival=true&per_page=8', {}, 8000),
@@ -1300,24 +1303,26 @@ async function loadShop(reset=false){
   }
 
   if(reset){
-    if(miniBootstrap?.shop_page?.products && url === '/api/v1/products?page=1&per_page=12&sort=bestselling&order=desc'){
-      sAll=[...miniBootstrap.shop_page.products];
-      sHasMore=!!miniBootstrap.shop_page.has_more;
-      grid.innerHTML=sAll.length?sAll.map(p=>pcard(p)).join(''):'<div class="empty" style="grid-column:span 2"><div class="ei">??</div><p>No products found</p></div>';
+    // Check cache first (instant)
+    if(sCache.has(url)){
+      const cached=sCache.get(url);
+      sAll=[...cached.products]; sHasMore=cached.hasMore;
+      grid.innerHTML=sAll.length?sAll.map(p=>pcard(p)).join(''):'<div class="empty" style="grid-column:span 2"><div class="ei">🛍</div><p>No products found</p></div>';
+      document.getElementById('lmbtn').style.display=sHasMore?'block':'none';
+      setupShopObserver();
+      return;
+    }
+    // Await bootstrap (already in-flight, resolves fast)
+    const boot = await loadMiniBootstrap();
+    if(boot?.shop_page?.products && url === '/api/v1/products?page=1&per_page=12&sort=bestselling&order=desc'){
+      sAll=[...boot.shop_page.products];
+      sHasMore=!!boot.shop_page.has_more;
+      grid.innerHTML=sAll.length?sAll.map(p=>pcard(p)).join(''):'<div class="empty" style="grid-column:span 2"><div class="ei">🛍</div><p>No products found</p></div>';
       document.getElementById('lmbtn').style.display=sHasMore?'block':'none';
       sCache.set(url,{products:[...sAll],hasMore:sHasMore});
       setupShopObserver();
       return;
     }
-    if(sCache.has(url)){
-      const cached=sCache.get(url);
-      sAll=[...cached.products]; sHasMore=cached.hasMore;
-      grid.innerHTML=sAll.length?sAll.map(p=>pcard(p)).join(''):'<div class="empty" style="grid-column:span 2"><div class="ei">??</div><p>No products found</p></div>';
-      document.getElementById('lmbtn').style.display=sHasMore?'block':'none';
-      setupShopObserver();
-      return;
-    }
-    loadMiniBootstrap().catch(()=>{});
   }
 
   if(sReqCtrl) sReqCtrl.abort();
@@ -1373,16 +1378,18 @@ function shopClear(){
 async function init(){
   if(TGU?.first_name)document.getElementById('hname').textContent=TGU.first_name;
   updBdg();
-  await auth();
-  try{
-    const launchRes = await fetch('/api/v1/shop/init');
-    const launchData = await launchRes.json();
-    if(launchData.success){
-      applyLaunchState(launchData.data);
-      applyMiniAppVisibility(launchData.data);
-    }
-  }catch{}
-  // Load loyalty profile early so product cards can use it and global bar can render
+
+  // Fire bootstrap immediately so it's in-flight while auth runs
+  loadMiniBootstrap().catch(()=>{});
+
+  // Run auth and shop/init concurrently — don't block product loading on auth
+  const authP = auth();
+  fetch('/api/v1/shop/init')
+    .then(r=>r.json())
+    .then(d=>{ if(d.success){ applyLaunchState(d.data); applyMiniAppVisibility(d.data); } })
+    .catch(()=>{});
+
+  // Load loyalty profile non-blocking
   const profUrl = TGID ? '/api/v1/loyalty/profile?telegram_id='+TGID : '/api/v1/loyalty/profile';
   fetch(profUrl)
     .then(r=>r.json()).then(d=>{
@@ -1392,14 +1399,17 @@ async function init(){
       }
     }).catch(()=>{});
 
+  // Start warming the UI immediately (bootstrap already in-flight)
   const intent = getStartupIntent();
   if(intent.productId){
     const handled = await openStartParamTarget(intent);
     setTimeout(() => warmMiniApp(), handled ? 300 : 0);
+    await authP;
     return;
   }
 
-  setTimeout(() => warmMiniApp(), 0);
+  warmMiniApp();
+  await authP;
   await openStartParamTarget(intent);
 }
 
