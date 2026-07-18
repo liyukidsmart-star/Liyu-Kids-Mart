@@ -64,8 +64,19 @@ def shop_init():
     return success_response(get_store_launch_state())
 
 
-@api_bp.route('/mini-app/bootstrap', methods=['GET'])
+import time
+
+_BOOTSTRAP_CACHE = {
+    'data': None,
+    'expires_at': 0
+}
+
 def get_mini_app_bootstrap_data():
+    global _BOOTSTRAP_CACHE
+    now = time.time()
+    if _BOOTSTRAP_CACHE['data'] and now < _BOOTSTRAP_CACHE['expires_at']:
+        return _BOOTSTRAP_CACHE['data']
+
     from sqlalchemy.orm import selectinload
     settings = _get_settings()
     qty_min_price = float(getattr(settings, 'qty_discount_min_price', 2500))
@@ -92,7 +103,7 @@ def get_mini_app_bootstrap_data():
     total = Product.query.filter_by(is_active=True).count()
     pages = max(1, (total + 200 - 1) // 200)
 
-    return {
+    payload = {
         'categories': categories,
         'featured': [p.to_card_dict(qty_discount_min_price=qty_min_price) for p in featured],
         'new_arrivals': [p.to_card_dict(qty_discount_min_price=qty_min_price) for p in new_arrivals],
@@ -108,6 +119,10 @@ def get_mini_app_bootstrap_data():
             'per_page': 200,
         },
     }
+    
+    _BOOTSTRAP_CACHE['data'] = payload
+    _BOOTSTRAP_CACHE['expires_at'] = now + 60  # 60 seconds TTL
+    return payload
 
 @api_bp.route('/mini-app/bootstrap', methods=['GET'])
 def mini_app_bootstrap():
