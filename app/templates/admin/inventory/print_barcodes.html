@@ -188,19 +188,29 @@
 
 /* ── PRINT MEDIA ── */
 @media print {
-  body { margin:0; padding:0; }
-  body > *:not(#printRoot) { display:none!important; }
-  #printRoot { display:block!important; }
+  body { margin:0; padding:0; background:#fff; }
+  /* Hide everything except the preview pages */
+  .lbl-page > *:first-child { display:none!important; }
+  .preview-panel { background:none!important; padding:0!important; box-shadow:none!important; border-radius:0!important; min-height:0!important; }
+  .preview-panel h5 { display:none!important; }
+  .page-badge { display:none!important; }
+  .preview-pages { gap:0!important; display:block!important; }
+  /* A4 sheet exact dimensions */
   .a4-sheet {
     width:210mm!important; height:297mm!important; max-width:none!important;
     margin:0!important; padding:7mm 6mm!important;
     box-shadow:none!important; border-radius:0!important;
     aspect-ratio:auto!important; overflow:hidden!important;
     page-break-after:always!important;
+    display:flex!important; flex-direction:column!important;
   }
-  .label-grid { height:281mm!important; }
+  .label-grid {
+    height:281mm!important;
+    align-content:start!important;
+  }
   .label-card { page-break-inside:avoid; }
-  .preview-wrap, .preview-pages { display:block!important; background:none!important; padding:0!important; }
+  /* Admin chrome */
+  nav, header, .sidebar, footer, .navbar, .topbar, .breadcrumb { display:none!important; }
 }
 </style>
 {% endblock %}
@@ -334,7 +344,7 @@
 </div>
 
 <!-- Hidden print root -->
-<div id="printRoot" style="display:none;"></div>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -439,20 +449,17 @@ function _build() {
 
   const emptyDiv  = document.getElementById('emptyState');
   const pagesDiv  = document.getElementById('previewPages');
-  const printRoot = document.getElementById('printRoot');
 
   if (totalLabels === 0) {
     emptyDiv.style.display = '';
     pagesDiv.style.display = 'none';
     pagesDiv.innerHTML = '';
-    printRoot.innerHTML = '';
     return;
   }
 
   emptyDiv.style.display = 'none';
   pagesDiv.style.display = '';
   pagesDiv.innerHTML = '';
-  printRoot.innerHTML = '';
 
   for (let pg = 0; pg < totalPages; pg++) {
     const chunk = labels.slice(pg * perPage, (pg + 1) * perPage);
@@ -466,14 +473,9 @@ function _build() {
     const sheet = buildSheet(chunk, cfg, showStore, showPrice, showSku, showImg);
     wrapper.appendChild(sheet);
     pagesDiv.appendChild(wrapper);
-
-    // Print root: only the sheets (no badge)
-    const printSheet = buildSheet(chunk, cfg, showStore, showPrice, showSku, showImg);
-    printRoot.appendChild(printSheet);
   }
 
   renderQr(pagesDiv, cfg);
-  renderQr(printRoot, cfg);
 }
 
 function buildSheet(labels, cfg, showStore, showPrice, showSku, showImg) {
@@ -562,7 +564,8 @@ function renderQr(root, cfg) {
 }
 
 window.addEventListener('beforeprint', () => {
-  renderQr(document.getElementById('printRoot'), SIZES[activeSz]);
+  // Re-render any not-yet-rendered QR codes in the visible preview
+  renderQr(document.getElementById('previewPages'), SIZES[activeSz]);
 });
 </script>
 {% endblock %}
