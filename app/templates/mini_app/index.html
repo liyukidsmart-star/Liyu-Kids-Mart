@@ -1462,14 +1462,15 @@ async function init(){
 
   // Start warming the UI immediately (bootstrap already in-flight)
   const intent = getStartupIntent();
+  
+  warmMiniApp(); // instantly render home page in the background
+  
   if(intent.productId){
-    const handled = await openStartParamTarget(intent);
-    setTimeout(() => warmMiniApp(), handled ? 300 : 0);
+    await openStartParamTarget(intent);
     await authP;
     return;
   }
 
-  warmMiniApp();
   await authP;
   await openStartParamTarget(intent);
 }
