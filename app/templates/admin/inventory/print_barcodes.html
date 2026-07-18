@@ -322,11 +322,16 @@
       <div class="sum-item"><div class="sum-num" id="totalPages">0</div><div class="sum-lbl">Pages</div></div>
     </div>
 
-    <button class="print-btn" onclick="window.print()" id="printBtn" disabled>
-      <i class="fas fa-print"></i> Print / Save PDF
-    </button>
+    <div style="display:flex; gap:10px; margin-top:14px;">
+      <button class="print-btn" onclick="downloadPDF()" id="downloadBtn" disabled style="flex:1;">
+        <i class="fas fa-file-pdf"></i> Download PDF
+      </button>
+      <button class="print-btn" onclick="window.print()" id="printBtn" disabled style="flex:1; background:linear-gradient(135deg,#3b82f6,#2563eb);">
+        <i class="fas fa-print"></i> Print
+      </button>
+    </div>
     <p class="text-center text-muted mt-2" style="font-size:.75rem;">
-      In print dialog → Paper: A4 · Margins: None · Scale: 100%
+      For print dialog → Paper: A4 · Margins: None · Scale: 100%
     </p>
   </div>
 
@@ -338,17 +343,18 @@
       <p>Select products to preview labels</p>
       <p style="font-size:.8rem;color:#b0b7c3;">Labels are auto-generated based on stock quantity</p>
     </div>
-    <div id="previewPages" class="preview-pages" style="display:none;"></div>
+    <div id="previewWrap" style="background:#fff;">
+      <div id="previewPages" class="preview-pages" style="display:none;"></div>
+    </div>
   </div>
 
 </div>
 
-<!-- Hidden print root -->
-
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script>
 const BOT_USERNAME = "{{ bot_username }}";
 const SHORT_NAME   = "{{ short_name }}";
@@ -446,6 +452,7 @@ function _build() {
   document.getElementById('totalLabels').textContent = totalLabels;
   document.getElementById('totalPages').textContent  = totalPages;
   document.getElementById('printBtn').disabled       = totalLabels === 0;
+  document.getElementById('downloadBtn').disabled    = totalLabels === 0;
 
   const emptyDiv  = document.getElementById('emptyState');
   const pagesDiv  = document.getElementById('previewPages');
@@ -553,31 +560,52 @@ function renderQr(root, cfg) {
     const pid = div.dataset.qrId;
     div.innerHTML = '';
     try {
-      new QRCode(div, {
-        text: buildQrUrl(pid),
-        width: cfg.qr, height: cfg.qr,
-        colorDark: '#0f2318', colorLight: '#ffffff',
-        correctLevel: QRCode.CorrectLevel.M,
+      const qr = new QRious({
+        value: buildQrUrl(pid),
+        size: cfg.qr * 2, // 2x resolution for print sharpness
+        level: 'M',
+        foreground: '#0f2318',
+        background: '#ffffff'
       });
-      // Convert canvas to image to fix PDF/Print dialog crashes
-      setTimeout(() => {
-        const cvs = div.querySelector('canvas');
-        if (cvs) {
-          const img = document.createElement('img');
-          img.src = cvs.toDataURL('image/png');
-          img.style.width = '100%';
-          img.style.height = '100%';
-          div.innerHTML = '';
-          div.appendChild(img);
-        }
-      }, 50);
+      const img = document.createElement('img');
+      img.src = qr.toDataURL('image/png');
+      img.style.width = '100%';
+      img.style.height = '100%';
+      div.appendChild(img);
     } catch(e) { div.textContent = pid; }
   });
 }
 
-window.addEventListener('beforeprint', () => {
-  // Re-render any not-yet-rendered QR codes in the visible preview
-  renderQr(document.getElementById('previewPages'), SIZES[activeSz]);
-});
+function downloadPDF() {
+  const element = document.getElementById('previewPages');
+  const btn = document.getElementById('downloadBtn');
+  const ogText = btn.innerHTML;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating PDF...';
+  btn.disabled = true;
+
+  // Temporarily hide page badges for clean PDF output
+  const badges = element.querySelectorAll('.page-badge');
+  badges.forEach(b => b.style.display = 'none');
+
+  const opt = {
+    margin:       0,
+    filename:     'Liyu_Kids_Mart_Labels.pdf',
+    image:        { type: 'jpeg', quality: 1.0 },
+    html2canvas:  { scale: 2, useCORS: true, logging: false },
+    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  };
+
+  html2pdf().set(opt).from(element).save().then(() => {
+    btn.innerHTML = ogText;
+    btn.disabled = false;
+    badges.forEach(b => b.style.display = ''); // restore badges
+  }).catch(err => {
+    console.error(err);
+    alert('Failed to generate PDF. Please try the Print button instead.');
+    btn.innerHTML = ogText;
+    btn.disabled = false;
+    badges.forEach(b => b.style.display = '');
+  });
+}
 </script>
 {% endblock %}
