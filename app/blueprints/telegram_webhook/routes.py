@@ -131,7 +131,12 @@ def status():
 # -- MINI APP --
 @telegram_bp.route('/mini-app')
 def mini_app():
-    return render_template('mini_app/index.html')
+    from app.blueprints.api.mini_app import get_mini_app_bootstrap_data
+    try:
+        initial_bootstrap = get_mini_app_bootstrap_data()
+    except Exception as e:
+        initial_bootstrap = None
+    return render_template('mini_app/index.html', initial_bootstrap=initial_bootstrap)
 
 
 @telegram_bp.route('/mini-app/api/products')

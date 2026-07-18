@@ -65,10 +65,8 @@ def shop_init():
 
 
 @api_bp.route('/mini-app/bootstrap', methods=['GET'])
-def mini_app_bootstrap():
-    # Shared initial payload for the mini app home/store views.
+def get_mini_app_bootstrap_data():
     from sqlalchemy.orm import selectinload
-
     settings = _get_settings()
     qty_min_price = float(getattr(settings, 'qty_discount_min_price', 2500))
 
@@ -94,7 +92,7 @@ def mini_app_bootstrap():
     total = Product.query.filter_by(is_active=True).count()
     pages = max(1, (total + 12 - 1) // 12)
 
-    return success_response({
+    return {
         'categories': categories,
         'featured': [p.to_card_dict(qty_discount_min_price=qty_min_price) for p in featured],
         'new_arrivals': [p.to_card_dict(qty_discount_min_price=qty_min_price) for p in new_arrivals],
@@ -109,7 +107,12 @@ def mini_app_bootstrap():
             'order': 'desc',
             'per_page': 12,
         },
-    })
+    }
+
+@api_bp.route('/mini-app/bootstrap', methods=['GET'])
+def mini_app_bootstrap():
+    # Shared initial payload for the mini app home/store views.
+    return success_response(get_mini_app_bootstrap_data())
 
 
 @api_bp.route('/mini-app/track', methods=['POST'])
