@@ -8,15 +8,20 @@
   window.__INITIAL_BOOTSTRAP__ = {{ (initial_bootstrap | tojson | safe) if initial_bootstrap else 'null' }};
 </script>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
-<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'"/>
+<noscript><link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/></noscript>
+
+<link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'"/>
+<noscript><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet"/></noscript>
+
 <link rel="preconnect" href="https://api.telegram.org" crossorigin/>
 <link rel="dns-prefetch" href="https://api.telegram.org"/>
 <link rel="preconnect" href="https://liyu-kids-mart.liyukidsmart.workers.dev" crossorigin/>
 <link rel="dns-prefetch" href="https://liyu-kids-mart.liyukidsmart.workers.dev"/>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.4/dist/confetti.browser.min.js"></script>
+
+<script defer src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.4/dist/confetti.browser.min.js"></script>
 <style>
 :root{
   --g:#2D6A4F;--gm:#40916C;--gl:#74C69D;--gp:#D8F3DC;
@@ -2246,6 +2251,53 @@ async function ckUpdateLocation(lat,lng){
   }
 }
 
+async function loadLeaflet() {
+  if (window.L) return;
+  return new Promise(r => {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+    document.head.appendChild(link);
+    const s = document.createElement('script');
+    s.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+    s.onload = r;
+    document.head.appendChild(s);
+  });
+}
+
+async function initCkMap(){
+  if(ckMap)return;
+  await loadLeaflet();
+  setTimeout(()=>{
+    const el=document.getElementById('ckMap');
+    if(!el)return;
+    ckMap=L.map('ckMap',{zoomControl:false}).setView([9.02,38.76],12);
+    L.control.zoom({position:'topleft'}).addTo(ckMap);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{
+      attribution:'© OSM © CARTO',subdomains:'abcd',maxZoom:20
+    }).addTo(ckMap);
+    const sdEl=document.createElement('div');
+    sdEl.className='ck-store-dot';
+    L.marker([CK_STORE_LAT,CK_STORE_LNG],{
+      icon:L.divIcon({className:'',html:sdEl.outerHTML,iconSize:[16,16],iconAnchor:[8,8]})
+    }).addTo(ckMap).bindPopup('<b style="color:#2D6A4F">🏫 Liyu Kids Mart</b>');
+    ckMap.on('click',e=>ckSetPin(e.latlng));
+    // Auto-locate
+    if(navigator.geolocation){
+      navigator.geolocation.getCurrentPosition(
+        pos=>{
+          const lat=pos.coords.latitude, lng=pos.coords.longitude;
+          ckMap.setView([lat,lng],14,{animate:true});
+          ckSetPin(L.latLng(lat,lng));
+        },
+        ()=>{},
+        {timeout:6000}
+      );
+    }
+    ckMap.invalidateSize();
+  },150);
+}
+
 function ckSetPin(latlng){
   if(!ckMap)return;
   if(ckMarker){ckMarker.setLatLng(latlng);}else{
@@ -2711,7 +2763,7 @@ async function openTrackModal(orderNumber){
     document.body.appendChild(modal);
     
     // Load leaflet for track map  
-    if(!window.L) await new Promise(r=>{const s=document.createElement('script');s.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';s.onload=r;document.head.appendChild(s);});
+    await loadLeaflet();
     
     setTimeout(()=>{
       trackMap=L.map('trackMap',{zoomControl:false,attributionControl:false}).setView([CK_STORE_LAT,CK_STORE_LNG],14);
