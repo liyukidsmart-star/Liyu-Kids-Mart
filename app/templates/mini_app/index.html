@@ -1070,7 +1070,7 @@ function _applyBootstrap(data){
   if(!data) return;
   miniBootstrap = data;
   if(data.shop_page?.products){
-    sCache.set('/api/v1/products?page=1&per_page=12&sort=bestselling&order=desc', {
+    sCache.set('/api/v1/products?page=1&per_page=200&sort=bestselling&order=desc', {
       products: data.shop_page.products,
       hasMore: !!data.shop_page.has_more,
     });
@@ -1354,7 +1354,7 @@ async function loadShop(reset=false){
   const grid=document.getElementById('shopGrid');
   if(reset)grid.innerHTML='<div class="ldr" style="grid-column:span 2"><div class="spin"></div></div>';
   const isSearchMode=Boolean(sq && sq.length>=2);
-  let url=isSearchMode?('/api/v1/products/search?q='+encodeURIComponent(sq)+'&limit=24'):'/api/v1/products?page='+spg+'&per_page=12';
+  let url=isSearchMode?('/api/v1/products/search?q='+encodeURIComponent(sq)+'&limit=24'):'/api/v1/products?page='+spg+'&per_page=200';
   if(!isSearchMode){
     if(scat)url+='&category_id='+scat;
     if(ssort==='new')url+='&sort=created_at&order=desc';
@@ -1375,7 +1375,7 @@ async function loadShop(reset=false){
     }
     // Await bootstrap (already in-flight, resolves fast)
     const boot = await loadMiniBootstrap();
-    if(boot?.shop_page?.products && url === '/api/v1/products?page=1&per_page=12&sort=bestselling&order=desc'){
+    if(boot?.shop_page?.products && url === '/api/v1/products?page=1&per_page=200&sort=bestselling&order=desc'){
       sAll=[...boot.shop_page.products];
       sHasMore=!!boot.shop_page.has_more;
       grid.innerHTML=sAll.length?sAll.map(p=>pcard(p)).join(''):'<div class="empty" style="grid-column:span 2"><div class="ei">🛍</div><p>No products found</p></div>';
@@ -1394,7 +1394,7 @@ async function loadShop(reset=false){
     const ps=d.data?.products||[];
     const tot=d.data?.total||0;
     sAll=reset?[...ps]:[...sAll,...ps];
-    sHasMore=!isSearchMode && sAll.length<tot;
+    sHasMore=!isSearchMode && sAll.length<tot && ps.length>0;
     if(reset)grid.innerHTML=sAll.length?sAll.map(p=>pcard(p)).join('')
       :'<div class="empty" style="grid-column:span 2"><div class="ei">??</div><p>No products found</p></div>';
     else {

@@ -86,11 +86,11 @@ def get_mini_app_bootstrap_data():
     featured = Product.query.filter_by(is_featured=True, is_active=True).options(selectinload(Product.category), selectinload(Product.min_loyalty_level)).order_by(Product.sales_count.desc(), Product.created_at.desc()).limit(8).all()
     new_arrivals = Product.query.filter_by(is_new_arrival=True, is_active=True).options(selectinload(Product.category), selectinload(Product.min_loyalty_level)).order_by(Product.created_at.desc(), Product.id.desc()).limit(8).all()
     best_sellers = Product.query.filter_by(is_active=True).options(selectinload(Product.category), selectinload(Product.min_loyalty_level)).order_by(Product.sales_count.desc(), Product.created_at.desc()).limit(6).all()
-    shop_products = Product.query.filter_by(is_active=True).options(selectinload(Product.category), selectinload(Product.min_loyalty_level)).order_by(Product.sales_count.desc(), Product.created_at.desc(), Product.id.desc()).limit(12).all()
+    shop_products = Product.query.filter_by(is_active=True).options(selectinload(Product.category), selectinload(Product.min_loyalty_level)).order_by(Product.sales_count.desc(), Product.created_at.desc(), Product.id.desc()).limit(200).all()
 
     prime_product_image_lookup([*featured, *new_arrivals, *best_sellers, *shop_products])
     total = Product.query.filter_by(is_active=True).count()
-    pages = max(1, (total + 12 - 1) // 12)
+    pages = max(1, (total + 200 - 1) // 200)
 
     return {
         'categories': categories,
@@ -102,10 +102,10 @@ def get_mini_app_bootstrap_data():
             'total': total,
             'pages': pages,
             'page': 1,
-            'has_more': total > 12,
+            'has_more': total > 200,
             'sort': 'bestselling',
             'order': 'desc',
-            'per_page': 12,
+            'per_page': 200,
         },
     }
 
