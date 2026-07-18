@@ -173,24 +173,34 @@ def inventory_set_stock():
 @admin_required
 def inventory_print_barcodes():
     """Barcode / QR code label printing page."""
-    product_id = request.args.get('product_id', type=int)
+    from app.services.image_delivery import rewrite_media_url
     products = Product.query.filter_by(is_active=True).order_by(Product.name).all()
-
-    selected_product = None
-    if product_id:
-        selected_product = db.session.get(Product, product_id)
-
     prime_product_image_lookup(products)
 
-    # Build the mini-app QR URL base
+    # Build per-product data including image URL and stock
+    product_data = []
+    for p in products:
+        img_url = ''
+        if p.primary_image:
+            raw = p.primary_image.image_url or ''
+            img_url = rewrite_media_url(raw) if raw else ''
+        product_data.append({
+            'id': p.id,
+            'name': p.name,
+            'name_am': p.name_am or p.name,
+            'price': float(p.price),
+            'sku': p.sku or f'P-{p.id}',
+            'stock': p.stock_qty or 0,
+            'img_url': img_url,
+        })
+
     mini_app_url = current_app.config.get('MINI_APP_URL', '')
     bot_username = current_app.config.get('TELEGRAM_BOT_USERNAME', 'Liyu_Kids_Mart_Bot')
     short_name = current_app.config.get('TELEGRAM_MINI_APP_SHORT_NAME', '')
 
     return render_template(
         'admin/inventory/print_barcodes.html',
-        products=products,
-        selected_product=selected_product,
+        product_data=product_data,
         mini_app_url=mini_app_url,
         bot_username=bot_username,
         short_name=short_name,

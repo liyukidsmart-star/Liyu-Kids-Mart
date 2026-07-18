@@ -1,375 +1,460 @@
 {% extends 'admin/base_admin.html' %}
-{% block title %}Print Labels — Liyu Kids Mart Admin{% endblock %}
-{% block page_title %}🏷️ Print Product Labels{% endblock %}
+{% block title %}Print QR Labels — Liyu Kids Mart Admin{% endblock %}
+{% block page_title %}🏷️ Print QR Labels{% endblock %}
 
 {% block extra_css %}
 <style>
-/* ── PRINT LABELS PAGE ── */
-.label-header { margin-bottom: 24px; }
-.label-header h2 {
-  font-size: 1.5rem; font-weight: 900;
-  background: linear-gradient(135deg,#7c3aed,#4f46e5);
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-}
+/* ── PAGE LAYOUT ── */
+.lbl-wrap { display: grid; grid-template-columns: 380px 1fr; gap: 24px; align-items: start; }
+@media(max-width:1100px){ .lbl-wrap { grid-template-columns:1fr; } }
 
-.config-panel {
-  background: white; border-radius: 16px;
-  border: 1px solid #e4eaf5; box-shadow: 0 4px 20px rgba(0,0,0,.06);
-  padding: 24px; margin-bottom: 24px;
+/* ── LEFT PANEL ── */
+.cfg-panel {
+  background:#fff; border-radius:16px;
+  border:1px solid #e4eaf5; box-shadow:0 4px 20px rgba(0,0,0,.06);
+  padding:20px; position:sticky; top:80px;
 }
-.config-panel .form-label { font-weight: 700; font-size: .85rem; color: #12172e; margin-bottom: 6px; }
+.cfg-panel h6 { font-weight:900; font-size:.95rem; margin-bottom:16px; color:#12172e; }
+.cfg-section { margin-bottom:18px; }
+.cfg-section label.lbl { font-weight:700; font-size:.82rem; color:#374151; display:block; margin-bottom:6px; }
+.cfg-panel .form-select, .cfg-panel .form-control { font-size:.88rem; border-radius:10px; }
 
-.label-preview-area {
-  background: #f0f4fc; border-radius: 16px;
-  padding: 20px; border: 1px solid #e4eaf5;
-  min-height: 400px;
+/* ── PRODUCT LIST ── */
+.prod-list { max-height:360px; overflow-y:auto; border:1px solid #e4eaf5; border-radius:12px; }
+.prod-row {
+  display:flex; align-items:center; gap:10px;
+  padding:8px 12px; border-bottom:1px solid #f0f4fc; cursor:pointer;
+  transition:.15s;
 }
-.a4-sheet {
-  background: white;
-  width: 100%; max-width: 794px;
-  margin: 0 auto;
-  aspect-ratio: 210/297;
-  border-radius: 4px;
-  box-shadow: 0 8px 40px rgba(0,0,0,.14);
-  padding: 14mm 10mm;
-  display: grid;
-  gap: 4mm;
-  box-sizing: border-box;
-  position: relative;
-  overflow: hidden;
+.prod-row:last-child { border-bottom:none; }
+.prod-row:hover { background:#f8faff; }
+.prod-row input[type=checkbox] { width:16px; height:16px; accent-color:#7c3aed; flex-shrink:0; }
+.prod-thumb {
+  width:36px; height:36px; border-radius:8px; object-fit:cover; flex-shrink:0;
+  background:#f0f4fc;
 }
+.prod-thumb-ph { width:36px; height:36px; border-radius:8px; background:#e4eaf5; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:1.1rem; }
+.prod-meta { flex:1; min-width:0; }
+.prod-meta .pname { font-weight:700; font-size:.82rem; color:#12172e; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.prod-meta .pmeta { font-size:.73rem; color:#718096; }
+.prod-stock { font-size:.78rem; font-weight:800; color:#1b4330; background:#d1fae5; border-radius:6px; padding:2px 7px; flex-shrink:0; }
 
-/* Label grid — 4 cols × 8 rows by default */
-.label-grid {
-  display: grid;
-  gap: 3mm;
-  width: 100%;
-  height: 100%;
-}
+.sel-all-row { display:flex; align-items:center; justify-content:space-between; padding:8px 12px; background:#f8faff; border-radius:10px; margin-bottom:6px; }
+.sel-all-row span { font-size:.8rem; color:#6b7280; }
 
-/* Individual label */
-.label-card {
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 3px 4px;
-  gap: 2px;
-  background: white;
-  overflow: hidden;
-  page-break-inside: avoid;
-  position: relative;
+/* ── SUMMARY BAR ── */
+.summary-bar {
+  background:linear-gradient(135deg,#7c3aed,#4f46e5); color:#fff;
+  border-radius:12px; padding:12px 16px; margin-top:14px;
+  display:flex; align-items:center; justify-content:space-between; gap:8px;
+  font-size:.85rem; font-weight:700;
 }
-.label-store-name {
-  font-size: 5px; font-weight: 900;
-  color: #1b4330; letter-spacing: .04em;
-  text-transform: uppercase; text-align: center;
-  white-space: nowrap; overflow: hidden;
-  line-height: 1;
-}
-.label-qr { width: 52px; height: 52px; flex-shrink: 0; }
-.label-qr canvas, .label-qr svg, .label-qr img { width: 100% !important; height: 100% !important; }
-.label-product-name {
-  font-size: 5.5px; font-weight: 800; text-align: center;
-  color: #12172e; line-height: 1.2;
-  max-width: 100%; overflow: hidden;
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-}
-.label-price {
-  font-size: 8px; font-weight: 900;
-  color: #1b4330; letter-spacing: .02em;
-  text-align: center;
-}
-.label-sku {
-  font-size: 4.5px; color: #9ca3af; letter-spacing: .06em;
-  text-align: center; font-family: 'Courier New', monospace;
-}
-.label-dots {
-  position: absolute; top: 0; left: 0; right: 0;
-  height: 2px; background: linear-gradient(90deg, #3d8b5f 0%, #7c3aed 100%);
-}
+.summary-bar .count { font-size:1.3rem; font-weight:900; }
 
+/* ── PRINT BUTTON ── */
 .print-btn {
-  background: linear-gradient(135deg,#7c3aed,#4f46e5);
-  color: white; border: none; border-radius: 12px;
-  padding: 12px 28px; font-size: 1rem; font-weight: 800;
-  cursor: pointer; transition: .2s;
-  display: flex; align-items: center; gap: 10px;
-  box-shadow: 0 4px 16px rgba(124,58,237,.35);
+  background:linear-gradient(135deg,#7c3aed,#4f46e5);
+  color:#fff; border:none; border-radius:12px;
+  padding:12px 24px; font-size:.95rem; font-weight:800;
+  cursor:pointer; width:100%; margin-top:14px;
+  display:flex; align-items:center; justify-content:center; gap:10px;
+  box-shadow:0 4px 16px rgba(124,58,237,.35); transition:.2s;
 }
-.print-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(124,58,237,.45); }
+.print-btn:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(124,58,237,.45); }
+.print-btn:disabled { opacity:.5; cursor:not-allowed; transform:none; }
+
+/* ── PREVIEW AREA ── */
+.preview-wrap {
+  background:#e8edf7; border-radius:16px; padding:20px;
+  min-height:500px;
+}
+.preview-wrap h6 { font-weight:900; font-size:.92rem; color:#374151; margin-bottom:14px; }
+.preview-pages { display:flex; flex-direction:column; gap:24px; }
+
+/* ── LABEL SHEET (A4) ── */
+.a4-sheet {
+  background:#fff; width:100%; max-width:794px; margin:0 auto;
+  aspect-ratio:210/297; border-radius:4px;
+  box-shadow:0 8px 40px rgba(0,0,0,.14);
+  padding:10mm 8mm; box-sizing:border-box;
+  display:flex; flex-direction:column;
+  page-break-after:always;
+}
+.label-grid {
+  display:grid; width:100%; height:100%; gap:2.5mm;
+  align-content:start;
+}
+
+/* ── INDIVIDUAL LABEL ── */
+.label-card {
+  border:1px solid #d1d5db; border-radius:4px;
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  padding:3px 3px; gap:1px;
+  background:#fff; overflow:hidden;
+  page-break-inside:avoid; position:relative;
+}
+.label-bg-img {
+  position:absolute; inset:0; width:100%; height:100%;
+  object-fit:cover; opacity:0.07; pointer-events:none;
+  border-radius:3px;
+}
+.label-accent { position:absolute; top:0; left:0; right:0; height:2px; background:linear-gradient(90deg,#3d8b5f,#7c3aed); }
+.label-store { font-size:4.5px; font-weight:900; color:#1b4330; text-align:center; text-transform:uppercase; letter-spacing:.04em; line-height:1; position:relative; z-index:1; }
+.label-qr { flex-shrink:0; position:relative; z-index:1; }
+.label-qr canvas, .label-qr svg, .label-qr img { width:100% !important; height:100% !important; display:block; }
+.label-name { font-size:5px; font-weight:800; text-align:center; color:#12172e; line-height:1.2; max-width:100%; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; position:relative; z-index:1; }
+.label-price { font-size:7px; font-weight:900; color:#1b4330; text-align:center; position:relative; z-index:1; }
+.label-sku { font-size:4px; color:#9ca3af; font-family:'Courier New',monospace; text-align:center; position:relative; z-index:1; }
 
 /* ── PRINT STYLES ── */
 @media print {
-  body * { visibility: hidden !important; }
-  .a4-sheet, .a4-sheet * { visibility: visible !important; }
+  body > *:not(#printRoot) { display:none !important; }
+  #printRoot { display:block !important; }
   .a4-sheet {
-    position: fixed !important;
-    top: 0 !important; left: 0 !important;
-    width: 210mm !important; height: 297mm !important;
-    max-width: none !important;
-    margin: 0 !important; padding: 8mm 6mm !important;
-    box-shadow: none !important; border-radius: 0 !important;
-    aspect-ratio: auto !important;
-    overflow: visible !important;
+    width:210mm !important; height:297mm !important; max-width:none !important;
+    margin:0 !important; padding:8mm 6mm !important;
+    box-shadow:none !important; border-radius:0 !important;
+    aspect-ratio:auto !important; overflow:hidden !important;
+    page-break-after:always !important;
   }
-  .label-card { page-break-inside: avoid; }
+  .label-grid { height:100% !important; }
+  .label-card { page-break-inside:avoid; }
+  .preview-wrap, .preview-pages { display:block !important; background:none !important; padding:0 !important; }
+  #printRoot { padding:0 !important; margin:0 !important; }
 }
+
+.empty-preview { text-align:center; padding:60px 0; color:#9ca3af; }
+.empty-preview .icon { font-size:3.5rem; margin-bottom:12px; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="label-header">
-  <h2>🏷️ Print Product Labels</h2>
-  <p class="text-muted mb-0" style="font-size:.88rem;">Configure and print beautiful QR labels for your products. Print on A4, cut, and attach to products.</p>
-</div>
+<div class="lbl-wrap">
 
-<div class="row g-4">
-  <!-- Config Panel -->
-  <div class="col-lg-4">
-    <div class="config-panel">
-      <h6 class="fw-900 mb-3" style="font-size:.95rem;">⚙️ Label Configuration</h6>
+  <!-- ── LEFT CONFIG PANEL ── -->
+  <div class="cfg-panel">
+    <h6>⚙️ Label Configuration</h6>
 
-      <div class="mb-3">
-        <label class="form-label">Select Product</label>
-        <select class="form-select" id="productSelect" onchange="loadProduct()">
-          <option value="">— Choose a product —</option>
-          {% for p in products %}
-          <option value="{{ p.id }}"
-                  data-name="{{ p.name }}"
-                  data-price="{{ p.price }}"
-                  data-sku="{{ p.sku or 'P-' ~ p.id }}"
-                  {% if selected_product and selected_product.id == p.id %}selected{% endif %}>
-            {{ p.name }}
-          </option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <div class="mb-3">
-        <label class="form-label">QR Code Content</label>
-        <select class="form-select" id="qrTypeSelect" onchange="regenerate()">
-          <option value="mini_app">📱 Telegram Mini App (customers scan → product page)</option>
-          <option value="url">🌐 Web URL (direct product page)</option>
-          <option value="id_only">🔢 Product ID only (POS scan)</option>
-        </select>
-      </div>
-
-      <div class="mb-3">
-        <label class="form-label">Labels per Page</label>
-        <select class="form-select" id="labelCount" onchange="regenerate()">
-          <option value="24">24 labels (4×6) – Medium</option>
-          <option value="32" selected>32 labels (4×8) – Standard</option>
-          <option value="40">40 labels (5×8) – Small</option>
-          <option value="48">48 labels (6×8) – Tiny</option>
-        </select>
-      </div>
-
-      <div class="mb-3">
-        <label class="form-label">Show Price on Label</label>
-        <div class="form-check form-switch">
-          <input class="form-check-input" type="checkbox" id="showPrice" checked onchange="regenerate()">
-          <label class="form-check-label" for="showPrice">Include price</label>
-        </div>
-      </div>
-
-      <div class="mb-3">
-        <label class="form-label">Show Store Name</label>
-        <div class="form-check form-switch">
-          <input class="form-check-input" type="checkbox" id="showStore" checked onchange="regenerate()">
-          <label class="form-check-label" for="showStore">Liyu Kids Mart</label>
-        </div>
-      </div>
-
-      <div class="mb-4">
-        <label class="form-label">QR Error Correction</label>
-        <select class="form-select" id="qrEcc" onchange="regenerate()">
-          <option value="M" selected>Medium (M) — Recommended</option>
-          <option value="L">Low (L) — Smallest</option>
-          <option value="H">High (H) — Most robust</option>
-        </select>
-      </div>
-
-      <div id="productInfo" style="display:none;" class="mb-4 p-3 rounded-3" style="background:#f8fff8;border:1px solid #bbf7d0;">
-        <div style="font-weight:800;font-size:.92rem;" id="infoProdName"></div>
-        <div style="font-size:.82rem;color:#718096;margin-top:2px;">
-          Price: ETB <span id="infoProdPrice"></span> · SKU: <span id="infoProdSku"></span>
-        </div>
-      </div>
-
-      <button class="print-btn w-100" onclick="window.print()" id="printBtn" disabled>
-        <i class="fas fa-print"></i> Print Labels
-      </button>
-      <p class="text-muted text-center mt-2" style="font-size:.78rem;">
-        Tip: In print dialog → Paper: A4, Scale: Fit to page, No margins
-      </p>
+    <!-- QR Size -->
+    <div class="cfg-section">
+      <label class="lbl">QR Code Size</label>
+      <select class="form-select" id="qrSize" onchange="regenerate()">
+        <option value="large">Large  — 4 per row (big, easy to scan)</option>
+        <option value="medium" selected>Medium — 5 per row (standard)</option>
+        <option value="small">Small  — 6 per row (compact, more per page)</option>
+        <option value="tiny">Tiny   — 8 per row (maximum density)</option>
+      </select>
     </div>
-  </div>
 
-  <!-- Label Preview -->
-  <div class="col-lg-8">
-    <div class="label-preview-area">
-      <div id="emptyState" class="text-center py-5">
-        <div style="font-size:4rem;margin-bottom:16px;">🏷️</div>
-        <h5 style="color:#718096;font-weight:700;">Select a product to generate labels</h5>
-        <p style="color:#9ca3af;font-size:.88rem;">Choose a product from the left panel to preview the A4 label sheet.</p>
-      </div>
-      <div id="sheetWrapper" style="display:none;">
-        <div class="a4-sheet" id="a4Sheet">
-          <div class="label-grid" id="labelGrid"></div>
-        </div>
+    <!-- QR Type -->
+    <div class="cfg-section">
+      <label class="lbl">QR Code Links To</label>
+      <select class="form-select" id="qrType" onchange="regenerate()">
+        <option value="mini_app">📱 Telegram Mini App (customer scan → product)</option>
+        <option value="id_only">🔢 Product ID only (POS scanner)</option>
+      </select>
+    </div>
+
+    <!-- Show options -->
+    <div class="cfg-section">
+      <label class="lbl">Show on Label</label>
+      <div class="d-flex flex-column gap-1">
+        <div class="form-check"><input class="form-check-input" type="checkbox" id="showStore" checked onchange="regenerate()"><label class="form-check-label" style="font-size:.83rem">Store name</label></div>
+        <div class="form-check"><input class="form-check-input" type="checkbox" id="showPrice" checked onchange="regenerate()"><label class="form-check-label" style="font-size:.83rem">Price (ETB)</label></div>
+        <div class="form-check"><input class="form-check-input" type="checkbox" id="showSku" onchange="regenerate()"><label class="form-check-label" style="font-size:.83rem">SKU / Product ID</label></div>
+        <div class="form-check"><input class="form-check-input" type="checkbox" id="showImg" checked onchange="regenerate()"><label class="form-check-label" style="font-size:.83rem">Faint product photo background</label></div>
       </div>
     </div>
+
+    <!-- Product selection -->
+    <div class="cfg-section">
+      <label class="lbl">Products to Print</label>
+      <div class="sel-all-row">
+        <div class="form-check mb-0">
+          <input class="form-check-input" type="checkbox" id="selAll" onchange="toggleAll(this.checked)">
+          <label class="form-check-label fw-700" style="font-size:.83rem">Select All</label>
+        </div>
+        <span id="selCount">0 selected</span>
+      </div>
+      <div class="prod-list" id="prodList">
+        {% for p in product_data %}
+        <div class="prod-row" onclick="toggleRow(this)" data-id="{{ p.id }}"
+             data-name="{{ p.name|e }}" data-name-am="{{ p.name_am|e }}"
+             data-price="{{ p.price }}" data-sku="{{ p.sku }}"
+             data-stock="{{ p.stock }}" data-img="{{ p.img_url }}">
+          <input type="checkbox" onclick="event.stopPropagation();" onchange="onCheck()">
+          {% if p.img_url %}
+          <img src="{{ p.img_url }}" class="prod-thumb" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="prod-thumb-ph" style="display:none">🧸</div>
+          {% else %}
+          <div class="prod-thumb-ph">🧸</div>
+          {% endif %}
+          <div class="prod-meta">
+            <div class="pname">{{ p.name }}</div>
+            <div class="pmeta">ETB {{ '{:,.0f}'.format(p.price) }} · {{ p.sku }}</div>
+          </div>
+          <span class="prod-stock">×{{ p.stock }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Summary -->
+    <div class="summary-bar" id="summaryBar">
+      <div>
+        <div style="font-size:.75rem;opacity:.85">Total QR labels</div>
+        <div class="count" id="totalCount">0</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:.75rem;opacity:.85">Pages (estimate)</div>
+        <div class="count" id="pageCount">0</div>
+      </div>
+    </div>
+
+    <button class="print-btn" onclick="window.print()" id="printBtn" disabled>
+      <i class="fas fa-print"></i> Print PDF
+    </button>
+    <p class="text-muted text-center mt-2" style="font-size:.76rem;">
+      Print dialog → Paper: A4, Scale: Fit, Margins: None
+    </p>
   </div>
+
+  <!-- ── RIGHT PREVIEW ── -->
+  <div class="preview-wrap">
+    <h6>📄 Preview</h6>
+    <div id="emptyPreview" class="empty-preview">
+      <div class="icon">🏷️</div>
+      <p>Select at least one product to preview labels</p>
+    </div>
+    <div id="previewPages" class="preview-pages" style="display:none"></div>
+  </div>
+
 </div>
+
+<!-- Hidden print root — cloned sheets go here at print time -->
+<div id="printRoot" style="display:none"></div>
 {% endblock %}
 
 {% block extra_js %}
-<!-- QR Code library -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
 const BOT_USERNAME = "{{ bot_username }}";
 const SHORT_NAME   = "{{ short_name }}";
 const MINI_APP_URL = "{{ mini_app_url }}";
-const APP_URL      = "";
 
-let currentProductId   = null;
-let currentProductName = '';
-let currentProductPrice = '';
-let currentProductSku  = '';
+// ── Size configs: [cols, qrPx, nameFontPx, priceFontPx]
+const SIZE_CFG = {
+  large:  { cols:4, rows:6, qrPx:62, namePx:6,   pricePx:8.5 },
+  medium: { cols:5, rows:7, qrPx:50, namePx:5.5, pricePx:7.5 },
+  small:  { cols:6, rows:8, qrPx:40, namePx:5,   pricePx:6.5 },
+  tiny:   { cols:8, rows:9, qrPx:30, namePx:4.5, pricePx:5.5 },
+};
 
-// Auto-load if product pre-selected
-window.addEventListener('DOMContentLoaded', () => {
-  const sel = document.getElementById('productSelect');
-  if (sel.value) loadProduct();
-});
+function buildQrUrl(pid) {
+  const type = document.getElementById('qrType').value;
+  if (type === 'id_only') return String(pid);
+  if (SHORT_NAME && BOT_USERNAME)
+    return `https://t.me/${BOT_USERNAME}/${SHORT_NAME}?startapp=product__${pid}`;
+  return `${MINI_APP_URL}?startapp=product__${pid}`;
+}
 
-function loadProduct() {
-  const sel = document.getElementById('productSelect');
-  const opt = sel.options[sel.selectedIndex];
-  if (!sel.value) {
-    currentProductId = null;
-    document.getElementById('emptyState').style.display = '';
-    document.getElementById('sheetWrapper').style.display = 'none';
-    document.getElementById('productInfo').style.display = 'none';
-    document.getElementById('printBtn').disabled = true;
-    return;
-  }
-  currentProductId    = sel.value;
-  currentProductName  = opt.dataset.name;
-  currentProductPrice = opt.dataset.price;
-  currentProductSku   = opt.dataset.sku;
+function selectedRows() {
+  return [...document.querySelectorAll('#prodList .prod-row')]
+    .filter(r => r.querySelector('input[type=checkbox]').checked);
+}
 
-  document.getElementById('infoProdName').textContent  = currentProductName;
-  document.getElementById('infoProdPrice').textContent = parseFloat(currentProductPrice).toLocaleString();
-  document.getElementById('infoProdSku').textContent   = currentProductSku;
-  document.getElementById('productInfo').style.display = '';
-  document.getElementById('printBtn').disabled = false;
+function toggleRow(row) {
+  const cb = row.querySelector('input[type=checkbox]');
+  cb.checked = !cb.checked;
+  onCheck();
+}
 
+function toggleAll(on) {
+  document.querySelectorAll('#prodList input[type=checkbox]').forEach(cb => cb.checked = on);
+  onCheck();
+}
+
+function onCheck() {
+  const rows = selectedRows();
+  document.getElementById('selCount').textContent = rows.length + ' selected';
+  const allCb = document.getElementById('selAll');
+  const total = document.querySelectorAll('#prodList input[type=checkbox]').length;
+  allCb.indeterminate = rows.length > 0 && rows.length < total;
+  allCb.checked = rows.length === total && total > 0;
   regenerate();
 }
 
-function buildQrContent() {
-  const type = document.getElementById('qrTypeSelect').value;
-  const pid  = currentProductId;
-  if (type === 'mini_app') {
-    if (SHORT_NAME && BOT_USERNAME) {
-      return `https://t.me/${BOT_USERNAME}/${SHORT_NAME}?startapp=product__${pid}`;
-    }
-    return `${MINI_APP_URL}?startapp=product__${pid}`;
-  }
-  if (type === 'url') {
-    return `/api/v1/product/${pid}/info`;
-  }
-  return String(pid);
+let regenTimer = null;
+function regenerate() {
+  clearTimeout(regenTimer);
+  regenTimer = setTimeout(_regenerate, 80);
 }
 
-function regenerate() {
-  if (!currentProductId) return;
+function _regenerate() {
+  const rows = selectedRows();
+  const sizeName = document.getElementById('qrSize').value;
+  const cfg = SIZE_CFG[sizeName];
+  const perPage = cfg.cols * cfg.rows;
+  const showStore = document.getElementById('showStore').checked;
+  const showPrice = document.getElementById('showPrice').checked;
+  const showSku   = document.getElementById('showSku').checked;
+  const showImg   = document.getElementById('showImg').checked;
 
-  const countEl   = document.getElementById('labelCount');
-  const count      = parseInt(countEl.value);
-  const showPrice  = document.getElementById('showPrice').checked;
-  const showStore  = document.getElementById('showStore').checked;
-  const eccLevel   = document.getElementById('qrEcc').value;
-  const qrContent  = buildQrContent();
-
-  // Determine grid columns
-  let cols = 4;
-  if (count === 40) cols = 5;
-  if (count === 48) cols = 6;
-  const rows = count / cols;
-
-  const grid = document.getElementById('labelGrid');
-  grid.innerHTML = '';
-  grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-  grid.style.gridTemplateRows    = `repeat(${rows}, 1fr)`;
-
-  // Calculate label QR size based on grid
-  const qrSizePx = count <= 24 ? 62 : count <= 32 ? 52 : count <= 40 ? 42 : 36;
-
-  for (let i = 0; i < count; i++) {
-    const card = document.createElement('div');
-    card.className = 'label-card';
-
-    // Coloured top accent
-    const dots = document.createElement('div');
-    dots.className = 'label-dots';
-    card.appendChild(dots);
-
-    if (showStore) {
-      const sn = document.createElement('div');
-      sn.className = 'label-store-name';
-      sn.textContent = 'LIYU KIDS MART';
-      card.appendChild(sn);
+  // Build flat label list: repeat each product by its stock qty
+  const labels = [];
+  for (const row of rows) {
+    const d = row.dataset;
+    const stock = Math.max(1, parseInt(d.stock) || 1);
+    for (let i = 0; i < stock; i++) {
+      labels.push({ id:d.id, name:d.name, price:d.price, sku:d.sku, img:d.img });
     }
+  }
 
-    // QR container
-    const qrDiv = document.createElement('div');
-    qrDiv.className = 'label-qr';
-    qrDiv.style.width = qrSizePx + 'px';
-    qrDiv.style.height = qrSizePx + 'px';
-    card.appendChild(qrDiv);
+  const totalLabels = labels.length;
+  const totalPages  = totalLabels === 0 ? 0 : Math.ceil(totalLabels / perPage);
 
-    new QRCode(qrDiv, {
-      text: qrContent,
-      width: qrSizePx,
-      height: qrSizePx,
-      colorDark: '#0f2318',
-      colorLight: '#ffffff',
-      correctLevel: QRCode.CorrectLevel[eccLevel] || QRCode.CorrectLevel.M,
-    });
+  document.getElementById('totalCount').textContent = totalLabels;
+  document.getElementById('pageCount').textContent  = totalPages;
 
-    // Product name
-    const nameEl = document.createElement('div');
-    nameEl.className = 'label-product-name';
-    const maxLen = count <= 24 ? 40 : count <= 32 ? 32 : 24;
-    nameEl.textContent = currentProductName.length > maxLen
-      ? currentProductName.slice(0, maxLen - 1) + '…'
-      : currentProductName;
-    card.appendChild(nameEl);
+  const printBtn = document.getElementById('printBtn');
+  printBtn.disabled = totalLabels === 0;
 
-    // Price
-    if (showPrice) {
-      const priceEl = document.createElement('div');
-      priceEl.className = 'label-price';
-      priceEl.textContent = 'ETB ' + parseFloat(currentProductPrice).toLocaleString();
-      card.appendChild(priceEl);
-    }
+  const emptyDiv   = document.getElementById('emptyPreview');
+  const pagesDiv   = document.getElementById('previewPages');
+  const printRoot  = document.getElementById('printRoot');
 
-    // SKU
-    const skuEl = document.createElement('div');
-    skuEl.className = 'label-sku';
-    skuEl.textContent = currentProductSku;
-    card.appendChild(skuEl);
+  if (totalLabels === 0) {
+    emptyDiv.style.display = '';
+    pagesDiv.style.display = 'none';
+    pagesDiv.innerHTML = '';
+    printRoot.innerHTML = '';
+    return;
+  }
 
+  emptyDiv.style.display = 'none';
+  pagesDiv.style.display = '';
+  pagesDiv.innerHTML = '';
+  printRoot.innerHTML = '';
+
+  // Chunk labels into pages
+  for (let pg = 0; pg < totalPages; pg++) {
+    const chunk = labels.slice(pg * perPage, (pg + 1) * perPage);
+    const sheet = buildSheet(chunk, cfg, showStore, showPrice, showSku, showImg);
+    pagesDiv.appendChild(sheet);
+    // Also push a clone into printRoot
+    printRoot.appendChild(sheet.cloneNode(true));
+  }
+
+  // After DOM is ready, render QR codes in preview
+  renderAllQr(pagesDiv, cfg);
+  // And in printRoot
+  renderAllQr(printRoot, cfg);
+}
+
+function buildSheet(labels, cfg, showStore, showPrice, showSku, showImg) {
+  const sheet = document.createElement('div');
+  sheet.className = 'a4-sheet';
+  const grid = document.createElement('div');
+  grid.className = 'label-grid';
+  grid.style.gridTemplateColumns = `repeat(${cfg.cols}, 1fr)`;
+  grid.style.gridTemplateRows    = `repeat(${cfg.rows}, 1fr)`;
+  sheet.appendChild(grid);
+
+  for (const lbl of labels) {
+    const card = makeCard(lbl, cfg, showStore, showPrice, showSku, showImg);
     grid.appendChild(card);
   }
-
-  document.getElementById('emptyState').style.display = 'none';
-  document.getElementById('sheetWrapper').style.display = '';
+  return sheet;
 }
+
+function makeCard(lbl, cfg, showStore, showPrice, showSku, showImg) {
+  const card = document.createElement('div');
+  card.className = 'label-card';
+
+  // Accent stripe
+  const accent = document.createElement('div');
+  accent.className = 'label-accent';
+  card.appendChild(accent);
+
+  // Faint bg image
+  if (showImg && lbl.img) {
+    const bg = document.createElement('img');
+    bg.className = 'label-bg-img';
+    bg.src = lbl.img;
+    bg.alt = '';
+    card.appendChild(bg);
+  }
+
+  if (showStore) {
+    const sn = document.createElement('div');
+    sn.className = 'label-store';
+    sn.textContent = 'LIYU KIDS MART';
+    card.appendChild(sn);
+  }
+
+  // QR placeholder — will be filled by renderAllQr
+  const qrDiv = document.createElement('div');
+  qrDiv.className = 'label-qr';
+  qrDiv.style.width  = cfg.qrPx + 'px';
+  qrDiv.style.height = cfg.qrPx + 'px';
+  qrDiv.dataset.qrId = lbl.id;
+  card.appendChild(qrDiv);
+
+  const nameEl = document.createElement('div');
+  nameEl.className = 'label-name';
+  nameEl.style.fontSize = cfg.namePx + 'px';
+  const maxLen = cfg.cols >= 6 ? 22 : cfg.cols >= 5 ? 28 : 36;
+  nameEl.textContent = lbl.name.length > maxLen ? lbl.name.slice(0, maxLen-1)+'…' : lbl.name;
+  card.appendChild(nameEl);
+
+  if (showPrice) {
+    const priceEl = document.createElement('div');
+    priceEl.className = 'label-price';
+    priceEl.style.fontSize = cfg.pricePx + 'px';
+    priceEl.textContent = 'ETB ' + parseFloat(lbl.price).toLocaleString();
+    card.appendChild(priceEl);
+  }
+
+  if (showSku) {
+    const skuEl = document.createElement('div');
+    skuEl.className = 'label-sku';
+    skuEl.textContent = lbl.sku;
+    card.appendChild(skuEl);
+  }
+
+  return card;
+}
+
+function renderAllQr(container, cfg) {
+  const qrEcc = QRCode.CorrectLevel.M;
+  container.querySelectorAll('.label-qr[data-qr-id]').forEach(div => {
+    const pid = div.dataset.qrId;
+    if (!pid) return;
+    div.innerHTML = '';
+    try {
+      new QRCode(div, {
+        text: buildQrUrl(pid),
+        width:  cfg.qrPx,
+        height: cfg.qrPx,
+        colorDark:  '#0f2318',
+        colorLight: '#ffffff',
+        correctLevel: qrEcc,
+      });
+    } catch(e) {
+      div.textContent = pid;
+    }
+  });
+}
+
+// Before print: sync QR into printRoot (in case it was regenerated)
+window.addEventListener('beforeprint', () => {
+  const rows = selectedRows();
+  if (!rows.length) return;
+  // Re-render QR in printRoot just in case
+  const sizeName = document.getElementById('qrSize').value;
+  const cfg = SIZE_CFG[sizeName];
+  renderAllQr(document.getElementById('printRoot'), cfg);
+});
 </script>
 {% endblock %}

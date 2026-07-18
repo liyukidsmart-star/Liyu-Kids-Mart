@@ -2432,12 +2432,12 @@ function renderCK(){
         <div class="fg"><label class="flbl">${tr('ck_location')}</label>
           <input class="finp" id="cl" type="text" placeholder="Near landmark, building name…" value="${window.ckFormData?.cl||stored_cl}"/></div>
         <div class="fg"><label class="flbl">${tr('ck_notes')}</label>
-          <input class="finp" id="cno" type="text" placeholder="${curLang==='am'?'?? ???? ??? ??? ???':'Any special instructions or sub-city'}" value="${window.ckFormData?.cno||''}"/></div>
+          <input class="finp" id="cno" type="text" placeholder="${curLang==='am'?'ማናቸውም ልዩ መመሪያዎች ወይም ክፍለ ከተማ':'Any special instructions or sub-city'}" value="${window.ckFormData?.cno||''}"/></div>
       </div>
       <button class="place-btn" onclick="goToMapStep()">
-        ${curLang==='am'?'?? ??? ????':'Continue to Delivery Map'} <i class="fas fa-arrow-right"></i>
+        ${curLang==='am'?'ወደ ካርታ ቀጥል':'Continue to Delivery Map'} <i class="fas fa-arrow-right"></i>
       </button>
-      <p style="text-align:center;font-size:.75rem;color:var(--ts);margin-top:12px">?? Secure Checkout</p>`;
+      <p style="text-align:center;font-size:.75rem;color:var(--ts);margin-top:12px">🔒 Secure Checkout</p>`;
     return;
   }
   
@@ -2454,7 +2454,7 @@ function renderCK(){
       
       <div class="ck-map-wrap" style="height:100vh;margin:0;border-radius:0;">
         <div id="ckMap"></div>
-        <div class="ck-hint" id="ckHint" style="top:60px">?? Tap the map to set location</div>
+        <div class="ck-hint" id="ckHint" style="top:60px">📍 Tap the map to set location</div>
         <button type="button" class="ck-locate-btn" id="ckLocBtn" onclick="ckLocateMe()" style="top:60px">
           <i class="fas fa-crosshairs"></i> ${tr('ck_locate')}
         </button>
