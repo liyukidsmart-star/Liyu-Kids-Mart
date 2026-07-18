@@ -198,7 +198,7 @@
   .preview-pages { gap:0!important; display:block!important; }
   /* A4 sheet exact dimensions */
   .a4-sheet {
-    width:210mm!important; height:297mm!important; max-width:none!important;
+    width:210mm!important; height:295mm!important; max-width:none!important;
     margin:0!important; padding:7mm 6mm!important;
     box-shadow:none!important; border-radius:0!important;
     aspect-ratio:auto!important; overflow:hidden!important;
@@ -599,7 +599,25 @@ function downloadPDF() {
     jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
   };
 
-  html2pdf().set(opt).from(element).save().then(() => {
+  const pages = Array.from(element.querySelectorAll('.a4-sheet'));
+  
+  if (pages.length === 0) {
+    btn.innerHTML = ogText;
+    btn.disabled = false;
+    badges.forEach(b => b.style.display = '');
+    return;
+  }
+
+  // Render page by page to avoid huge canvas memory limits
+  let worker = html2pdf().set(opt).from(pages[0]).toPdf();
+  
+  for (let i = 1; i < pages.length; i++) {
+    worker = worker.get('pdf').then(pdf => {
+      pdf.addPage();
+    }).from(pages[i]).toContainer().toCanvas().toPdf();
+  }
+
+  worker.save().then(() => {
     btn.innerHTML = ogText;
     btn.disabled = false;
     badges.forEach(b => b.style.display = ''); // restore badges
