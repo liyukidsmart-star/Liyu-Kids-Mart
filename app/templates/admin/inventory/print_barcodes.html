@@ -4,236 +4,337 @@
 
 {% block extra_css %}
 <style>
-/* ── PAGE LAYOUT ── */
-.lbl-wrap { display: grid; grid-template-columns: 380px 1fr; gap: 24px; align-items: start; }
-@media(max-width:1100px){ .lbl-wrap { grid-template-columns:1fr; } }
+/* ── PAGE ── */
+.lbl-page { display:grid; grid-template-columns:400px 1fr; gap:28px; align-items:start; }
+@media(max-width:1100px){ .lbl-page { grid-template-columns:1fr; } }
 
-/* ── LEFT PANEL ── */
-.cfg-panel {
-  background:#fff; border-radius:16px;
-  border:1px solid #e4eaf5; box-shadow:0 4px 20px rgba(0,0,0,.06);
-  padding:20px; position:sticky; top:80px;
+/* ── PANEL CARD ── */
+.panel-card {
+  background:#fff; border-radius:20px;
+  border:1px solid #e8ecf5;
+  box-shadow:0 4px 24px rgba(0,0,0,.07);
+  padding:24px;
+  position:sticky; top:76px;
 }
-.cfg-panel h6 { font-weight:900; font-size:.95rem; margin-bottom:16px; color:#12172e; }
-.cfg-section { margin-bottom:18px; }
-.cfg-section label.lbl { font-weight:700; font-size:.82rem; color:#374151; display:block; margin-bottom:6px; }
-.cfg-panel .form-select, .cfg-panel .form-control { font-size:.88rem; border-radius:10px; }
+.panel-card h5 {
+  font-size:1rem; font-weight:900; color:#12172e;
+  margin-bottom:20px; display:flex; align-items:center; gap:8px;
+}
+.section-title {
+  font-size:.78rem; font-weight:800; text-transform:uppercase;
+  letter-spacing:.06em; color:#7c3aed; margin-bottom:8px; margin-top:16px;
+}
+.section-title:first-child { margin-top:0; }
+
+/* ── FORM CONTROLS ── */
+.form-select, .form-control {
+  border-radius:10px; border:1.5px solid #e4eaf5;
+  font-size:.87rem; padding:9px 12px; transition:.2s;
+}
+.form-select:focus, .form-control:focus {
+  border-color:#7c3aed; box-shadow:0 0 0 3px rgba(124,58,237,.1);
+}
+
+/* ── SIZE SELECTOR PILLS ── */
+.size-pills { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.size-pill {
+  border:2px solid #e4eaf5; border-radius:12px;
+  padding:9px 10px; cursor:pointer; text-align:center;
+  transition:.2s; background:#fafbff;
+}
+.size-pill:hover { border-color:#c4b5fd; background:#f5f3ff; }
+.size-pill.active { border-color:#7c3aed; background:#f5f3ff; }
+.size-pill .sz-label { font-weight:800; font-size:.82rem; color:#12172e; }
+.size-pill .sz-desc { font-size:.72rem; color:#718096; margin-top:1px; }
+.size-pill .sz-icon { font-size:1.1rem; margin-bottom:3px; }
+
+/* ── TOGGLE CHECKBOXES ── */
+.toggle-row {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:7px 0; border-bottom:1px solid #f3f4f6;
+}
+.toggle-row:last-child { border-bottom:none; }
+.toggle-row label { font-size:.84rem; font-weight:600; color:#374151; cursor:pointer; }
+.form-check-input { accent-color:#7c3aed; width:16px; height:16px; }
 
 /* ── PRODUCT LIST ── */
-.prod-list { max-height:360px; overflow-y:auto; border:1px solid #e4eaf5; border-radius:12px; }
-.prod-row {
+.prod-search-wrap { position:relative; margin-bottom:8px; }
+.prod-search-wrap input { padding-left:34px; }
+.prod-search-wrap .si { position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#9ca3af; font-size:.85rem; }
+
+.prod-list-box {
+  border:1.5px solid #e4eaf5; border-radius:14px;
+  max-height:320px; overflow-y:auto;
+}
+.prod-list-box::-webkit-scrollbar { width:4px; }
+.prod-list-box::-webkit-scrollbar-track { background:#f1f1f1; border-radius:4px; }
+.prod-list-box::-webkit-scrollbar-thumb { background:#c4b5fd; border-radius:4px; }
+
+.sel-all-bar {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:9px 14px; background:linear-gradient(135deg,#f5f3ff,#ede9fe);
+  border-bottom:1px solid #e4eaf5; border-radius:12px 12px 0 0;
+  position:sticky; top:0; z-index:2;
+}
+.sel-all-bar label { font-weight:800; font-size:.82rem; color:#4c1d95; cursor:pointer; }
+.sel-badge { font-size:.75rem; background:#7c3aed; color:#fff; border-radius:20px; padding:2px 10px; font-weight:700; }
+
+.prod-item {
   display:flex; align-items:center; gap:10px;
-  padding:8px 12px; border-bottom:1px solid #f0f4fc; cursor:pointer;
-  transition:.15s;
+  padding:9px 14px; border-bottom:1px solid #f8f8fc;
+  cursor:pointer; transition:.15s; user-select:none;
 }
-.prod-row:last-child { border-bottom:none; }
-.prod-row:hover { background:#f8faff; }
-.prod-row input[type=checkbox] { width:16px; height:16px; accent-color:#7c3aed; flex-shrink:0; }
+.prod-item:last-child { border-bottom:none; }
+.prod-item:hover { background:#faf8ff; }
+.prod-item.checked { background:#f5f3ff; }
 .prod-thumb {
-  width:36px; height:36px; border-radius:8px; object-fit:cover; flex-shrink:0;
-  background:#f0f4fc;
+  width:40px; height:40px; border-radius:10px;
+  object-fit:cover; flex-shrink:0; background:#f0f4fc;
+  border:1px solid #e4eaf5;
 }
-.prod-thumb-ph { width:36px; height:36px; border-radius:8px; background:#e4eaf5; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:1.1rem; }
-.prod-meta { flex:1; min-width:0; }
-.prod-meta .pname { font-weight:700; font-size:.82rem; color:#12172e; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.prod-meta .pmeta { font-size:.73rem; color:#718096; }
-.prod-stock { font-size:.78rem; font-weight:800; color:#1b4330; background:#d1fae5; border-radius:6px; padding:2px 7px; flex-shrink:0; }
-
-.sel-all-row { display:flex; align-items:center; justify-content:space-between; padding:8px 12px; background:#f8faff; border-radius:10px; margin-bottom:6px; }
-.sel-all-row span { font-size:.8rem; color:#6b7280; }
-
-/* ── SUMMARY BAR ── */
-.summary-bar {
-  background:linear-gradient(135deg,#7c3aed,#4f46e5); color:#fff;
-  border-radius:12px; padding:12px 16px; margin-top:14px;
-  display:flex; align-items:center; justify-content:space-between; gap:8px;
-  font-size:.85rem; font-weight:700;
+.prod-thumb-ph {
+  width:40px; height:40px; border-radius:10px;
+  background:linear-gradient(135deg,#ede9fe,#ddd6fe);
+  flex-shrink:0; display:flex; align-items:center; justify-content:center;
+  font-size:1.15rem;
 }
-.summary-bar .count { font-size:1.3rem; font-weight:900; }
+.prod-info { flex:1; min-width:0; }
+.prod-info .pi-name { font-weight:700; font-size:.83rem; color:#12172e; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.prod-info .pi-sub { font-size:.72rem; color:#718096; margin-top:1px; }
+.stock-badge {
+  font-size:.75rem; font-weight:800; color:#065f46;
+  background:#d1fae5; border-radius:8px; padding:3px 8px; flex-shrink:0;
+  border:1px solid #a7f3d0; white-space:nowrap;
+}
+.stock-badge.zero { color:#991b1b; background:#fee2e2; border-color:#fca5a5; }
 
-/* ── PRINT BUTTON ── */
-.print-btn {
+/* ── SUMMARY ── */
+.summary-card {
   background:linear-gradient(135deg,#7c3aed,#4f46e5);
+  border-radius:14px; padding:14px 16px; margin-top:16px;
+  display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; text-align:center;
+}
+.sum-item .sum-num { font-size:1.4rem; font-weight:900; color:#fff; line-height:1; }
+.sum-item .sum-lbl { font-size:.7rem; color:rgba(255,255,255,.75); margin-top:2px; font-weight:600; }
+
+/* ── PRINT BTN ── */
+.print-btn {
+  background:linear-gradient(135deg,#059669,#047857);
   color:#fff; border:none; border-radius:12px;
-  padding:12px 24px; font-size:.95rem; font-weight:800;
+  padding:13px 24px; font-size:.95rem; font-weight:800;
   cursor:pointer; width:100%; margin-top:14px;
   display:flex; align-items:center; justify-content:center; gap:10px;
-  box-shadow:0 4px 16px rgba(124,58,237,.35); transition:.2s;
+  box-shadow:0 4px 16px rgba(5,150,105,.35); transition:.2s;
 }
-.print-btn:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(124,58,237,.45); }
-.print-btn:disabled { opacity:.5; cursor:not-allowed; transform:none; }
+.print-btn:hover:not(:disabled) { transform:translateY(-2px); box-shadow:0 8px 24px rgba(5,150,105,.45); }
+.print-btn:disabled { opacity:.45; cursor:not-allowed; }
 
-/* ── PREVIEW AREA ── */
-.preview-wrap {
-  background:#e8edf7; border-radius:16px; padding:20px;
-  min-height:500px;
+/* ── PREVIEW PANEL ── */
+.preview-panel {
+  background:#e8ecf5; border-radius:20px; padding:24px; min-height:600px;
 }
-.preview-wrap h6 { font-weight:900; font-size:.92rem; color:#374151; margin-bottom:14px; }
-.preview-pages { display:flex; flex-direction:column; gap:24px; }
+.preview-panel h5 {
+  font-size:1rem; font-weight:900; color:#374151;
+  margin-bottom:16px; display:flex; align-items:center; gap:8px;
+}
+.page-badge {
+  display:inline-flex; align-items:center; justify-content:center;
+  background:#7c3aed; color:#fff; border-radius:8px;
+  font-size:.72rem; font-weight:800; padding:2px 10px; margin-bottom:8px;
+}
+.preview-pages { display:flex; flex-direction:column; gap:28px; }
+.empty-state { text-align:center; padding:80px 0; color:#9ca3af; }
+.empty-state .es-icon { font-size:4rem; margin-bottom:12px; }
+.empty-state p { font-size:.9rem; font-weight:600; }
 
-/* ── LABEL SHEET (A4) ── */
+/* ── A4 SHEET ── */
 .a4-sheet {
-  background:#fff; width:100%; max-width:794px; margin:0 auto;
-  aspect-ratio:210/297; border-radius:4px;
-  box-shadow:0 8px 40px rgba(0,0,0,.14);
-  padding:10mm 8mm; box-sizing:border-box;
+  background:#fff;
+  width:100%; max-width:794px; margin:0 auto;
+  aspect-ratio:210/297;
+  border-radius:6px;
+  box-shadow:0 8px 40px rgba(0,0,0,.15);
+  padding:10mm 8mm;
+  box-sizing:border-box;
   display:flex; flex-direction:column;
   page-break-after:always;
 }
 .label-grid {
-  display:grid; width:100%; height:100%; gap:2.5mm;
-  align-content:start;
+  display:grid; width:100%; height:100%;
+  gap:2mm; align-content:start;
 }
 
-/* ── INDIVIDUAL LABEL ── */
+/* ── SINGLE LABEL CARD ── */
 .label-card {
   border:1px solid #d1d5db; border-radius:4px;
   display:flex; flex-direction:column;
   align-items:center; justify-content:center;
-  padding:3px 3px; gap:1px;
+  padding:3px 3px; gap:1.5px;
   background:#fff; overflow:hidden;
-  page-break-inside:avoid; position:relative;
+  position:relative;
+  page-break-inside:avoid;
 }
 .label-bg-img {
   position:absolute; inset:0; width:100%; height:100%;
-  object-fit:cover; opacity:0.07; pointer-events:none;
-  border-radius:3px;
+  object-fit:cover; opacity:.08; pointer-events:none; border-radius:3px;
 }
-.label-accent { position:absolute; top:0; left:0; right:0; height:2px; background:linear-gradient(90deg,#3d8b5f,#7c3aed); }
+.label-accent { position:absolute; top:0; left:0; right:0; height:2px; background:linear-gradient(90deg,#2d6a4f,#7c3aed); z-index:1; }
 .label-store { font-size:4.5px; font-weight:900; color:#1b4330; text-align:center; text-transform:uppercase; letter-spacing:.04em; line-height:1; position:relative; z-index:1; }
 .label-qr { flex-shrink:0; position:relative; z-index:1; }
-.label-qr canvas, .label-qr svg, .label-qr img { width:100% !important; height:100% !important; display:block; }
-.label-name { font-size:5px; font-weight:800; text-align:center; color:#12172e; line-height:1.2; max-width:100%; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; position:relative; z-index:1; }
-.label-price { font-size:7px; font-weight:900; color:#1b4330; text-align:center; position:relative; z-index:1; }
-.label-sku { font-size:4px; color:#9ca3af; font-family:'Courier New',monospace; text-align:center; position:relative; z-index:1; }
+.label-qr canvas, .label-qr svg, .label-qr img { width:100%!important; height:100%!important; display:block; }
+.label-name { font-weight:800; text-align:center; color:#12172e; line-height:1.2; max-width:100%; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; position:relative; z-index:1; }
+.label-price { font-weight:900; color:#1b4330; text-align:center; position:relative; z-index:1; }
+.label-sku { color:#9ca3af; font-family:'Courier New',monospace; text-align:center; position:relative; z-index:1; }
 
-/* ── PRINT STYLES ── */
+/* ── PRINT MEDIA ── */
 @media print {
-  body > *:not(#printRoot) { display:none !important; }
-  #printRoot { display:block !important; }
+  body { margin:0; padding:0; }
+  body > *:not(#printRoot) { display:none!important; }
+  #printRoot { display:block!important; }
   .a4-sheet {
-    width:210mm !important; height:297mm !important; max-width:none !important;
-    margin:0 !important; padding:8mm 6mm !important;
-    box-shadow:none !important; border-radius:0 !important;
-    aspect-ratio:auto !important; overflow:hidden !important;
-    page-break-after:always !important;
+    width:210mm!important; height:297mm!important; max-width:none!important;
+    margin:0!important; padding:7mm 6mm!important;
+    box-shadow:none!important; border-radius:0!important;
+    aspect-ratio:auto!important; overflow:hidden!important;
+    page-break-after:always!important;
   }
-  .label-grid { height:100% !important; }
+  .label-grid { height:281mm!important; }
   .label-card { page-break-inside:avoid; }
-  .preview-wrap, .preview-pages { display:block !important; background:none !important; padding:0 !important; }
-  #printRoot { padding:0 !important; margin:0 !important; }
+  .preview-wrap, .preview-pages { display:block!important; background:none!important; padding:0!important; }
 }
-
-.empty-preview { text-align:center; padding:60px 0; color:#9ca3af; }
-.empty-preview .icon { font-size:3.5rem; margin-bottom:12px; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="lbl-wrap">
+<div class="lbl-page">
 
-  <!-- ── LEFT CONFIG PANEL ── -->
-  <div class="cfg-panel">
-    <h6>⚙️ Label Configuration</h6>
+  <!-- ════ LEFT CONFIG PANEL ════ -->
+  <div class="panel-card">
+    <h5>⚙️ Label Settings</h5>
 
-    <!-- QR Size -->
-    <div class="cfg-section">
-      <label class="lbl">QR Code Size</label>
-      <select class="form-select" id="qrSize" onchange="regenerate()">
-        <option value="large">Large  — 4 per row (big, easy to scan)</option>
-        <option value="medium" selected>Medium — 5 per row (standard)</option>
-        <option value="small">Small  — 6 per row (compact, more per page)</option>
-        <option value="tiny">Tiny   — 8 per row (maximum density)</option>
-      </select>
-    </div>
-
-    <!-- QR Type -->
-    <div class="cfg-section">
-      <label class="lbl">QR Code Links To</label>
-      <select class="form-select" id="qrType" onchange="regenerate()">
-        <option value="mini_app">📱 Telegram Mini App (customer scan → product)</option>
-        <option value="id_only">🔢 Product ID only (POS scanner)</option>
-      </select>
-    </div>
-
-    <!-- Show options -->
-    <div class="cfg-section">
-      <label class="lbl">Show on Label</label>
-      <div class="d-flex flex-column gap-1">
-        <div class="form-check"><input class="form-check-input" type="checkbox" id="showStore" checked onchange="regenerate()"><label class="form-check-label" style="font-size:.83rem">Store name</label></div>
-        <div class="form-check"><input class="form-check-input" type="checkbox" id="showPrice" checked onchange="regenerate()"><label class="form-check-label" style="font-size:.83rem">Price (ETB)</label></div>
-        <div class="form-check"><input class="form-check-input" type="checkbox" id="showSku" onchange="regenerate()"><label class="form-check-label" style="font-size:.83rem">SKU / Product ID</label></div>
-        <div class="form-check"><input class="form-check-input" type="checkbox" id="showImg" checked onchange="regenerate()"><label class="form-check-label" style="font-size:.83rem">Faint product photo background</label></div>
+    <!-- QR SIZE -->
+    <div class="section-title">QR Code Size</div>
+    <div class="size-pills" id="sizePills">
+      <div class="size-pill" data-size="large" onclick="setSize('large',this)">
+        <div class="sz-icon">⬛</div>
+        <div class="sz-label">Large</div>
+        <div class="sz-desc">4 per row · easy scan</div>
+      </div>
+      <div class="size-pill active" data-size="medium" onclick="setSize('medium',this)">
+        <div class="sz-icon">🔲</div>
+        <div class="sz-label">Medium</div>
+        <div class="sz-desc">5 per row · standard</div>
+      </div>
+      <div class="size-pill" data-size="small" onclick="setSize('small',this)">
+        <div class="sz-icon">▪️</div>
+        <div class="sz-label">Small</div>
+        <div class="sz-desc">6 per row · compact</div>
+      </div>
+      <div class="size-pill" data-size="tiny" onclick="setSize('tiny',this)">
+        <div class="sz-icon">·</div>
+        <div class="sz-label">Tiny</div>
+        <div class="sz-desc">8 per row · max density</div>
       </div>
     </div>
 
-    <!-- Product selection -->
-    <div class="cfg-section">
-      <label class="lbl">Products to Print</label>
-      <div class="sel-all-row">
-        <div class="form-check mb-0">
+    <!-- QR LINKS TO -->
+    <div class="section-title" style="margin-top:18px;">QR Links To</div>
+    <select class="form-select" id="qrType" onchange="regenerate()">
+      <option value="mini_app">📱 Telegram Mini App (customer scans → buys)</option>
+      <option value="id_only">🔢 Product ID only (POS scanner)</option>
+    </select>
+
+    <!-- SHOW/HIDE OPTIONS -->
+    <div class="section-title" style="margin-top:18px;">Show on Label</div>
+    <div>
+      <div class="toggle-row">
+        <label for="showStore">Store name (LIYU KIDS MART)</label>
+        <input class="form-check-input" type="checkbox" id="showStore" checked onchange="regenerate()">
+      </div>
+      <div class="toggle-row">
+        <label for="showPrice">Price (ETB)</label>
+        <input class="form-check-input" type="checkbox" id="showPrice" checked onchange="regenerate()">
+      </div>
+      <div class="toggle-row">
+        <label for="showSku">SKU / Product code</label>
+        <input class="form-check-input" type="checkbox" id="showSku" onchange="regenerate()">
+      </div>
+      <div class="toggle-row">
+        <label for="showImg">Faint product photo background</label>
+        <input class="form-check-input" type="checkbox" id="showImg" checked onchange="regenerate()">
+      </div>
+    </div>
+
+    <!-- PRODUCT SELECTION -->
+    <div class="section-title" style="margin-top:18px;">Select Products</div>
+    <div class="prod-search-wrap">
+      <i class="fas fa-search si"></i>
+      <input type="text" class="form-control" id="prodSearch" placeholder="Search products…" oninput="filterProds()">
+    </div>
+    <div class="prod-list-box">
+      <div class="sel-all-bar">
+        <div class="d-flex align-items-center gap-2">
           <input class="form-check-input" type="checkbox" id="selAll" onchange="toggleAll(this.checked)">
-          <label class="form-check-label fw-700" style="font-size:.83rem">Select All</label>
+          <label for="selAll">Select All</label>
         </div>
-        <span id="selCount">0 selected</span>
+        <span class="sel-badge" id="selBadge">0 selected</span>
       </div>
-      <div class="prod-list" id="prodList">
+      <div id="prodListInner">
         {% for p in product_data %}
-        <div class="prod-row" onclick="toggleRow(this)" data-id="{{ p.id }}"
-             data-name="{{ p.name|e }}" data-name-am="{{ p.name_am|e }}"
+        <div class="prod-item" id="pi_{{ p.id }}" onclick="toggleItem(this)"
+             data-id="{{ p.id }}" data-name="{{ p.name|e }}"
              data-price="{{ p.price }}" data-sku="{{ p.sku }}"
              data-stock="{{ p.stock }}" data-img="{{ p.img_url }}">
-          <input type="checkbox" onclick="event.stopPropagation();" onchange="onCheck()">
+          <input type="checkbox" onclick="event.stopPropagation();" onchange="onCheckChange()" style="width:16px;height:16px;accent-color:#7c3aed;flex-shrink:0;">
           {% if p.img_url %}
-          <img src="{{ p.img_url }}" class="prod-thumb" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <img src="{{ p.img_url }}" class="prod-thumb" loading="lazy"
+               onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
           <div class="prod-thumb-ph" style="display:none">🧸</div>
           {% else %}
           <div class="prod-thumb-ph">🧸</div>
           {% endif %}
-          <div class="prod-meta">
-            <div class="pname">{{ p.name }}</div>
-            <div class="pmeta">ETB {{ '{:,.0f}'.format(p.price) }} · {{ p.sku }}</div>
+          <div class="prod-info">
+            <div class="pi-name">{{ p.name }}</div>
+            <div class="pi-sub">ETB {{ '{:,.0f}'.format(p.price) }} · {{ p.sku }}</div>
           </div>
-          <span class="prod-stock">×{{ p.stock }}</span>
+          <span class="stock-badge {% if p.stock == 0 %}zero{% endif %}">
+            {% if p.stock == 0 %}Out of stock{% else %}×{{ p.stock }} in stock{% endif %}
+          </span>
         </div>
         {% endfor %}
       </div>
     </div>
 
-    <!-- Summary -->
-    <div class="summary-bar" id="summaryBar">
-      <div>
-        <div style="font-size:.75rem;opacity:.85">Total QR labels</div>
-        <div class="count" id="totalCount">0</div>
-      </div>
-      <div style="text-align:right">
-        <div style="font-size:.75rem;opacity:.85">Pages (estimate)</div>
-        <div class="count" id="pageCount">0</div>
-      </div>
+    <!-- SUMMARY -->
+    <div class="summary-card">
+      <div class="sum-item"><div class="sum-num" id="totalProd">0</div><div class="sum-lbl">Products</div></div>
+      <div class="sum-item"><div class="sum-num" id="totalLabels">0</div><div class="sum-lbl">Total Labels</div></div>
+      <div class="sum-item"><div class="sum-num" id="totalPages">0</div><div class="sum-lbl">Pages</div></div>
     </div>
 
     <button class="print-btn" onclick="window.print()" id="printBtn" disabled>
-      <i class="fas fa-print"></i> Print PDF
+      <i class="fas fa-print"></i> Print / Save PDF
     </button>
-    <p class="text-muted text-center mt-2" style="font-size:.76rem;">
-      Print dialog → Paper: A4, Scale: Fit, Margins: None
+    <p class="text-center text-muted mt-2" style="font-size:.75rem;">
+      In print dialog → Paper: A4 · Margins: None · Scale: 100%
     </p>
   </div>
 
-  <!-- ── RIGHT PREVIEW ── -->
-  <div class="preview-wrap">
-    <h6>📄 Preview</h6>
-    <div id="emptyPreview" class="empty-preview">
-      <div class="icon">🏷️</div>
-      <p>Select at least one product to preview labels</p>
+  <!-- ════ RIGHT PREVIEW ════ -->
+  <div class="preview-panel">
+    <h5>📄 Preview</h5>
+    <div id="emptyState" class="empty-state">
+      <div class="es-icon">🏷️</div>
+      <p>Select products to preview labels</p>
+      <p style="font-size:.8rem;color:#b0b7c3;">Labels are auto-generated based on stock quantity</p>
     </div>
-    <div id="previewPages" class="preview-pages" style="display:none"></div>
+    <div id="previewPages" class="preview-pages" style="display:none;"></div>
   </div>
 
 </div>
 
-<!-- Hidden print root — cloned sheets go here at print time -->
-<div id="printRoot" style="display:none"></div>
+<!-- Hidden print root -->
+<div id="printRoot" style="display:none;"></div>
 {% endblock %}
 
 {% block extra_js %}
@@ -243,86 +344,102 @@ const BOT_USERNAME = "{{ bot_username }}";
 const SHORT_NAME   = "{{ short_name }}";
 const MINI_APP_URL = "{{ mini_app_url }}";
 
-// ── Size configs: [cols, qrPx, nameFontPx, priceFontPx]
-const SIZE_CFG = {
-  large:  { cols:4, rows:6, qrPx:62, namePx:6,   pricePx:8.5 },
-  medium: { cols:5, rows:7, qrPx:50, namePx:5.5, pricePx:7.5 },
-  small:  { cols:6, rows:8, qrPx:40, namePx:5,   pricePx:6.5 },
-  tiny:   { cols:8, rows:9, qrPx:30, namePx:4.5, pricePx:5.5 },
+// Size configs: cols, rows per page, QR pixel size
+const SIZES = {
+  large:  { cols:4, rows:6,  qr:62, nf:6,   pf:8.5 },
+  medium: { cols:5, rows:7,  qr:50, nf:5.5, pf:7.5 },
+  small:  { cols:6, rows:8,  qr:40, nf:5,   pf:6.5 },
+  tiny:   { cols:8, rows:10, qr:28, nf:4.5, pf:5.5 },
 };
+let activeSz = 'medium';
+
+function setSize(sz, el) {
+  activeSz = sz;
+  document.querySelectorAll('.size-pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  regenerate();
+}
 
 function buildQrUrl(pid) {
-  const type = document.getElementById('qrType').value;
-  if (type === 'id_only') return String(pid);
+  if (document.getElementById('qrType').value === 'id_only') return String(pid);
   if (SHORT_NAME && BOT_USERNAME)
     return `https://t.me/${BOT_USERNAME}/${SHORT_NAME}?startapp=product__${pid}`;
   return `${MINI_APP_URL}?startapp=product__${pid}`;
 }
 
-function selectedRows() {
-  return [...document.querySelectorAll('#prodList .prod-row')]
-    .filter(r => r.querySelector('input[type=checkbox]').checked);
+function checkedItems() {
+  return [...document.querySelectorAll('#prodListInner .prod-item')]
+    .filter(el => el.querySelector('input[type=checkbox]').checked);
 }
 
-function toggleRow(row) {
-  const cb = row.querySelector('input[type=checkbox]');
+function toggleItem(el) {
+  const cb = el.querySelector('input[type=checkbox]');
   cb.checked = !cb.checked;
-  onCheck();
+  el.classList.toggle('checked', cb.checked);
+  onCheckChange();
 }
 
 function toggleAll(on) {
-  document.querySelectorAll('#prodList input[type=checkbox]').forEach(cb => cb.checked = on);
-  onCheck();
+  document.querySelectorAll('#prodListInner .prod-item:not([style*="none"])').forEach(el => {
+    el.querySelector('input[type=checkbox]').checked = on;
+    el.classList.toggle('checked', on);
+  });
+  onCheckChange();
 }
 
-function onCheck() {
-  const rows = selectedRows();
-  document.getElementById('selCount').textContent = rows.length + ' selected';
-  const allCb = document.getElementById('selAll');
-  const total = document.querySelectorAll('#prodList input[type=checkbox]').length;
-  allCb.indeterminate = rows.length > 0 && rows.length < total;
-  allCb.checked = rows.length === total && total > 0;
+function filterProds() {
+  const q = document.getElementById('prodSearch').value.toLowerCase();
+  document.querySelectorAll('#prodListInner .prod-item').forEach(el => {
+    const name = el.dataset.name.toLowerCase();
+    el.style.display = name.includes(q) ? '' : 'none';
+  });
+}
+
+function onCheckChange() {
+  const items = checkedItems();
+  const total = document.querySelectorAll('#prodListInner .prod-item').length;
+  const selAll = document.getElementById('selAll');
+  selAll.indeterminate = items.length > 0 && items.length < total;
+  selAll.checked = items.length === total && total > 0;
+  document.getElementById('selBadge').textContent = items.length + ' selected';
   regenerate();
 }
 
 let regenTimer = null;
 function regenerate() {
   clearTimeout(regenTimer);
-  regenTimer = setTimeout(_regenerate, 80);
+  regenTimer = setTimeout(_build, 60);
 }
 
-function _regenerate() {
-  const rows = selectedRows();
-  const sizeName = document.getElementById('qrSize').value;
-  const cfg = SIZE_CFG[sizeName];
+function _build() {
+  const items = checkedItems();
+  const cfg = SIZES[activeSz];
   const perPage = cfg.cols * cfg.rows;
   const showStore = document.getElementById('showStore').checked;
   const showPrice = document.getElementById('showPrice').checked;
   const showSku   = document.getElementById('showSku').checked;
   const showImg   = document.getElementById('showImg').checked;
 
-  // Build flat label list: repeat each product by its stock qty
+  // Build flat label list: repeat per stock qty
   const labels = [];
-  for (const row of rows) {
-    const d = row.dataset;
-    const stock = Math.max(1, parseInt(d.stock) || 1);
-    for (let i = 0; i < stock; i++) {
-      labels.push({ id:d.id, name:d.name, price:d.price, sku:d.sku, img:d.img });
-    }
+  for (const el of items) {
+    const d = el.dataset;
+    const qty = Math.max(1, parseInt(d.stock) || 1);
+    for (let i = 0; i < qty; i++)
+      labels.push({ id: d.id, name: d.name, price: d.price, sku: d.sku, img: d.img });
   }
 
   const totalLabels = labels.length;
   const totalPages  = totalLabels === 0 ? 0 : Math.ceil(totalLabels / perPage);
 
-  document.getElementById('totalCount').textContent = totalLabels;
-  document.getElementById('pageCount').textContent  = totalPages;
+  document.getElementById('totalProd').textContent   = items.length;
+  document.getElementById('totalLabels').textContent = totalLabels;
+  document.getElementById('totalPages').textContent  = totalPages;
+  document.getElementById('printBtn').disabled       = totalLabels === 0;
 
-  const printBtn = document.getElementById('printBtn');
-  printBtn.disabled = totalLabels === 0;
-
-  const emptyDiv   = document.getElementById('emptyPreview');
-  const pagesDiv   = document.getElementById('previewPages');
-  const printRoot  = document.getElementById('printRoot');
+  const emptyDiv  = document.getElementById('emptyState');
+  const pagesDiv  = document.getElementById('previewPages');
+  const printRoot = document.getElementById('printRoot');
 
   if (totalLabels === 0) {
     emptyDiv.style.display = '';
@@ -337,19 +454,26 @@ function _regenerate() {
   pagesDiv.innerHTML = '';
   printRoot.innerHTML = '';
 
-  // Chunk labels into pages
   for (let pg = 0; pg < totalPages; pg++) {
     const chunk = labels.slice(pg * perPage, (pg + 1) * perPage);
+    const wrapper = document.createElement('div');
+
+    const badge = document.createElement('div');
+    badge.className = 'page-badge';
+    badge.textContent = `Page ${pg + 1} of ${totalPages}`;
+    wrapper.appendChild(badge);
+
     const sheet = buildSheet(chunk, cfg, showStore, showPrice, showSku, showImg);
-    pagesDiv.appendChild(sheet);
-    // Also push a clone into printRoot
-    printRoot.appendChild(sheet.cloneNode(true));
+    wrapper.appendChild(sheet);
+    pagesDiv.appendChild(wrapper);
+
+    // Print root: only the sheets (no badge)
+    const printSheet = buildSheet(chunk, cfg, showStore, showPrice, showSku, showImg);
+    printRoot.appendChild(printSheet);
   }
 
-  // After DOM is ready, render QR codes in preview
-  renderAllQr(pagesDiv, cfg);
-  // And in printRoot
-  renderAllQr(printRoot, cfg);
+  renderQr(pagesDiv, cfg);
+  renderQr(printRoot, cfg);
 }
 
 function buildSheet(labels, cfg, showStore, showPrice, showSku, showImg) {
@@ -360,11 +484,7 @@ function buildSheet(labels, cfg, showStore, showPrice, showSku, showImg) {
   grid.style.gridTemplateColumns = `repeat(${cfg.cols}, 1fr)`;
   grid.style.gridTemplateRows    = `repeat(${cfg.rows}, 1fr)`;
   sheet.appendChild(grid);
-
-  for (const lbl of labels) {
-    const card = makeCard(lbl, cfg, showStore, showPrice, showSku, showImg);
-    grid.appendChild(card);
-  }
+  for (const lbl of labels) grid.appendChild(makeCard(lbl, cfg, showStore, showPrice, showSku, showImg));
   return sheet;
 }
 
@@ -372,12 +492,10 @@ function makeCard(lbl, cfg, showStore, showPrice, showSku, showImg) {
   const card = document.createElement('div');
   card.className = 'label-card';
 
-  // Accent stripe
   const accent = document.createElement('div');
   accent.className = 'label-accent';
   card.appendChild(accent);
 
-  // Faint bg image
   if (showImg && lbl.img) {
     const bg = document.createElement('img');
     bg.className = 'label-bg-img';
@@ -393,25 +511,24 @@ function makeCard(lbl, cfg, showStore, showPrice, showSku, showImg) {
     card.appendChild(sn);
   }
 
-  // QR placeholder — will be filled by renderAllQr
   const qrDiv = document.createElement('div');
   qrDiv.className = 'label-qr';
-  qrDiv.style.width  = cfg.qrPx + 'px';
-  qrDiv.style.height = cfg.qrPx + 'px';
+  qrDiv.style.width  = cfg.qr + 'px';
+  qrDiv.style.height = cfg.qr + 'px';
   qrDiv.dataset.qrId = lbl.id;
   card.appendChild(qrDiv);
 
+  const maxLen = cfg.cols >= 8 ? 18 : cfg.cols >= 6 ? 22 : cfg.cols >= 5 ? 28 : 36;
   const nameEl = document.createElement('div');
   nameEl.className = 'label-name';
-  nameEl.style.fontSize = cfg.namePx + 'px';
-  const maxLen = cfg.cols >= 6 ? 22 : cfg.cols >= 5 ? 28 : 36;
-  nameEl.textContent = lbl.name.length > maxLen ? lbl.name.slice(0, maxLen-1)+'…' : lbl.name;
+  nameEl.style.fontSize = cfg.nf + 'px';
+  nameEl.textContent = lbl.name.length > maxLen ? lbl.name.slice(0, maxLen - 1) + '…' : lbl.name;
   card.appendChild(nameEl);
 
   if (showPrice) {
     const priceEl = document.createElement('div');
     priceEl.className = 'label-price';
-    priceEl.style.fontSize = cfg.pricePx + 'px';
+    priceEl.style.fontSize = cfg.pf + 'px';
     priceEl.textContent = 'ETB ' + parseFloat(lbl.price).toLocaleString();
     card.appendChild(priceEl);
   }
@@ -419,6 +536,7 @@ function makeCard(lbl, cfg, showStore, showPrice, showSku, showImg) {
   if (showSku) {
     const skuEl = document.createElement('div');
     skuEl.className = 'label-sku';
+    skuEl.style.fontSize = (cfg.nf - 1) + 'px';
     skuEl.textContent = lbl.sku;
     card.appendChild(skuEl);
   }
@@ -426,35 +544,25 @@ function makeCard(lbl, cfg, showStore, showPrice, showSku, showImg) {
   return card;
 }
 
-function renderAllQr(container, cfg) {
-  const qrEcc = QRCode.CorrectLevel.M;
-  container.querySelectorAll('.label-qr[data-qr-id]').forEach(div => {
+function renderQr(root, cfg) {
+  root.querySelectorAll('.label-qr[data-qr-id]').forEach(div => {
+    if (div.dataset.rendered) return;
+    div.dataset.rendered = '1';
     const pid = div.dataset.qrId;
-    if (!pid) return;
     div.innerHTML = '';
     try {
       new QRCode(div, {
         text: buildQrUrl(pid),
-        width:  cfg.qrPx,
-        height: cfg.qrPx,
-        colorDark:  '#0f2318',
-        colorLight: '#ffffff',
-        correctLevel: qrEcc,
+        width: cfg.qr, height: cfg.qr,
+        colorDark: '#0f2318', colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.M,
       });
-    } catch(e) {
-      div.textContent = pid;
-    }
+    } catch(e) { div.textContent = pid; }
   });
 }
 
-// Before print: sync QR into printRoot (in case it was regenerated)
 window.addEventListener('beforeprint', () => {
-  const rows = selectedRows();
-  if (!rows.length) return;
-  // Re-render QR in printRoot just in case
-  const sizeName = document.getElementById('qrSize').value;
-  const cfg = SIZE_CFG[sizeName];
-  renderAllQr(document.getElementById('printRoot'), cfg);
+  renderQr(document.getElementById('printRoot'), SIZES[activeSz]);
 });
 </script>
 {% endblock %}

@@ -173,7 +173,6 @@ def inventory_set_stock():
 @admin_required
 def inventory_print_barcodes():
     """Barcode / QR code label printing page."""
-    from app.services.image_delivery import rewrite_media_url
     products = Product.query.filter_by(is_active=True).order_by(Product.name).all()
     prime_product_image_lookup(products)
 
@@ -181,9 +180,13 @@ def inventory_print_barcodes():
     product_data = []
     for p in products:
         img_url = ''
-        if p.primary_image:
-            raw = p.primary_image.image_url or ''
-            img_url = rewrite_media_url(raw) if raw else ''
+        try:
+            raw = p.primary_image()  # returns a URL string or placeholder
+            # Only use real images, skip placeholder
+            if raw and not raw.startswith('/static/'):
+                img_url = raw
+        except Exception:
+            img_url = ''
         product_data.append({
             'id': p.id,
             'name': p.name,
