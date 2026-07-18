@@ -853,9 +853,36 @@ function _resolveStartTab(raw){
   return '';
 }
 
+function findProductLocally(id) {
+  const boot = typeof miniBootstrap !== 'undefined' ? miniBootstrap : (window.__INITIAL_BOOTSTRAP__ || null);
+  if(boot) {
+    if(boot.featured) { const p = boot.featured.find(x => String(x.id) === String(id)); if(p) return p; }
+    if(boot.new_arrivals) { const p = boot.new_arrivals.find(x => String(x.id) === String(id)); if(p) return p; }
+    if(boot.best_sellers) { const p = boot.best_sellers.find(x => String(x.id) === String(id)); if(p) return p; }
+    if(boot.shop_page?.products) { const p = boot.shop_page.products.find(x => String(x.id) === String(id)); if(p) return p; }
+  }
+  if(typeof sAll !== 'undefined' && sAll) { const p = sAll.find(x => String(x.id) === String(id)); if(p) return p; }
+  return null;
+}
+
 async function openStartParamTarget(intent=null){
   const data=intent || getStartupIntent();
   if(data.productId){
+    // Try to open instantly from local cache
+    const localP = findProductLocally(data.productId);
+    if(localP){
+      openSheet(JSON.stringify(localP));
+      // fetch quietly in background to ensure we have the absolute latest data (e.g. price, stock changes)
+      fetch('/api/v1/products/'+encodeURIComponent(data.productId))
+        .then(r=>r.json())
+        .then(d=>{ 
+          if(d.success && d.data && typeof shProd !== 'undefined' && shProd && String(shProd.id)===String(data.productId)){ 
+            openSheet(JSON.stringify(d.data)); 
+          } 
+        }).catch(()=>{});
+      return true;
+    }
+
     try{
       const r=await fetch('/api/v1/products/'+encodeURIComponent(data.productId));
       const d=await r.json();
