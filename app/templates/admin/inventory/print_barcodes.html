@@ -150,8 +150,8 @@
 /* ── A4 SHEET ── */
 .a4-sheet {
   background:#fff;
-  width:794px; height:1123px; /* Fixed A4 pixel sizes at 96DPI for exact PDF capture */
-  margin:0 auto;
+  width:100%; max-width:794px; margin:0 auto;
+  aspect-ratio:210/297;
   border-radius:6px;
   box-shadow:0 8px 40px rgba(0,0,0,.15);
   padding:10mm 8mm;
@@ -159,10 +159,9 @@
   display:flex; flex-direction:column;
   page-break-after:always;
 }
-/* Use flex in JS instead of CSS grid to avoid html2canvas bugs */
 .label-grid {
-  display:flex; flex-wrap:wrap; width:100%; height:100%;
-  align-content:flex-start; gap:2mm;
+  display:grid; width:100%; height:100%;
+  gap:2mm; align-content:start;
 }
 
 /* ── SINGLE LABEL CARD ── */
@@ -189,28 +188,25 @@
 
 /* ── PRINT MEDIA ── */
 @media print {
-  body { margin:0; padding:0; background:#fff; }
-  /* Hide everything except the preview pages */
+  @page { size: A4 portrait; margin: 0; }
+  body { margin:0; padding:0; background:#fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .lbl-page > *:first-child { display:none!important; }
   .preview-panel { background:none!important; padding:0!important; box-shadow:none!important; border-radius:0!important; min-height:0!important; }
-  .preview-panel h5 { display:none!important; }
-  .page-badge { display:none!important; }
+  .preview-panel h5, .page-badge { display:none!important; }
   .preview-pages { gap:0!important; display:block!important; }
-  /* A4 sheet exact dimensions */
   .a4-sheet {
-    width:210mm!important; height:295mm!important; max-width:none!important;
+    width:210mm!important; height:297mm!important; max-width:none!important;
     margin:0!important; padding:7mm 6mm!important;
     box-shadow:none!important; border-radius:0!important;
     aspect-ratio:auto!important; overflow:hidden!important;
     page-break-after:always!important;
-    display:flex!important; flex-direction:column!important;
+    page-break-inside:avoid!important;
   }
   .label-grid {
-    height:281mm!important;
+    height:283mm!important;
     align-content:start!important;
   }
   .label-card { page-break-inside:avoid; }
-  /* Admin chrome */
   nav, header, .sidebar, footer, .navbar, .topbar, .breadcrumb { display:none!important; }
 }
 </style>
@@ -323,16 +319,14 @@
       <div class="sum-item"><div class="sum-num" id="totalPages">0</div><div class="sum-lbl">Pages</div></div>
     </div>
 
-    <div style="display:flex; gap:10px; margin-top:14px;">
-      <button class="print-btn" onclick="downloadPDF()" id="downloadBtn" disabled style="flex:1;">
-        <i class="fas fa-file-pdf"></i> Download PDF
-      </button>
-      <button class="print-btn" onclick="window.print()" id="printBtn" disabled style="flex:1; background:linear-gradient(135deg,#3b82f6,#2563eb);">
-        <i class="fas fa-print"></i> Print
+    <div style="margin-top:14px;">
+      <button class="print-btn" onclick="window.print()" id="downloadBtn" disabled style="width:100%;">
+        <i class="fas fa-file-pdf"></i> Print / Save PDF
       </button>
     </div>
     <p class="text-center text-muted mt-2" style="font-size:.75rem;">
-      For print dialog → Paper: A4 · Margins: None · Scale: 100%
+      When the dialog opens, select <strong>"Save as PDF"</strong><br>
+      Paper: A4 · Margins: Default/None · Scale: 100%
     </p>
   </div>
 
@@ -355,7 +349,6 @@
 
 {% block extra_js %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script>
 const BOT_USERNAME = "{{ bot_username }}";
 const SHORT_NAME   = "{{ short_name }}";
@@ -452,7 +445,6 @@ function _build() {
   document.getElementById('totalProd').textContent   = items.length;
   document.getElementById('totalLabels').textContent = totalLabels;
   document.getElementById('totalPages').textContent  = totalPages;
-  document.getElementById('printBtn').disabled       = totalLabels === 0;
   document.getElementById('downloadBtn').disabled    = totalLabels === 0;
 
   const emptyDiv  = document.getElementById('emptyState');
@@ -491,6 +483,8 @@ function buildSheet(labels, cfg, showStore, showPrice, showSku, showImg) {
   sheet.className = 'a4-sheet';
   const grid = document.createElement('div');
   grid.className = 'label-grid';
+  grid.style.gridTemplateColumns = `repeat(${cfg.cols}, 1fr)`;
+  grid.style.gridTemplateRows    = `repeat(${cfg.rows}, 1fr)`;
   sheet.appendChild(grid);
   for (const lbl of labels) grid.appendChild(makeCard(lbl, cfg, showStore, showPrice, showSku, showImg));
   return sheet;
@@ -499,9 +493,6 @@ function buildSheet(labels, cfg, showStore, showPrice, showSku, showImg) {
 function makeCard(lbl, cfg, showStore, showPrice, showSku, showImg) {
   const card = document.createElement('div');
   card.className = 'label-card';
-  // Give exact percentage-based width/height (subtracting gap) so html2canvas renders properly
-  card.style.width  = `calc((100% - ${(cfg.cols - 1) * 2}mm) / ${cfg.cols})`;
-  card.style.height = `calc((100% - ${(cfg.rows - 1) * 2}mm) / ${cfg.rows})`;
 
   const accent = document.createElement('div');
   accent.className = 'label-accent';
@@ -510,7 +501,6 @@ function makeCard(lbl, cfg, showStore, showPrice, showSku, showImg) {
   if (showImg && lbl.img) {
     const bg = document.createElement('img');
     bg.className = 'label-bg-img';
-    // CRITICAL: prevents PDF engine from throwing a SecurityError on cross-origin taint
     bg.crossOrigin = 'anonymous'; 
     bg.src = lbl.img;
     bg.alt = '';
@@ -580,54 +570,5 @@ function renderQr(root, cfg) {
   });
 }
 
-function downloadPDF() {
-  const element = document.getElementById('previewPages');
-  const btn = document.getElementById('downloadBtn');
-  const ogText = btn.innerHTML;
-  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating PDF...';
-  btn.disabled = true;
-
-  // Temporarily hide page badges for clean PDF output
-  const badges = element.querySelectorAll('.page-badge');
-  badges.forEach(b => b.style.display = 'none');
-
-  const opt = {
-    margin:       0,
-    filename:     'Liyu_Kids_Mart_Labels.pdf',
-    image:        { type: 'jpeg', quality: 1.0 },
-    html2canvas:  { scale: 2, useCORS: true, logging: false },
-    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-  };
-
-  const pages = Array.from(element.querySelectorAll('.a4-sheet'));
-  
-  if (pages.length === 0) {
-    btn.innerHTML = ogText;
-    btn.disabled = false;
-    badges.forEach(b => b.style.display = '');
-    return;
-  }
-
-  // Render page by page to avoid huge canvas memory limits
-  let worker = html2pdf().set(opt).from(pages[0]).toPdf();
-  
-  for (let i = 1; i < pages.length; i++) {
-    worker = worker.get('pdf').then(pdf => {
-      pdf.addPage();
-    }).from(pages[i]).toContainer().toCanvas().toPdf();
-  }
-
-  worker.save().then(() => {
-    btn.innerHTML = ogText;
-    btn.disabled = false;
-    badges.forEach(b => b.style.display = ''); // restore badges
-  }).catch(err => {
-    console.error(err);
-    alert('Failed to generate PDF. Please try the Print button instead.');
-    btn.innerHTML = ogText;
-    btn.disabled = false;
-    badges.forEach(b => b.style.display = '');
-  });
-}
 </script>
 {% endblock %}
