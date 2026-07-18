@@ -150,8 +150,8 @@
 /* ── A4 SHEET ── */
 .a4-sheet {
   background:#fff;
-  width:100%; max-width:794px; margin:0 auto;
-  aspect-ratio:210/297;
+  width:794px; height:1123px; /* Fixed A4 pixel sizes at 96DPI for exact PDF capture */
+  margin:0 auto;
   border-radius:6px;
   box-shadow:0 8px 40px rgba(0,0,0,.15);
   padding:10mm 8mm;
@@ -159,9 +159,10 @@
   display:flex; flex-direction:column;
   page-break-after:always;
 }
+/* Use flex in JS instead of CSS grid to avoid html2canvas bugs */
 .label-grid {
-  display:grid; width:100%; height:100%;
-  gap:2mm; align-content:start;
+  display:flex; flex-wrap:wrap; width:100%; height:100%;
+  align-content:flex-start; gap:2mm;
 }
 
 /* ── SINGLE LABEL CARD ── */
@@ -490,8 +491,6 @@ function buildSheet(labels, cfg, showStore, showPrice, showSku, showImg) {
   sheet.className = 'a4-sheet';
   const grid = document.createElement('div');
   grid.className = 'label-grid';
-  grid.style.gridTemplateColumns = `repeat(${cfg.cols}, 1fr)`;
-  grid.style.gridTemplateRows    = `repeat(${cfg.rows}, 1fr)`;
   sheet.appendChild(grid);
   for (const lbl of labels) grid.appendChild(makeCard(lbl, cfg, showStore, showPrice, showSku, showImg));
   return sheet;
@@ -500,6 +499,9 @@ function buildSheet(labels, cfg, showStore, showPrice, showSku, showImg) {
 function makeCard(lbl, cfg, showStore, showPrice, showSku, showImg) {
   const card = document.createElement('div');
   card.className = 'label-card';
+  // Give exact percentage-based width/height (subtracting gap) so html2canvas renders properly
+  card.style.width  = `calc((100% - ${(cfg.cols - 1) * 2}mm) / ${cfg.cols})`;
+  card.style.height = `calc((100% - ${(cfg.rows - 1) * 2}mm) / ${cfg.rows})`;
 
   const accent = document.createElement('div');
   accent.className = 'label-accent';
@@ -508,6 +510,8 @@ function makeCard(lbl, cfg, showStore, showPrice, showSku, showImg) {
   if (showImg && lbl.img) {
     const bg = document.createElement('img');
     bg.className = 'label-bg-img';
+    // CRITICAL: prevents PDF engine from throwing a SecurityError on cross-origin taint
+    bg.crossOrigin = 'anonymous'; 
     bg.src = lbl.img;
     bg.alt = '';
     card.appendChild(bg);
