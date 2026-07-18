@@ -559,6 +559,18 @@ function renderQr(root, cfg) {
         colorDark: '#0f2318', colorLight: '#ffffff',
         correctLevel: QRCode.CorrectLevel.M,
       });
+      // Convert canvas to image to fix PDF/Print dialog crashes
+      setTimeout(() => {
+        const cvs = div.querySelector('canvas');
+        if (cvs) {
+          const img = document.createElement('img');
+          img.src = cvs.toDataURL('image/png');
+          img.style.width = '100%';
+          img.style.height = '100%';
+          div.innerHTML = '';
+          div.appendChild(img);
+        }
+      }, 50);
     } catch(e) { div.textContent = pid; }
   });
 }
