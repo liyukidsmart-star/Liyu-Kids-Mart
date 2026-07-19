@@ -813,12 +813,12 @@ def customers():
     # ── Historical Abandoned Intents (ActivityLog) ──────────────────
     historical_logs = db.session.query(
         ActivityLog.user_id,
-        ActivityLog.session_id,
+        ActivityLog.ip_address.label('session_id'),
         func.max(ActivityLog.created_at).label('last_active')
     ).filter(
         ActivityLog.action == 'add_to_cart'
     ).group_by(
-        ActivityLog.user_id, ActivityLog.session_id
+        ActivityLog.user_id, ActivityLog.ip_address
     ).order_by(
         func.max(ActivityLog.created_at).desc()
     ).limit(50).all()
@@ -830,11 +830,11 @@ def customers():
         from sqlalchemy import or_
         logs_q = ActivityLog.query.filter(ActivityLog.action == 'add_to_cart')
         if uids and sess_ids:
-            logs_q = logs_q.filter(or_(ActivityLog.user_id.in_(uids), ActivityLog.session_id.in_(sess_ids)))
+            logs_q = logs_q.filter(or_(ActivityLog.user_id.in_(uids), ActivityLog.ip_address.in_(sess_ids)))
         elif uids:
             logs_q = logs_q.filter(ActivityLog.user_id.in_(uids))
         elif sess_ids:
-            logs_q = logs_q.filter(ActivityLog.session_id.in_(sess_ids))
+            logs_q = logs_q.filter(ActivityLog.ip_address.in_(sess_ids))
             
         all_logs = logs_q.order_by(ActivityLog.created_at.desc()).all()
         
@@ -846,7 +846,7 @@ def customers():
         # Group logs by user/session
         logs_by_entity = {}
         for log in all_logs:
-            key = f"user_{log.user_id}" if log.user_id else f"session_{log.session_id}"
+            key = f"user_{log.user_id}" if log.user_id else f"session_{log.ip_address}"
             if key not in logs_by_entity:
                 logs_by_entity[key] = []
             if len(logs_by_entity[key]) < 20: # Limit to 20 products per cart
