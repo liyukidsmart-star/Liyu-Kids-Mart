@@ -814,95 +814,117 @@ def customers():
     historical_logs = db.session.query(
         ActivityLog.user_id,
         ActivityLog.session_id,
-        func.max(ActivityLog.created_at).label('last_active'),
-        func.count(ActivityLog.id).label('add_count')
+        func.max(ActivityLog.created_at).label('last_active')
     ).filter(
         ActivityLog.action == 'add_to_cart'
     ).group_by(
         ActivityLog.user_id, ActivityLog.session_id
     ).order_by(
         func.max(ActivityLog.created_at).desc()
-    ).limit(300).all()
+    ).limit(50).all()
 
-    processed_identifiers = set() # To track users/sessions we've already added
-
-    for uid, sess_id, last_active, add_count in historical_logs:
-        if uid in active_user_ids:
-            continue # Skip, they are already in Live Active carts
+    uids = [h.user_id for h in historical_logs if h.user_id and h.user_id not in active_user_ids]
+    sess_ids = [h.session_id for h in historical_logs if h.session_id]
+    
+    if uids or sess_ids:
+        from sqlalchemy import or_
+        logs_q = ActivityLog.query.filter(ActivityLog.action == 'add_to_cart')
+        if uids and sess_ids:
+            logs_q = logs_q.filter(or_(ActivityLog.user_id.in_(uids), ActivityLog.session_id.in_(sess_ids)))
+        elif uids:
+            logs_q = logs_q.filter(ActivityLog.user_id.in_(uids))
+        elif sess_ids:
+            logs_q = logs_q.filter(ActivityLog.session_id.in_(sess_ids))
             
-        identifier_key = f"user_{uid}" if uid else f"session_{sess_id}"
-        if identifier_key in processed_identifiers:
-            continue
-        processed_identifiers.add(identifier_key)
-            
-        # Get user details if available
-        user = db.session.get(User, uid) if uid else None
+        all_logs = logs_q.order_by(ActivityLog.created_at.desc()).all()
         
-        # Find which products they added historically
-        user_logs = ActivityLog.query.filter(
-            ActivityLog.action == 'add_to_cart'
-        )
-        if uid:
-            user_logs = user_logs.filter(ActivityLog.user_id == uid)
-        else:
-            user_logs = user_logs.filter(ActivityLog.session_id == sess_id)
-            
-        added_logs = user_logs.order_by(ActivityLog.created_at.desc()).limit(20).all()
-        hist_products = {}
-        for log in added_logs:
-            if log.entity_id and log.entity_id not in hist_products:
-                prod = db.session.get(Product, log.entity_id)
-                if prod:
-                    qty = log.get_meta().get('qty', 1) if log.meta else 1
-                    hist_products[prod.id] = {
-                        'name': prod.name,
-                        'price': float(prod.price),
-                        'qty': qty,
-                        'image': prod.primary_image()
-                    }
+        # Preload users and products
+        users_map = {u.id: u for u in User.query.filter(User.id.in_(uids)).all()}
+        product_ids = list(set(log.entity_id for log in all_logs if log.entity_id))
+        products_map = {p.id: p for p in Product.query.filter(Product.id.in_(product_ids)).all()}
         
-        if not hist_products:
-            continue
+        # Group logs by user/session
+        logs_by_entity = {}
+        for log in all_logs:
+            key = f"user_{log.user_id}" if log.user_id else f"session_{log.session_id}"
+            if key not in logs_by_entity:
+                logs_by_entity[key] = []
+            if len(logs_by_entity[key]) < 20: # Limit to 20 products per cart
+                logs_by_entity[key].append(log)
+                
+        for h in historical_logs:
+            uid = h.user_id
+            sess_id = h.session_id
+            last_active = h.last_active
             
-        products_detailed = list(hist_products.values())
-        products_list = ", ".join([p['name'] for p in products_detailed])
-        total_val = sum([p['price'] * p['qty'] for p in products_detailed])
-        total_items = sum([p['qty'] for p in products_detailed])
-        
-        if user:
-            name = user.full_name
-            telegram_username = user.telegram_username
-            phone = user.phone
-            if telegram_username:
-                identifier = f"@{telegram_username}"
+            if uid in active_user_ids:
+                continue
+                
+            key = f"user_{uid}" if uid else f"session_{sess_id}"
+            user_logs = logs_by_entity.get(key, [])
+            if not user_logs:
+                continue
+                
+            hist_products = {}
+            for log in user_logs:
+                if log.entity_id and log.entity_id not in hist_products:
+                    prod = products_map.get(log.entity_id)
+                    if prod:
+                        qty_raw = log.get_meta().get('qty', 1) if log.meta else 1
+                        try:
+                            qty = int(qty_raw)
+                        except:
+                            qty = 1
+                        hist_products[prod.id] = {
+                            'name': prod.name,
+                            'price': float(prod.price),
+                            'qty': qty,
+                            'image': prod.primary_image()
+                        }
+            
+            if not hist_products:
+                continue
+                
+            products_detailed = list(hist_products.values())
+            products_list = ", ".join([p['name'] for p in products_detailed])
+            total_val = sum([p['price'] * p['qty'] for p in products_detailed])
+            total_items = sum([p['qty'] for p in products_detailed])
+            
+            user = users_map.get(uid)
+            if user:
+                name = user.full_name
+                telegram_username = user.telegram_username
+                phone = user.phone
+                if telegram_username:
+                    identifier = f"@{telegram_username}"
+                else:
+                    identifier = f"User #{user.id}"
             else:
-                identifier = f"User #{user.id}"
-        else:
-            name = "Anonymous User"
-            telegram_username = None
-            phone = None
-            identifier = f"Session: {sess_id[:8]}..." if sess_id else "Guest"
+                name = "Anonymous User"
+                telegram_username = None
+                phone = None
+                identifier = f"Session: {sess_id[:8]}..." if sess_id else "Guest"
+                
+            if isinstance(last_active, str):
+                try:
+                    from datetime import datetime as _dt
+                    last_active = _dt.fromisoformat(last_active.replace('Z', '+00:00'))
+                except Exception:
+                    last_active = None
+            last_str = last_active.strftime('%b %d, %H:%M') if last_active else '—'
             
-        if isinstance(last_active, str):
-            try:
-                from datetime import datetime as _dt
-                last_active = _dt.fromisoformat(last_active.replace('Z', '+00:00'))
-            except Exception:
-                last_active = None
-        last_str = last_active.strftime('%b %d, %H:%M') if last_active else '—'
-        
-        active_carts_data.append({
-            'status': 'Abandoned',
-            'name': name,
-            'identifier': identifier,
-            'telegram_username': telegram_username,
-            'phone': phone,
-            'total_items': int(total_items),
-            'total': float(total_val),
-            'last_active': last_str,
-            'products_list': products_list,
-            'products_detailed': products_detailed
-        })
+            active_carts_data.append({
+                'status': 'Abandoned',
+                'name': name,
+                'identifier': identifier,
+                'telegram_username': telegram_username,
+                'phone': phone,
+                'total_items': int(total_items),
+                'total': float(total_val),
+                'last_active': last_str,
+                'products_list': products_list,
+                'products_detailed': products_detailed
+            })
         
     # Sort the combined list by last_active
     def _parse_time(d):
