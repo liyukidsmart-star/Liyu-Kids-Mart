@@ -742,23 +742,31 @@ def customers():
 
     # Fetch all distinct carts that still have items (not checked out)
     # Group by user_id + session_id. We do this per-row to avoid NULL grouping issues.
+    # Fetch top 15 distinct carts (without database-specific string aggregation)
     raw_carts = db.session.query(
         Cart.user_id,
         Cart.session_id,
         func.sum(Cart.quantity).label('total_items'),
         func.max(Cart.added_at).label('last_active'),
-        func.sum(Cart.quantity * db.cast(Product.price, db.Numeric)).label('total_value'),
-        func.group_concat(Product.name, ', ').label('products_list')
+        func.sum(Cart.quantity * db.cast(Product.price, db.Numeric)).label('total_value')
     ).join(Product, Cart.product_id == Product.id).group_by(
         Cart.user_id, Cart.session_id
     ).order_by(func.max(Cart.added_at).desc()).limit(15).all()
 
     active_carts_data = []
-    for uid, sid, qty, last_active, total_value, products_list in raw_carts:
+    for uid, sid, qty, last_active, total_value in raw_carts:
         user = db.session.get(User, uid) if uid else None
         name = user.full_name if user else "Anonymous Visitor"
         telegram_username = user.telegram_username if user and user.telegram_username else None
         phone = user.phone if user and user.phone else None
+        
+        # Fetch products for this specific cart safely
+        if uid:
+            prods = db.session.query(Product.name).join(Cart, Cart.product_id == Product.id).filter(Cart.user_id == uid).all()
+        else:
+            prods = db.session.query(Product.name).join(Cart, Cart.product_id == Product.id).filter(Cart.session_id == sid).all()
+        products_list = ", ".join(set([p[0] for p in prods]))
+        
         if telegram_username:
             identifier = f"@{telegram_username}"
         elif user:
@@ -773,6 +781,7 @@ def customers():
             except Exception:
                 last_active = None
         last_str = last_active.strftime('%b %d, %H:%M') if last_active else '—'
+        
         active_carts_data.append({
             'name': name,
             'identifier': identifier,
