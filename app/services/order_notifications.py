@@ -75,7 +75,7 @@ def notify_store_managers(order, order_items, addr, payment_method_str, discount
 
     discount_line = ''
     if discount_amount:
-        discount_line = f'\n🏷 <b>Discount:</b>  -ETB {discount_amount:,.0f}'
+        discount_line = f'\n🎁 <b>Discount:</b>  -ETB {discount_amount:,.0f}'
 
     receipt_line = ''
     if payment_receipt_url and payment_method_str == 'telebirr':
