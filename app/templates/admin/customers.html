@@ -485,6 +485,10 @@
                   <a href="https://t.me/{{ c.telegram_username }}" target="_blank" class="btn btn-sm btn-outline-primary" style="padding: 2px 8px; font-size: 0.7rem; margin-top: 4px;" onclick="event.stopPropagation()">
                     <i class="fab fa-telegram"></i> Contact User
                   </a>
+                {% elif c.telegram_id %}
+                  <a href="tg://user?id={{ c.telegram_id }}" class="btn btn-sm btn-outline-primary" style="padding: 2px 8px; font-size: 0.7rem; margin-top: 4px;" onclick="event.stopPropagation()">
+                    <i class="fab fa-telegram"></i> Contact User
+                  </a>
                 {% elif c.phone %}
                   <div style="font-size:0.7rem; color:var(--muted); margin-top: 2px;"><i class="fas fa-phone"></i> {{ c.phone }}</div>
                 {% endif %}
@@ -1633,7 +1637,8 @@ function showCartModal(idx) {
   document.getElementById('cModalStatus').innerHTML = c.status === 'Live' ? '<span class="badge bg-success">Live Cart</span>' : '<span class="badge bg-secondary">Abandoned</span>';
   document.getElementById('cModalContact').innerHTML = c.telegram_username ? 
     `<a href="https://t.me/${c.telegram_username}" target="_blank" class="btn btn-primary btn-sm"><i class="fab fa-telegram"></i> Message @${c.telegram_username}</a>` : 
-    (c.phone ? `<div><i class="fas fa-phone"></i> ${c.phone}</div>` : '');
+    (c.telegram_id ? `<a href="tg://user?id=${c.telegram_id}" class="btn btn-primary btn-sm"><i class="fab fa-telegram"></i> Message User</a>` :
+    (c.phone ? `<div><i class="fas fa-phone"></i> ${c.phone}</div>` : ''));
     
   let phtml = '';
   if(c.products_detailed && c.products_detailed.length) {
