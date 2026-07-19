@@ -2811,58 +2811,6 @@ async function handleReceiptUpload(input){
   tbUploading = false;
 }
 
-async function placeOrder(){
-  if(launchGuard()) return;
-  if(placing)return;
-  const cn=window.ckFormData.cn;
-  const cp=window.ckFormData.cp;
-  const cl=window.ckFormData.cl;
-  const cno=window.ckFormData.cno;
-  if(!ckLat||!ckLng){toast(tr(curLang==='am'?'ck_pin_first':'ck_pin_first'),'err');return;}
-  // Require TeleBirr receipt
-  if(selPM==='telebirr' && !tbReceiptUrl){
-    toast(tr('p_tb_required'),'err');
-    return;
-  }
-  placing=true;
-  const btn=document.getElementById('placeBtn');
-  if(btn){btn.disabled=true;btn.innerHTML=`<i class="fas fa-spinner fa-spin"></i> ${tr('plc_placing')}`;}
-  try{
-    const discParams = calcClientDiscount();
-    const r=await fetch('/api/v1/mini-app/checkout',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        telegram_id:TGID,
-        full_name:TGU?((TGU.first_name||'')+' '+(TGU.last_name||'')).trim():cn,
-        telegram_username:TGU?.username||'',
-        cart_items:cart.map(i=>({id:i.id,qty:i.qty})),
-        delivery:{name:cn,phone:cp,sub_city:'',specific_location:cl,city:'Addis Ababa',lat:ckLat,lng:ckLng,delivery_fee:ckDeliveryFee},
-        payment_method:selPM,
-        payment_receipt_url:tbReceiptUrl||'',
-        loyalty_discount_amount: discParams.loyaltyDiscAmt,
-        spending_discount_amount: discParams.threshDiscAmt,
-        cart_incentive_discount: discParams.incentiveDiscAmt,
-        total_discount_amount: discParams.total,
-        notes:cno||'Placed via Telegram Mini App'
-      })});
-    const d=await r.json();
-    if(d.success){
-      localStorage.setItem('lkm_cn', cn);
-      localStorage.setItem('lkm_cp', cp);
-      localStorage.setItem('lkm_cl', cl);
-      tbReceiptUrl = '';
-      lastON=d.data?.order_number||'LKM-0001';
-      cart=[];saveCart();ckStep='success';renderCK();
-      try{tg?.HapticFeedback?.notificationOccurred('success');}catch{}
-      }else{
-      toast(d.message||(curLang==='am'?'ትዕዛዙ አልተሳካም። እባክዎ እንደገና ይሞክሩ።':'Order failed. Please try again.'),'err');
-      if(btn){btn.disabled=false;btn.innerHTML=`<i class="fas fa-check-circle"></i> ${tr('plc_btn')}`;}
-    }
-  }catch{
-    toast(curLang==='am'?'የኢንተርኔት ችግር። እባክዎ እንደገና ይሞክሩ።':'Network error. Please try again.','err');
-    if(btn){btn.disabled=false;btn.innerHTML=`<i class="fas fa-check-circle"></i> ${tr('plc_btn')}`;}
-  }
-  placing=false;
-}
 
 /* -- Orders tab --------------------------------- */
 const SL={pending:'⏳ Pending',confirmed:'✅ Confirmed',packed:'📦 Packed',
