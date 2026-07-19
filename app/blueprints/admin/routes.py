@@ -751,7 +751,7 @@ def customers():
         func.sum(Cart.quantity * db.cast(Product.price, db.Numeric)).label('total_value')
     ).join(Product, Cart.product_id == Product.id).group_by(
         Cart.user_id, Cart.session_id
-    ).order_by(func.max(Cart.added_at).desc()).limit(15).all()
+    ).order_by(func.max(Cart.added_at).desc()).limit(100).all()
 
     active_carts_data = []
     active_user_ids = set()
@@ -823,7 +823,7 @@ def customers():
         ActivityLog.user_id
     ).order_by(
         func.max(ActivityLog.created_at).desc()
-    ).limit(30).all()
+    ).limit(150).all()
 
     for uid, last_active, add_count in historical_logs:
         if uid in active_user_ids:
@@ -889,8 +889,8 @@ def customers():
         except:
             return datetime.min
     active_carts_data.sort(key=_parse_time, reverse=True)
-    # limit to top 20 total
-    active_carts_data = active_carts_data[:20]
+    # limit to top 150 total
+    active_carts_data = active_carts_data[:150]
 
     # ── Buy Now clicks by product ─────────────────────────────────
     top_buy_now = db.session.query(

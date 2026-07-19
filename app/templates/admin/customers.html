@@ -470,8 +470,11 @@
       </div>
       <div class="chart-body" style="padding: 0;">
         {% if active_carts %}
-        <table class="table admin-table mb-0">
-          <thead><tr><th>User</th><th>Items</th><th>Cart Value</th><th>Last Active</th></tr></thead>
+        <div style="max-height: 400px; overflow-y: auto;">
+          <table class="table admin-table mb-0" style="border-collapse: separate; border-spacing: 0;">
+            <thead style="position: sticky; top: 0; background: white; z-index: 10;">
+              <tr><th>User</th><th>Items</th><th>Cart Value</th><th>Last Active</th></tr>
+            </thead>
           <tbody>
             {% for c in active_carts %}
             <tr style="cursor: pointer;" onclick="showCartModal({{ loop.index0 }})">
@@ -505,6 +508,7 @@
             {% endfor %}
           </tbody>
         </table>
+        </div>
         {% else %}
         <div class="text-center text-muted py-4" style="font-size:.85rem">No active carts found.<br><small>Customers checking out cleanly!</small></div>
         {% endif %}
