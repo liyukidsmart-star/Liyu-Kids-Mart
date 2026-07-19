@@ -748,16 +748,19 @@ def customers():
         func.sum(Cart.quantity).label('total_items'),
         func.max(Cart.added_at).label('last_active'),
         func.sum(Cart.quantity * db.cast(Product.price, db.Numeric)).label('total_value'),
+        func.group_concat(Product.name, ', ').label('products_list')
     ).join(Product, Cart.product_id == Product.id).group_by(
         Cart.user_id, Cart.session_id
-    ).order_by(func.max(Cart.added_at).desc()).limit(10).all()
+    ).order_by(func.max(Cart.added_at).desc()).limit(15).all()
 
     active_carts_data = []
-    for uid, sid, qty, last_active, total_value in raw_carts:
+    for uid, sid, qty, last_active, total_value, products_list in raw_carts:
         user = db.session.get(User, uid) if uid else None
         name = user.full_name if user else "Anonymous Visitor"
-        if user and user.telegram_username:
-            identifier = f"@{user.telegram_username}"
+        telegram_username = user.telegram_username if user and user.telegram_username else None
+        phone = user.phone if user and user.phone else None
+        if telegram_username:
+            identifier = f"@{telegram_username}"
         elif user:
             identifier = f"User #{user.id}"
         else:
@@ -773,9 +776,12 @@ def customers():
         active_carts_data.append({
             'name': name,
             'identifier': identifier,
+            'telegram_username': telegram_username,
+            'phone': phone,
             'items': int(qty or 0),
             'total': float(total_value or 0),
             'last_active': last_str,
+            'products_list': products_list,
         })
 
     # ── Buy Now clicks by product ─────────────────────────────────

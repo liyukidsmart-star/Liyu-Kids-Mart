@@ -502,8 +502,20 @@
               <td>
                 <div class="fw-600 tbl-name-cell">{{ c.name }}</div>
                 <div style="font-size:.72rem;color:var(--muted)">{{ c.identifier }}</div>
+                {% if c.telegram_username %}
+                  <a href="https://t.me/{{ c.telegram_username }}" target="_blank" class="btn btn-sm btn-outline-primary" style="padding: 2px 8px; font-size: 0.7rem; margin-top: 4px;">
+                    <i class="fab fa-telegram"></i> Contact User
+                  </a>
+                {% elif c.phone %}
+                  <div style="font-size:0.7rem; color:var(--muted); margin-top: 2px;"><i class="fas fa-phone"></i> {{ c.phone }}</div>
+                {% endif %}
               </td>
-              <td><span class="badge" style="background:#059669;color:white;font-size:.75rem">{{ c.items }}</span></td>
+              <td>
+                <span class="badge" style="background:#059669;color:white;font-size:.75rem">{{ c.items }} Items</span>
+                <div style="font-size:.7rem; color:var(--muted); max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 4px;" title="{{ c.products_list }}">
+                  {{ c.products_list }}
+                </div>
+              </td>
               <td class="fw-600">ETB {{ '{:,.0f}'.format(c.total) }}</td>
               <td style="font-size:.75rem;color:var(--muted)">{{ c.last_active }}</td>
             </tr>
