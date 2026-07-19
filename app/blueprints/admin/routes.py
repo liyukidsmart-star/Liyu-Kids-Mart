@@ -754,18 +754,33 @@ def customers():
     ).order_by(func.max(Cart.added_at).desc()).limit(15).all()
 
     active_carts_data = []
+    active_user_ids = set()
+    
     for uid, sid, qty, last_active, total_value in raw_carts:
+        if uid:
+            active_user_ids.add(uid)
         user = db.session.get(User, uid) if uid else None
         name = user.full_name if user else "Anonymous Visitor"
         telegram_username = user.telegram_username if user and user.telegram_username else None
         phone = user.phone if user and user.phone else None
         
-        # Fetch products for this specific cart safely
+        # Fetch detailed products for this specific cart safely
         if uid:
-            prods = db.session.query(Product.name).join(Cart, Cart.product_id == Product.id).filter(Cart.user_id == uid).all()
+            cart_items = Cart.query.filter_by(user_id=uid).all()
         else:
-            prods = db.session.query(Product.name).join(Cart, Cart.product_id == Product.id).filter(Cart.session_id == sid).all()
-        products_list = ", ".join(set([p[0] for p in prods]))
+            cart_items = Cart.query.filter_by(session_id=sid).all()
+            
+        products_detailed = []
+        for item in cart_items:
+            if item.product:
+                products_detailed.append({
+                    'name': item.product.name,
+                    'price': float(item.product.price),
+                    'qty': item.quantity,
+                    'image': item.product.primary_image()
+                })
+        
+        products_list = ", ".join(set([p['name'] for p in products_detailed]))
         
         if telegram_username:
             identifier = f"@{telegram_username}"
@@ -773,7 +788,7 @@ def customers():
             identifier = f"User #{user.id}"
         else:
             identifier = f"Session …{sid[-6:] if sid else '???'}"
-        # last_active may be a string on some DB drivers
+            
         if isinstance(last_active, str):
             try:
                 from datetime import datetime as _dt
@@ -783,6 +798,7 @@ def customers():
         last_str = last_active.strftime('%b %d, %H:%M') if last_active else '—'
         
         active_carts_data.append({
+            'status': 'Live',
             'name': name,
             'identifier': identifier,
             'telegram_username': telegram_username,
@@ -791,7 +807,91 @@ def customers():
             'total': float(total_value or 0),
             'last_active': last_str,
             'products_list': products_list,
+            'products_detailed': products_detailed
         })
+
+    # ── Historical Abandoned Intents (ActivityLog) ──────────────────
+    # Find users who added to cart but aren't currently active.
+    historical_logs = db.session.query(
+        ActivityLog.user_id,
+        func.max(ActivityLog.created_at).label('last_active'),
+        func.count(ActivityLog.id).label('add_count')
+    ).filter(
+        ActivityLog.action == 'add_to_cart',
+        ActivityLog.user_id.isnot(None)
+    ).group_by(
+        ActivityLog.user_id
+    ).order_by(
+        func.max(ActivityLog.created_at).desc()
+    ).limit(30).all()
+
+    for uid, last_active, add_count in historical_logs:
+        if uid in active_user_ids:
+            continue # Skip, they are already in Live Active carts
+            
+        user = db.session.get(User, uid)
+        if not user: continue
+        
+        # Find which products they added historically
+        added_logs = ActivityLog.query.filter_by(action='add_to_cart', user_id=uid).order_by(ActivityLog.created_at.desc()).limit(10).all()
+        hist_products = {}
+        for log in added_logs:
+            if log.entity_id and log.entity_id not in hist_products:
+                prod = db.session.get(Product, log.entity_id)
+                if prod:
+                    qty = log.get_meta().get('qty', 1) if log.meta else 1
+                    hist_products[prod.id] = {
+                        'name': prod.name,
+                        'price': float(prod.price),
+                        'qty': qty,
+                        'image': prod.primary_image()
+                    }
+        
+        if not hist_products:
+            continue
+            
+        products_detailed = list(hist_products.values())
+        products_list = ", ".join([p['name'] for p in products_detailed])
+        total_val = sum([p['price'] * p['qty'] for p in products_detailed])
+        total_items = sum([p['qty'] for p in products_detailed])
+        
+        telegram_username = user.telegram_username
+        if telegram_username:
+            identifier = f"@{telegram_username}"
+        else:
+            identifier = f"User #{user.id}"
+            
+        if isinstance(last_active, str):
+            try:
+                from datetime import datetime as _dt
+                last_active = _dt.fromisoformat(last_active.replace('Z', '+00:00'))
+            except Exception:
+                last_active = None
+        last_str = last_active.strftime('%b %d, %H:%M') if last_active else '—'
+        
+        active_carts_data.append({
+            'status': 'Abandoned',
+            'name': user.full_name,
+            'identifier': identifier,
+            'telegram_username': telegram_username,
+            'phone': user.phone,
+            'items': int(total_items),
+            'total': float(total_val),
+            'last_active': last_str,
+            'products_list': products_list,
+            'products_detailed': products_detailed
+        })
+        
+    # Sort the combined list by last_active
+    import datetime
+    def _parse_time(d):
+        try:
+            return datetime.datetime.strptime(d['last_active'], '%b %d, %H:%M')
+        except:
+            return datetime.datetime.min
+    active_carts_data.sort(key=_parse_time, reverse=True)
+    # limit to top 20 total
+    active_carts_data = active_carts_data[:20]
 
     # ── Buy Now clicks by product ─────────────────────────────────
     top_buy_now = db.session.query(

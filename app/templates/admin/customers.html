@@ -474,12 +474,12 @@
           <thead><tr><th>User</th><th>Items</th><th>Cart Value</th><th>Last Active</th></tr></thead>
           <tbody>
             {% for c in active_carts %}
-            <tr>
+            <tr style="cursor: pointer;" onclick="showCartModal({{ loop.index0 }})">
               <td>
                 <div class="fw-600 tbl-name-cell">{{ c.name }}</div>
                 <div style="font-size:.72rem;color:var(--muted)">{{ c.identifier }}</div>
                 {% if c.telegram_username %}
-                  <a href="https://t.me/{{ c.telegram_username }}" target="_blank" class="btn btn-sm btn-outline-primary" style="padding: 2px 8px; font-size: 0.7rem; margin-top: 4px;">
+                  <a href="https://t.me/{{ c.telegram_username }}" target="_blank" class="btn btn-sm btn-outline-primary" style="padding: 2px 8px; font-size: 0.7rem; margin-top: 4px;" onclick="event.stopPropagation()">
                     <i class="fab fa-telegram"></i> Contact User
                   </a>
                 {% elif c.phone %}
@@ -487,7 +487,14 @@
                 {% endif %}
               </td>
               <td>
-                <span class="badge" style="background:#059669;color:white;font-size:.75rem">{{ c.items }} Items</span>
+                <div>
+                  {% if c.status == 'Live' %}
+                    <span class="badge" style="background:#059669;color:white;font-size:.7rem">Live</span>
+                  {% else %}
+                    <span class="badge bg-secondary" style="font-size:.7rem">Abandoned</span>
+                  {% endif %}
+                  <span class="badge bg-light text-dark border" style="font-size:.7rem; margin-left:4px">{{ c.items }} Items</span>
+                </div>
                 <div style="font-size:.7rem; color:var(--muted); max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 4px;" title="{{ c.products_list }}">
                   {{ c.products_list }}
                 </div>
@@ -1613,6 +1620,69 @@ fetch('/admin/analytics/insights')
     document.getElementById('recommendationsPanel').innerHTML = renderInsightsList(d.recommendations, 'rec');
   });
 {% endif %}
-
+{% if tab == 'overview' %}
+const activeCartsData = {{ active_carts | tojson | safe }};
+function showCartModal(idx) {
+  const c = activeCartsData[idx];
+  if(!c) return;
+  document.getElementById('cModalName').textContent = c.name;
+  document.getElementById('cModalStatus').innerHTML = c.status === 'Live' ? '<span class="badge bg-success">Live Cart</span>' : '<span class="badge bg-secondary">Abandoned</span>';
+  document.getElementById('cModalContact').innerHTML = c.telegram_username ? 
+    `<a href="https://t.me/${c.telegram_username}" target="_blank" class="btn btn-primary btn-sm"><i class="fab fa-telegram"></i> Message @${c.telegram_username}</a>` : 
+    (c.phone ? `<div><i class="fas fa-phone"></i> ${c.phone}</div>` : '');
+    
+  let phtml = '';
+  if(c.products_detailed && c.products_detailed.length) {
+    c.products_detailed.forEach(p => {
+      phtml += `
+        <div class="d-flex align-items-center mb-3 pb-3 border-bottom">
+          <img src="${p.image}" style="width:50px;height:50px;object-fit:cover;border-radius:8px;margin-right:12px;">
+          <div style="flex:1">
+            <div class="fw-bold" style="font-size:0.9rem">${p.name}</div>
+            <div class="text-muted" style="font-size:0.8rem">Qty: ${p.qty} &times; ETB ${p.price.toLocaleString()}</div>
+          </div>
+          <div class="fw-bold">ETB ${(p.qty * p.price).toLocaleString()}</div>
+        </div>
+      `;
+    });
+  } else {
+    phtml = '<div class="text-muted">No product details available.</div>';
+  }
+  document.getElementById('cModalProducts').innerHTML = phtml;
+  document.getElementById('cModalTotal').textContent = 'ETB ' + c.total.toLocaleString();
+  
+  const m = new bootstrap.Modal(document.getElementById('cartDetailModal'));
+  m.show();
+}
+{% endif %}
 </script>
+
+<!-- Cart Detail Modal -->
+<div class="modal fade" id="cartDetailModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius:16px; border:none; box-shadow:0 10px 30px rgba(0,0,0,0.1)">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title fw-bold">Cart Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body pt-3">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div>
+            <h6 id="cModalName" class="mb-1 fw-bold">User Name</h6>
+            <div id="cModalStatus"></div>
+          </div>
+          <div id="cModalContact"></div>
+        </div>
+        <div class="bg-light p-3 mb-3" style="border-radius:12px;">
+          <div id="cModalProducts"></div>
+          <div class="d-flex justify-content-between align-items-center mt-2 pt-2">
+            <span class="fw-bold">Total Cart Value</span>
+            <span class="fw-bold text-primary" id="cModalTotal" style="font-size:1.1rem">ETB 0</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
