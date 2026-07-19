@@ -1055,6 +1055,665 @@ def analytics():
                            telegram_users=telegram_users, ai_count=ai_count)
 
 
+# ── ANALYTICS API ENDPOINTS ──────────────────────────────────────────────────
+
+def _analytics_date_range(period=None):
+    """Return (start, end) UTC datetimes for a given period string."""
+    local_tz = ZoneInfo('Africa/Addis_Ababa')
+    now_local = datetime.now(local_tz)
+    today_start = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
+    end = datetime.now(timezone.utc)
+
+    if period == 'today':
+        start = today_start.astimezone(timezone.utc)
+    elif period == 'yesterday':
+        start = (today_start - timedelta(days=1)).astimezone(timezone.utc)
+        end = today_start.astimezone(timezone.utc)
+    elif period == '7d':
+        start = (today_start - timedelta(days=7)).astimezone(timezone.utc)
+    elif period == '30d':
+        start = (today_start - timedelta(days=30)).astimezone(timezone.utc)
+    elif period == '90d':
+        start = (today_start - timedelta(days=90)).astimezone(timezone.utc)
+    elif period == '1y':
+        start = (today_start - timedelta(days=365)).astimezone(timezone.utc)
+    else:
+        start = (today_start - timedelta(days=30)).astimezone(timezone.utc)
+    return start, end
+
+
+def _prev_period_start(start, end):
+    """Return the start of the equivalent previous period."""
+    delta = end - start
+    return start - delta
+
+
+@admin_bp.route('/analytics/kpis')
+@admin_required
+def analytics_kpis():
+    """JSON: KPI cards with period comparison."""
+    period = request.args.get('period', '30d')
+    start, end = _analytics_date_range(period)
+    prev_start = _prev_period_start(start, end)
+
+    def pct_change(curr, prev):
+        if not prev:
+            return None
+        return round((curr - prev) / prev * 100, 1)
+
+    # Revenue
+    revenue = db.session.query(func.sum(Order.total)).filter(
+        Order.created_at >= start, Order.created_at < end,
+        Order.status.notin_([OrderStatus.cancelled, OrderStatus.returned])
+    ).scalar() or 0
+    prev_revenue = db.session.query(func.sum(Order.total)).filter(
+        Order.created_at >= prev_start, Order.created_at < start,
+        Order.status.notin_([OrderStatus.cancelled, OrderStatus.returned])
+    ).scalar() or 0
+
+    # Orders
+    orders = Order.query.filter(
+        Order.created_at >= start, Order.created_at < end,
+        Order.status.notin_([OrderStatus.cancelled, OrderStatus.returned])
+    ).count()
+    prev_orders = Order.query.filter(
+        Order.created_at >= prev_start, Order.created_at < start,
+        Order.status.notin_([OrderStatus.cancelled, OrderStatus.returned])
+    ).count()
+
+    # AOV
+    aov = float(revenue) / orders if orders else 0
+    prev_aov = float(prev_revenue) / prev_orders if prev_orders else 0
+
+    # Customers
+    total_customers = User.query.filter_by(role=UserRole.customer).count()
+    new_customers = User.query.filter(
+        User.role == UserRole.customer,
+        User.created_at >= start, User.created_at < end
+    ).count()
+    prev_new_customers = User.query.filter(
+        User.role == UserRole.customer,
+        User.created_at >= prev_start, User.created_at < start
+    ).count()
+
+    # Returning customers: those who had orders before the period and also in period
+    returning_subq = db.session.query(Order.user_id).filter(
+        Order.created_at < start,
+        Order.status.notin_([OrderStatus.cancelled, OrderStatus.returned])
+    ).distinct().subquery()
+    returning_customers = db.session.query(func.count(distinct(Order.user_id))).filter(
+        Order.created_at >= start, Order.created_at < end,
+        Order.status.notin_([OrderStatus.cancelled, OrderStatus.returned]),
+        Order.user_id.in_(db.session.query(returning_subq))
+    ).scalar() or 0
+
+    # Mini app visits
+    visits = db.session.query(func.count(ActivityLog.id)).filter(
+        ActivityLog.action == 'mini_app_visit',
+        ActivityLog.created_at >= start, ActivityLog.created_at < end
+    ).scalar() or 0
+    prev_visits = db.session.query(func.count(ActivityLog.id)).filter(
+        ActivityLog.action == 'mini_app_visit',
+        ActivityLog.created_at >= prev_start, ActivityLog.created_at < start
+    ).scalar() or 0
+
+    # Cart adds
+    cart_adds = db.session.query(func.count(ActivityLog.id)).filter(
+        ActivityLog.action == 'add_to_cart',
+        ActivityLog.created_at >= start, ActivityLog.created_at < end
+    ).scalar() or 0
+
+    # Product views
+    product_views = db.session.query(func.count(ActivityLog.id)).filter(
+        ActivityLog.action == 'view_product',
+        ActivityLog.created_at >= start, ActivityLog.created_at < end
+    ).scalar() or 0
+
+    # Avg items per order
+    avg_items_row = db.session.query(func.avg(Order.total_items)).filter(
+        Order.created_at >= start, Order.created_at < end,
+        Order.status.notin_([OrderStatus.cancelled, OrderStatus.returned]),
+        Order.total_items > 0
+    ).scalar()
+    avg_items = round(float(avg_items_row), 2) if avg_items_row else 0
+
+    # Avg delivery fee
+    avg_del_row = db.session.query(func.avg(Order.delivery_fee)).filter(
+        Order.created_at >= start, Order.created_at < end,
+        Order.status.notin_([OrderStatus.cancelled, OrderStatus.returned])
+    ).scalar()
+    avg_delivery_fee = round(float(avg_del_row), 0) if avg_del_row else 0
+
+    # Cart abandonment: cart adds that didn't lead to an order in the period
+    cart_abandonment_rate = 0
+    if cart_adds > 0:
+        cart_abandonment_rate = round((1 - min(orders / cart_adds, 1)) * 100, 1)
+
+    # Repeat purchase rate
+    customers_with_orders = db.session.query(func.count(distinct(Order.user_id))).filter(
+        Order.created_at >= start, Order.created_at < end,
+        Order.status.notin_([OrderStatus.cancelled, OrderStatus.returned])
+    ).scalar() or 0
+    repeat_rate = round(returning_customers / customers_with_orders * 100, 1) if customers_with_orders else 0
+
+    # CLV: total revenue / total customers with orders
+    clv = round(float(revenue) / customers_with_orders, 0) if customers_with_orders else 0
+
+    return jsonify({
+        'period': period,
+        'revenue': {'value': float(revenue), 'prev': float(prev_revenue), 'change': pct_change(float(revenue), float(prev_revenue))},
+        'orders': {'value': orders, 'prev': prev_orders, 'change': pct_change(orders, prev_orders)},
+        'aov': {'value': round(aov, 0), 'prev': round(prev_aov, 0), 'change': pct_change(aov, prev_aov)},
+        'total_customers': {'value': total_customers},
+        'new_customers': {'value': new_customers, 'prev': prev_new_customers, 'change': pct_change(new_customers, prev_new_customers)},
+        'returning_customers': {'value': returning_customers},
+        'visits': {'value': visits, 'prev': prev_visits, 'change': pct_change(visits, prev_visits)},
+        'product_views': {'value': product_views},
+        'cart_adds': {'value': cart_adds},
+        'cart_abandonment_rate': {'value': cart_abandonment_rate},
+        'avg_items': {'value': avg_items},
+        'avg_delivery_fee': {'value': avg_delivery_fee},
+        'repeat_rate': {'value': repeat_rate},
+        'clv': {'value': clv},
+    })
+
+
+@admin_bp.route('/analytics/funnel')
+@admin_required
+def analytics_funnel():
+    """JSON: Sales funnel data."""
+    period = request.args.get('period', '30d')
+    start, end = _analytics_date_range(period)
+
+    app_opens = db.session.query(func.count(ActivityLog.id)).filter(
+        ActivityLog.action == 'mini_app_visit',
+        ActivityLog.created_at >= start, ActivityLog.created_at < end
+    ).scalar() or 0
+
+    product_views = db.session.query(func.count(ActivityLog.id)).filter(
+        ActivityLog.action == 'view_product',
+        ActivityLog.created_at >= start, ActivityLog.created_at < end
+    ).scalar() or 0
+
+    cart_adds = db.session.query(func.count(ActivityLog.id)).filter(
+        ActivityLog.action == 'add_to_cart',
+        ActivityLog.created_at >= start, ActivityLog.created_at < end
+    ).scalar() or 0
+
+    checkouts_started = db.session.query(func.count(ActivityLog.id)).filter(
+        ActivityLog.action == 'checkout_started',
+        ActivityLog.created_at >= start, ActivityLog.created_at < end
+    ).scalar() or 0
+    # Fallback: count unique users who started checkout (orders placed)
+    if checkouts_started == 0:
+        checkouts_started = Order.query.filter(
+            Order.created_at >= start, Order.created_at < end
+        ).count()
+
+    orders_placed = Order.query.filter(
+        Order.created_at >= start, Order.created_at < end,
+        Order.status.notin_([OrderStatus.cancelled, OrderStatus.returned])
+    ).count()
+
+    orders_delivered = Order.query.filter(
+        Order.created_at >= start, Order.created_at < end,
+        Order.status == OrderStatus.delivered
+    ).count()
+
+    def safe_pct(a, b):
+        if not b:
+            return 0
+        return round(a / b * 100, 1)
+
+    def drop_pct(a, b):
+        if not b:
+            return 0
+        return round((1 - a / b) * 100, 1)
+
+    stages = [
+        {'label': 'App Opened', 'count': app_opens, 'pct': 100, 'drop': 0},
+        {'label': 'Viewed Product', 'count': product_views, 'pct': safe_pct(product_views, app_opens), 'drop': drop_pct(product_views, app_opens)},
+        {'label': 'Added to Cart', 'count': cart_adds, 'pct': safe_pct(cart_adds, app_opens), 'drop': drop_pct(cart_adds, product_views)},
+        {'label': 'Checkout Started', 'count': checkouts_started, 'pct': safe_pct(checkouts_started, app_opens), 'drop': drop_pct(checkouts_started, cart_adds)},
+        {'label': 'Order Placed', 'count': orders_placed, 'pct': safe_pct(orders_placed, app_opens), 'drop': drop_pct(orders_placed, checkouts_started)},
+        {'label': 'Delivered', 'count': orders_delivered, 'pct': safe_pct(orders_delivered, app_opens), 'drop': drop_pct(orders_delivered, orders_placed)},
+    ]
+    return jsonify({'stages': stages})
+
+
+@admin_bp.route('/analytics/revenue')
+@admin_required
+def analytics_revenue():
+    """JSON: Revenue chart data (daily, weekly, monthly breakdown)."""
+    period = request.args.get('period', '30d')
+    start, end = _analytics_date_range(period)
+    local_tz = ZoneInfo('Africa/Addis_Ababa')
+
+    # Daily revenue for the period
+    from app.models.inventory import POSSale, POSSaleStatus
+    days = []
+    delta = end - start
+    num_days = min(int(delta.total_seconds() / 86400), 90)
+    today_start_local = datetime.now(local_tz).replace(hour=0, minute=0, second=0, microsecond=0)
+    for i in range(num_days - 1, -1, -1):
+        day_local = today_start_local - timedelta(days=i)
+        next_day_local = day_local + timedelta(days=1)
+        day_utc = day_local.astimezone(timezone.utc)
+        next_day_utc = next_day_local.astimezone(timezone.utc)
+        if day_utc < start:
+            continue
+
+        rev = db.session.query(func.sum(Order.total)).filter(
+            Order.created_at >= day_utc, Order.created_at < next_day_utc,
+            Order.status.notin_([OrderStatus.cancelled, OrderStatus.returned])
+        ).scalar() or 0
+
+        pos_rev = db.session.query(func.sum(POSSale.total)).filter(
+            POSSale.created_at >= day_utc, POSSale.created_at < next_day_utc,
+            POSSale.status == POSSaleStatus.completed
+        ).scalar() or 0
+
+        ord_cnt = Order.query.filter(
+            Order.created_at >= day_utc, Order.created_at < next_day_utc,
+            Order.status.notin_([OrderStatus.cancelled, OrderStatus.returned])
+        ).count()
+
+        days.append({
+            'date': day_local.strftime('%b %d'),
+            'revenue': float(rev) + float(pos_rev),
+            'orders': ord_cnt,
+        })
+
+    # Revenue by category
+    cat_rev = db.session.query(
+        Category.name,
+        func.sum(OrderItem.price * OrderItem.quantity).label('rev')
+    ).join(Product, OrderItem.product_id == Product.id
+    ).join(Category, Product.category_id == Category.id
+    ).join(Order, OrderItem.order_id == Order.id
+    ).filter(
+        Order.created_at >= start, Order.created_at < end,
+        Order.status.notin_([OrderStatus.cancelled, OrderStatus.returned])
+    ).group_by(Category.name).order_by(func.sum(OrderItem.price * OrderItem.quantity).desc()).limit(8).all()
+
+    # Revenue by product
+    prod_rev = db.session.query(
+        Product.name,
+        func.sum(OrderItem.price * OrderItem.quantity).label('rev'),
+        func.sum(OrderItem.quantity).label('qty')
+    ).join(Product, OrderItem.product_id == Product.id
+    ).join(Order, OrderItem.order_id == Order.id
+    ).filter(
+        Order.created_at >= start, Order.created_at < end,
+        Order.status.notin_([OrderStatus.cancelled, OrderStatus.returned])
+    ).group_by(Product.name).order_by(func.sum(OrderItem.price * OrderItem.quantity).desc()).limit(10).all()
+
+    return jsonify({
+        'daily': days,
+        'by_category': [{'name': r[0], 'revenue': float(r[1])} for r in cat_rev],
+        'by_product': [{'name': r[0], 'revenue': float(r[1]), 'qty': int(r[2])} for r in prod_rev],
+    })
+
+
+@admin_bp.route('/analytics/products')
+@admin_required
+def analytics_products():
+    """JSON: Product analytics."""
+    period = request.args.get('period', '30d')
+    start, end = _analytics_date_range(period)
+
+    prods = db.session.query(
+        Product.id,
+        Product.name,
+        Product.stock_qty,
+        Product.price,
+        Product.view_count,
+        Product.sales_count,
+        func.sum(OrderItem.quantity).label('period_qty'),
+        func.sum(OrderItem.price * OrderItem.quantity).label('period_rev'),
+        func.count(distinct(OrderItem.order_id)).label('period_orders'),
+    ).outerjoin(
+        OrderItem, and_(
+            OrderItem.product_id == Product.id,
+        )
+    ).outerjoin(
+        Order, and_(
+            Order.id == OrderItem.order_id,
+            Order.created_at >= start, Order.created_at < end,
+            Order.status.notin_([OrderStatus.cancelled, OrderStatus.returned])
+        )
+    ).filter(Product.is_active == True
+    ).group_by(Product.id, Product.name, Product.stock_qty, Product.price,
+               Product.view_count, Product.sales_count
+    ).order_by(func.sum(OrderItem.price * OrderItem.quantity).desc().nullslast()
+    ).limit(50).all()
+
+    # Cart adds per product
+    cart_by_product = {r[0]: r[1] for r in db.session.query(
+        ActivityLog.entity_id, func.count(ActivityLog.id)
+    ).filter(
+        ActivityLog.action == 'add_to_cart',
+        ActivityLog.created_at >= start, ActivityLog.created_at < end,
+        ActivityLog.entity_id.isnot(None)
+    ).group_by(ActivityLog.entity_id).all()}
+
+    # Wishlist count per product
+    from app.models.order import Wishlist
+    wish_by_product = {r[0]: r[1] for r in db.session.query(
+        Wishlist.product_id, func.count(Wishlist.id)
+    ).group_by(Wishlist.product_id).all()}
+
+    result = []
+    for p in prods:
+        period_qty = int(p.period_qty or 0)
+        period_rev = float(p.period_rev or 0)
+        period_orders = int(p.period_orders or 0)
+        views = int(p.view_count or 0)
+        cart_cnt = cart_by_product.get(p.id, 0)
+        conv = round(period_orders / views * 100, 1) if views else 0
+        result.append({
+            'id': p.id,
+            'name': p.name,
+            'price': float(p.price),
+            'stock': p.stock_qty,
+            'views': views,
+            'cart_adds': cart_cnt,
+            'orders': period_orders,
+            'qty_sold': period_qty,
+            'revenue': period_rev,
+            'conversion': conv,
+            'wishlist': wish_by_product.get(p.id, 0),
+            'low_stock': p.stock_qty < 5,
+        })
+    return jsonify({'products': result})
+
+
+@admin_bp.route('/analytics/segments')
+@admin_required
+def analytics_segments():
+    """JSON: Customer segmentation."""
+    now_utc = datetime.now(timezone.utc)
+    local_tz = ZoneInfo('Africa/Addis_Ababa')
+    today_start = datetime.now(local_tz).replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc)
+    d30 = today_start - timedelta(days=30)
+    d90 = today_start - timedelta(days=90)
+    d180 = today_start - timedelta(days=180)
+
+    customers = User.query.filter_by(role=UserRole.customer).all()
+
+    segments = {
+        'VIP': [],
+        'High Value': [],
+        'Frequent Buyer': [],
+        'Returning': [],
+        'First Time Buyer': [],
+        'Window Shopper': [],
+        'Inactive': [],
+        'Lost Customer': [],
+    }
+
+    for c in customers:
+        spent = float(c.total_money_spent or 0)
+        orders = int(c.total_orders or 0)
+        last_purchase = c.last_purchase_date
+
+        if spent >= 10000 and orders >= 5:
+            segments['VIP'].append(c)
+        elif spent >= 5000 or orders >= 3:
+            segments['High Value'].append(c)
+        elif orders >= 2 and last_purchase and last_purchase.replace(tzinfo=timezone.utc) >= d30:
+            segments['Frequent Buyer'].append(c)
+        elif orders >= 2:
+            segments['Returning'].append(c)
+        elif orders == 1 and last_purchase and last_purchase.replace(tzinfo=timezone.utc) >= d90:
+            segments['First Time Buyer'].append(c)
+        elif orders == 0:
+            # Check if they visited app or viewed products
+            activity_cnt = ActivityLog.query.filter_by(user_id=c.id).count()
+            if activity_cnt > 0:
+                segments['Window Shopper'].append(c)
+        elif orders >= 1 and last_purchase and last_purchase.replace(tzinfo=timezone.utc) < d180:
+            segments['Lost Customer'].append(c)
+        elif last_purchase and last_purchase.replace(tzinfo=timezone.utc) < d90:
+            segments['Inactive'].append(c)
+        else:
+            segments['Inactive'].append(c)
+
+    result = []
+    for seg_name, seg_customers in segments.items():
+        if not seg_customers:
+            result.append({'segment': seg_name, 'count': 0, 'revenue': 0, 'avg_spend': 0})
+            continue
+        total_rev = sum(float(c.total_money_spent or 0) for c in seg_customers)
+        avg_spend = total_rev / len(seg_customers)
+        result.append({
+            'segment': seg_name,
+            'count': len(seg_customers),
+            'revenue': round(total_rev, 0),
+            'avg_spend': round(avg_spend, 0),
+        })
+
+    return jsonify({'segments': result})
+
+
+@admin_bp.route('/analytics/cohort')
+@admin_required
+def analytics_cohort():
+    """JSON: Monthly cohort retention."""
+    local_tz = ZoneInfo('Africa/Addis_Ababa')
+    now_local = datetime.now(local_tz)
+    months = []
+    for i in range(5, -1, -1):
+        # month start
+        month_offset = now_local.month - i
+        year_offset = now_local.year
+        while month_offset <= 0:
+            month_offset += 12
+            year_offset -= 1
+        months.append((year_offset, month_offset))
+
+    cohort_data = []
+    for cohort_year, cohort_month in months:
+        # Users who joined in this month
+        if cohort_month == 12:
+            next_month_start = datetime(cohort_year + 1, 1, 1, tzinfo=local_tz).astimezone(timezone.utc)
+        else:
+            next_month_start = datetime(cohort_year, cohort_month + 1, 1, tzinfo=local_tz).astimezone(timezone.utc)
+        cohort_start = datetime(cohort_year, cohort_month, 1, tzinfo=local_tz).astimezone(timezone.utc)
+
+        cohort_users = User.query.filter(
+            User.role == UserRole.customer,
+            User.created_at >= cohort_start,
+            User.created_at < next_month_start
+        ).with_entities(User.id).all()
+        cohort_ids = [u.id for u in cohort_users]
+        cohort_size = len(cohort_ids)
+
+        retention = []
+        if cohort_ids:
+            for offset in range(0, 5):
+                # Calculate month for retention check
+                ret_month = cohort_month + offset
+                ret_year = cohort_year
+                while ret_month > 12:
+                    ret_month -= 12
+                    ret_year += 1
+                if ret_month == 12:
+                    ret_end_month = 1
+                    ret_end_year = ret_year + 1
+                else:
+                    ret_end_month = ret_month + 1
+                    ret_end_year = ret_year
+
+                ret_start = datetime(ret_year, ret_month, 1, tzinfo=local_tz).astimezone(timezone.utc)
+                ret_end = datetime(ret_end_year, ret_end_month, 1, tzinfo=local_tz).astimezone(timezone.utc)
+
+                active = db.session.query(func.count(distinct(Order.user_id))).filter(
+                    Order.user_id.in_(cohort_ids),
+                    Order.created_at >= ret_start,
+                    Order.created_at < ret_end,
+                    Order.status.notin_([OrderStatus.cancelled, OrderStatus.returned])
+                ).scalar() or 0
+
+                pct = round(active / cohort_size * 100, 0) if cohort_size else 0
+                retention.append(pct)
+
+        cohort_data.append({
+            'label': f"{cohort_year}-{cohort_month:02d}",
+            'size': cohort_size,
+            'retention': retention,
+        })
+
+    return jsonify({'cohorts': cohort_data})
+
+
+@admin_bp.route('/analytics/geographic')
+@admin_required
+def analytics_geographic():
+    """JSON: Orders by city/region."""
+    period = request.args.get('period', '30d')
+    start, end = _analytics_date_range(period)
+
+    from app.models.order import Address
+    city_data = db.session.query(
+        Address.city,
+        func.count(Order.id).label('orders'),
+        func.sum(Order.total).label('revenue'),
+        func.count(distinct(Order.user_id)).label('customers')
+    ).join(Order, Order.address_id == Address.id
+    ).filter(
+        Order.created_at >= start, Order.created_at < end,
+        Order.status.notin_([OrderStatus.cancelled, OrderStatus.returned])
+    ).group_by(Address.city).order_by(func.count(Order.id).desc()).limit(20).all()
+
+    region_data = db.session.query(
+        Address.region,
+        func.count(Order.id).label('orders'),
+        func.sum(Order.total).label('revenue')
+    ).join(Order, Order.address_id == Address.id
+    ).filter(
+        Order.created_at >= start, Order.created_at < end,
+        Order.status.notin_([OrderStatus.cancelled, OrderStatus.returned]),
+        Address.region.isnot(None)
+    ).group_by(Address.region).order_by(func.count(Order.id).desc()).limit(15).all()
+
+    return jsonify({
+        'cities': [{'city': r[0] or 'Unknown', 'orders': r[1], 'revenue': float(r[2] or 0), 'customers': r[3]} for r in city_data],
+        'regions': [{'region': r[0] or 'Unknown', 'orders': r[1], 'revenue': float(r[2] or 0)} for r in region_data],
+    })
+
+
+@admin_bp.route('/analytics/insights')
+@admin_required
+def analytics_insights():
+    """JSON: Auto-generated AI insights."""
+    period = '30d'
+    start, end = _analytics_date_range(period)
+    prev_start = _prev_period_start(start, end)
+
+    insights = []
+    warnings = []
+    recommendations = []
+
+    # Revenue trend
+    rev_curr = float(db.session.query(func.sum(Order.total)).filter(
+        Order.created_at >= start, Order.created_at < end,
+        Order.status.notin_([OrderStatus.cancelled, OrderStatus.returned])
+    ).scalar() or 0)
+    rev_prev = float(db.session.query(func.sum(Order.total)).filter(
+        Order.created_at >= prev_start, Order.created_at < start,
+        Order.status.notin_([OrderStatus.cancelled, OrderStatus.returned])
+    ).scalar() or 0)
+    if rev_prev > 0:
+        rev_change = round((rev_curr - rev_prev) / rev_prev * 100, 1)
+        if rev_change > 0:
+            insights.append(f"Revenue increased by {rev_change}% compared to the previous period.")
+        elif rev_change < -10:
+            warnings.append(f"Revenue dropped by {abs(rev_change)}% compared to previous period. Investigate now.")
+
+    # Top growing category
+    cat_curr = db.session.query(
+        Category.name, func.sum(OrderItem.quantity).label('qty')
+    ).join(Product, OrderItem.product_id == Product.id
+    ).join(Category, Product.category_id == Category.id
+    ).join(Order, OrderItem.order_id == Order.id
+    ).filter(Order.created_at >= start, Order.created_at < end,
+             Order.status.notin_([OrderStatus.cancelled, OrderStatus.returned])
+    ).group_by(Category.name).order_by(func.sum(OrderItem.quantity).desc()).first()
+    if cat_curr:
+        insights.append(f"'{cat_curr.name}' is your top-selling category this period.")
+
+    # Cart abandonment
+    cart_adds = db.session.query(func.count(ActivityLog.id)).filter(
+        ActivityLog.action == 'add_to_cart',
+        ActivityLog.created_at >= start
+    ).scalar() or 0
+    orders_placed = Order.query.filter(
+        Order.created_at >= start, Order.created_at < end,
+        Order.status.notin_([OrderStatus.cancelled, OrderStatus.returned])
+    ).count()
+    if cart_adds > 0:
+        aband_rate = (1 - min(orders_placed / cart_adds, 1)) * 100
+        if aband_rate > 60:
+            warnings.append(f"Cart abandonment rate is {aband_rate:.0f}%. Consider follow-up messages after cart additions.")
+
+    # Low stock products
+    low_stock = Product.query.filter(
+        Product.is_active == True,
+        Product.stock_qty > 0,
+        Product.stock_qty <= 5
+    ).count()
+    out_of_stock = Product.query.filter(
+        Product.is_active == True,
+        Product.stock_qty == 0
+    ).count()
+    if low_stock > 0:
+        warnings.append(f"{low_stock} product(s) have low stock (≤5 units). Restock soon.")
+    if out_of_stock > 0:
+        warnings.append(f"{out_of_stock} product(s) are out of stock and may be losing sales.")
+
+    # Best performing product
+    best_prod = db.session.query(
+        Product.name, func.sum(OrderItem.quantity).label('qty')
+    ).join(OrderItem, Product.id == OrderItem.product_id
+    ).join(Order, Order.id == OrderItem.order_id
+    ).filter(Order.created_at >= start, Order.created_at < end,
+             Order.status.notin_([OrderStatus.cancelled, OrderStatus.returned])
+    ).group_by(Product.name).order_by(func.sum(OrderItem.quantity).desc()).first()
+    if best_prod:
+        recommendations.append(f"Feature '{best_prod.name}' in the Telegram channel — it's your top seller this period.")
+
+    # New customers trend
+    new_cust = User.query.filter(
+        User.role == UserRole.customer, User.created_at >= start
+    ).count()
+    recommendations.append(f"{new_cust} new customers joined this period. Send a welcome discount to boost first purchase.")
+
+    # Returning customer rate
+    all_buying_cust = db.session.query(func.count(distinct(Order.user_id))).filter(
+        Order.created_at >= start,
+        Order.status.notin_([OrderStatus.cancelled, OrderStatus.returned])
+    ).scalar() or 0
+    ret_cust = db.session.query(func.count(distinct(Order.user_id))).filter(
+        Order.created_at >= start,
+        Order.status.notin_([OrderStatus.cancelled, OrderStatus.returned]),
+        Order.user_id.in_(
+            db.session.query(Order.user_id).filter(Order.created_at < start).distinct()
+        )
+    ).scalar() or 0
+    if all_buying_cust > 0:
+        ret_rate = round(ret_cust / all_buying_cust * 100, 1)
+        if ret_rate < 20:
+            recommendations.append(f"Returning customer rate is {ret_rate}%. Launch a loyalty promotion to bring customers back.")
+
+    return jsonify({
+        'insights': insights,
+        'warnings': warnings,
+        'recommendations': recommendations,
+        'generated_at': datetime.now(timezone.utc).isoformat(),
+    })
+
+
 # ── COUPONS ──
 
 ADMIN_TZ = ZoneInfo("Africa/Addis_Ababa")

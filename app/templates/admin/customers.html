@@ -35,10 +35,39 @@
 .ci-kpi.orange { border-top-color: #f59e0b; color: #f59e0b; }
 .ci-kpi.pink   { border-top-color: #ec4899; color: #ec4899; }
 .ci-kpi.teal   { border-top-color: #14b8a6; color: #14b8a6; }
+.ci-kpi.red    { border-top-color: #ef4444; color: #ef4444; }
 .ci-kpi-icon { font-size: 1.6rem; margin-bottom: 8px; }
 .ci-kpi-val  { font-size: 1.9rem; font-weight: 800; line-height: 1; margin-bottom: 4px; color: var(--text); }
 .ci-kpi-label { font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
 .ci-kpi-sub  { font-size: .7rem; color: var(--muted); margin-top: 4px; }
+.ci-kpi-change { font-size: .72rem; font-weight: 700; margin-top: 4px; display: flex; align-items: center; gap: 3px; }
+.ci-kpi-change.up   { color: #059669; }
+.ci-kpi-change.down { color: #dc2626; }
+.ci-kpi-change.neu  { color: var(--muted); }
+
+/* Period selector bar */
+.period-bar {
+  display: flex; gap: 6px; flex-wrap: wrap;
+  background: var(--white);
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  margin-bottom: 20px;
+  align-items: center;
+}
+.period-bar label { font-size: .8rem; font-weight: 700; color: var(--muted); margin-right: 4px; }
+.period-btn {
+  padding: 5px 13px;
+  border-radius: 8px;
+  font-size: .79rem;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  transition: all .15s;
+}
+.period-btn:hover, .period-btn.active { background: var(--green); color: white; border-color: var(--green); }
 
 /* Tab bar */
 .ci-tabs {
@@ -176,59 +205,220 @@
   transition: border .18s;
 }
 .ci-search input:focus { border-color: var(--green); }
+
+/* ── NEW: Funnel ─────────────────────────────────────────── */
+.funnel-wrap { padding: 24px 20px; }
+.funnel-stage {
+  display: flex; align-items: center; gap: 16px;
+  margin-bottom: 8px;
+}
+.funnel-bar-outer {
+  flex: 1;
+  background: #f0f4f8;
+  border-radius: 8px;
+  overflow: hidden;
+  height: 44px;
+  position: relative;
+}
+.funnel-bar-inner {
+  height: 100%;
+  border-radius: 8px;
+  display: flex; align-items: center;
+  padding: 0 16px;
+  font-weight: 700;
+  font-size: .88rem;
+  color: white;
+  transition: width .6s cubic-bezier(.4,0,.2,1);
+  position: relative;
+}
+.funnel-label { min-width: 140px; font-size: .83rem; font-weight: 600; color: var(--text); }
+.funnel-meta { min-width: 80px; text-align: right; font-size: .78rem; color: var(--muted); }
+.funnel-drop { font-size: .7rem; color: #ef4444; font-weight: 600; margin-top: 2px; }
+.funnel-connector { height: 20px; margin-left: 156px; display: flex; align-items: center; }
+.funnel-connector-line { width: 2px; height: 100%; background: var(--border); margin-left: 10px; }
+
+/* ── NEW: Segment badges ─────────────────────────────────── */
+.seg-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: .75rem;
+  font-weight: 700;
+}
+.seg-vip      { background: #fef3c7; color: #92400e; }
+.seg-high     { background: #ede9fe; color: #5b21b6; }
+.seg-freq     { background: #d1fae5; color: #065f46; }
+.seg-ret      { background: #e0f2fe; color: #075985; }
+.seg-first    { background: #dbeafe; color: #1e40af; }
+.seg-window   { background: #f1f5f9; color: #475569; }
+.seg-inactive { background: #fee2e2; color: #991b1b; }
+.seg-lost     { background: #fce7f3; color: #9d174d; }
+
+/* ── NEW: Cohort heatmap ─────────────────────────────────── */
+.cohort-table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+.cohort-table th { background: #f8faff; padding: 8px 12px; text-align: center; font-weight: 700; font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.cohort-table td { padding: 7px 12px; text-align: center; border: 1px solid var(--border); }
+.cohort-cell { border-radius: 6px; padding: 4px 8px; font-weight: 700; display: inline-block; min-width: 44px; }
+
+/* ── NEW: Insights panel ─────────────────────────────────── */
+.insight-card {
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  margin-bottom: 10px;
+  display: flex; gap: 12px; align-items: flex-start;
+  font-size: .84rem;
+  line-height: 1.5;
+}
+.insight-card.info   { background: #eff6ff; border-left: 3px solid #3b82f6; }
+.insight-card.warn   { background: #fff7ed; border-left: 3px solid #f59e0b; }
+.insight-card.rec    { background: #f0fdf4; border-left: 3px solid #22c55e; }
+.insight-icon { font-size: 1.2rem; flex-shrink: 0; margin-top: 1px; }
+
+/* ── NEW: KPI loading skeleton ──────────────────────────── */
+.kpi-loading {
+  display: flex; flex-direction: column; gap: 6px;
+}
+.skel {
+  background: linear-gradient(90deg, #f0f4f8 25%, #e8ecf0 50%, #f0f4f8 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: 4px;
+}
+@keyframes shimmer { to { background-position: -200% 0; } }
+
+/* Geo table */
+.geo-bar {
+  width: 100%;
+  height: 8px;
+  background: var(--border);
+  border-radius: 99px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+.geo-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3d8b5f, #14b8a6);
+  border-radius: 99px;
+}
+
+/* Product analytics table */
+.prod-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+.prod-stat { text-align: center; }
+.prod-stat .val { font-size: .95rem; font-weight: 800; color: var(--text); }
+.prod-stat .lbl { font-size: .64rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
 </style>
 {% endblock %}
 
 {% block content %}
 
-<!-- KPI Row -->
-<div class="ci-kpi-grid">
+<!-- ── Period Selector ──────────────────────────────────────── -->
+<div class="period-bar">
+  <label><i class="fas fa-calendar-alt me-1"></i>Period:</label>
+  <button class="period-btn active" data-period="today">Today</button>
+  <button class="period-btn" data-period="yesterday">Yesterday</button>
+  <button class="period-btn" data-period="7d">7 Days</button>
+  <button class="period-btn" data-period="30d">30 Days</button>
+  <button class="period-btn" data-period="90d">90 Days</button>
+  <button class="period-btn" data-period="1y">1 Year</button>
+</div>
+
+<!-- ── Dynamic KPI Strip ──────────────────────────────────────── -->
+<div class="ci-kpi-grid" id="kpiGrid">
+  <!-- Static base KPIs always shown (server-side) -->
   <div class="ci-kpi green">
     <div class="ci-kpi-icon">👥</div>
-    <div class="ci-kpi-val">{{ total_customers }}</div>
+    <div class="ci-kpi-val" id="kpi-total-customers">{{ total_customers }}</div>
     <div class="ci-kpi-label">Total Customers</div>
     <div class="ci-kpi-sub">+{{ new_this_month }} this month</div>
   </div>
   <div class="ci-kpi teal">
     <div class="ci-kpi-icon">📱</div>
-    <div class="ci-kpi-val">{{ visits_today }}</div>
-    <div class="ci-kpi-label">Mini App Visits Today</div>
-    <div class="ci-kpi-sub">{{ visits_week }} this week</div>
+    <div class="ci-kpi-val" id="kpi-visits">{{ visits_today }}</div>
+    <div class="ci-kpi-label">Visits</div>
+    <div class="ci-kpi-sub" id="kpi-visits-sub">{{ visits_week }} this week</div>
   </div>
   <div class="ci-kpi blue">
     <div class="ci-kpi-icon">🌟</div>
-    <div class="ci-kpi-val">{{ new_today }}</div>
-    <div class="ci-kpi-label">New Today</div>
-    <div class="ci-kpi-sub">{{ new_this_week }} this week</div>
+    <div class="ci-kpi-val" id="kpi-new">{{ new_today }}</div>
+    <div class="ci-kpi-label">New Customers</div>
+    <div class="ci-kpi-change neu" id="kpi-new-change"></div>
+  </div>
+  <div class="ci-kpi purple">
+    <div class="ci-kpi-icon">🔁</div>
+    <div class="ci-kpi-val" id="kpi-returning">—</div>
+    <div class="ci-kpi-label">Returning Customers</div>
+    <div class="ci-kpi-sub" id="kpi-ret-rate"></div>
+  </div>
+  <div class="ci-kpi green">
+    <div class="ci-kpi-icon">💰</div>
+    <div class="ci-kpi-val" id="kpi-revenue">—</div>
+    <div class="ci-kpi-label">Revenue (ETB)</div>
+    <div class="ci-kpi-change neu" id="kpi-revenue-change"></div>
+  </div>
+  <div class="ci-kpi orange">
+    <div class="ci-kpi-icon">📦</div>
+    <div class="ci-kpi-val" id="kpi-orders">—</div>
+    <div class="ci-kpi-label">Orders</div>
+    <div class="ci-kpi-change neu" id="kpi-orders-change"></div>
+  </div>
+  <div class="ci-kpi blue">
+    <div class="ci-kpi-icon">🧾</div>
+    <div class="ci-kpi-val" id="kpi-aov">—</div>
+    <div class="ci-kpi-label">Avg Order Value</div>
+    <div class="ci-kpi-change neu" id="kpi-aov-change"></div>
+  </div>
+  <div class="ci-kpi pink">
+    <div class="ci-kpi-icon">💎</div>
+    <div class="ci-kpi-val" id="kpi-clv">—</div>
+    <div class="ci-kpi-label">Customer Lifetime Value</div>
   </div>
   <div class="ci-kpi orange">
     <div class="ci-kpi-icon">🛒</div>
-    <div class="ci-kpi-val">{{ cart_adds_week }}</div>
-    <div class="ci-kpi-label">Cart Adds (7d)</div>
+    <div class="ci-kpi-val" id="kpi-cart-adds">{{ cart_adds_week }}</div>
+    <div class="ci-kpi-label">Cart Additions</div>
   </div>
-  <div class="ci-kpi pink">
-    <div class="ci-kpi-icon">⚡</div>
-    <div class="ci-kpi-val">{{ buy_now_clicks_week }}</div>
-    <div class="ci-kpi-label">Buy Now Clicks (7d)</div>
-    <div class="ci-kpi-sub">From Telegram channel</div>
+  <div class="ci-kpi red">
+    <div class="ci-kpi-icon">⚠️</div>
+    <div class="ci-kpi-val" id="kpi-abandon">—</div>
+    <div class="ci-kpi-label">Cart Abandonment</div>
+  </div>
+  <div class="ci-kpi teal">
+    <div class="ci-kpi-icon">🔄</div>
+    <div class="ci-kpi-val" id="kpi-repeat">—</div>
+    <div class="ci-kpi-label">Repeat Purchase Rate</div>
   </div>
   <div class="ci-kpi purple">
     <div class="ci-kpi-icon">🤖</div>
     <div class="ci-kpi-val">{{ ai_convos_week }}</div>
     <div class="ci-kpi-label">AI Sessions (7d)</div>
   </div>
-  <div class="ci-kpi blue">
-    <div class="ci-kpi-icon">✈️</div>
-    <div class="ci-kpi-val">{{ telegram_users }}</div>
-    <div class="ci-kpi-label">Telegram Users</div>
-    <div class="ci-kpi-sub">Connected accounts</div>
-  </div>
 </div>
 
-<!-- Tab Bar -->
+<!-- ── Tab Bar ──────────────────────────────────────────────── -->
 <div class="ci-tabs">
   <a href="?tab=overview" class="ci-tab {% if tab == 'overview' %}active{% endif %}">
     <i class="fas fa-chart-pie"></i> Overview
+  </a>
+  <a href="?tab=sales" class="ci-tab {% if tab == 'sales' %}active{% endif %}">
+    <i class="fas fa-chart-line"></i> Sales
+  </a>
+  <a href="?tab=funnel" class="ci-tab {% if tab == 'funnel' %}active{% endif %}">
+    <i class="fas fa-filter"></i> Funnel
+  </a>
+  <a href="?tab=products" class="ci-tab {% if tab == 'products' %}active{% endif %}">
+    <i class="fas fa-box-open"></i> Products
+  </a>
+  <a href="?tab=segments" class="ci-tab {% if tab == 'segments' %}active{% endif %}">
+    <i class="fas fa-layer-group"></i> Segments
+  </a>
+  <a href="?tab=cohort" class="ci-tab {% if tab == 'cohort' %}active{% endif %}">
+    <i class="fas fa-th"></i> Cohort
+  </a>
+  <a href="?tab=geo" class="ci-tab {% if tab == 'geo' %}active{% endif %}">
+    <i class="fas fa-map-marker-alt"></i> Geographic
+  </a>
+  <a href="?tab=insights" class="ci-tab {% if tab == 'insights' %}active{% endif %}">
+    <i class="fas fa-lightbulb"></i> Insights
   </a>
   <a href="?tab=engagement" class="ci-tab {% if tab == 'engagement' %}active{% endif %}">
     <i class="fas fa-fire"></i> Engagement
@@ -296,11 +486,11 @@
     </div>
   </div>
 
-  <!-- Top Add-to-Cart Products -->
+  <!-- Active & Abandoned Carts -->
   <div class="col-lg-5">
     <div class="chart-card">
       <div class="chart-card-header">
-        <h6><i class="fas fa-shopping-cart" style="color:#059669"></i> Active & Abandoned Carts</h6>
+        <h6><i class="fas fa-shopping-cart" style="color:#059669"></i> Active &amp; Abandoned Carts</h6>
       </div>
       <div class="chart-body" style="padding: 0;">
         {% if active_carts %}
@@ -385,6 +575,297 @@
 {% endif %}
 
 <!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- TAB: SALES ANALYTICS                                               -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+{% if tab == 'sales' %}
+<div class="row g-4">
+  <div class="col-12">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-chart-area" style="color:#3d8b5f"></i> Revenue Over Time</h6>
+        <span style="font-size:.75rem;color:var(--muted)" id="salesPeriodLabel">Loading…</span>
+      </div>
+      <div class="chart-body" style="height:300px">
+        <canvas id="revenueChart"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-chart-pie" style="color:#f59e0b"></i> Revenue by Category</h6>
+      </div>
+      <div class="chart-body" style="height:280px">
+        <canvas id="catRevChart"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-trophy" style="color:#8b5cf6"></i> Top Products by Revenue</h6>
+      </div>
+      <div class="chart-body" style="height:280px">
+        <canvas id="prodRevChart"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-12">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-table" style="color:var(--muted)"></i> Daily Breakdown</h6>
+      </div>
+      <div class="table-responsive">
+        <table class="table admin-table mb-0 report-tbl">
+          <thead><tr><th>Date</th><th>Revenue (ETB)</th><th>Orders</th></tr></thead>
+          <tbody id="salesTableBody"><tr><td colspan="3" class="text-center py-3"><i class="fas fa-spinner fa-spin me-2"></i>Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- TAB: SALES FUNNEL                                                  -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+{% if tab == 'funnel' %}
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-filter" style="color:#3d8b5f"></i> Conversion Funnel</h6>
+        <span style="font-size:.75rem;color:var(--muted)">End-to-end customer journey</span>
+      </div>
+      <div class="funnel-wrap" id="funnelWrap">
+        <div class="text-center py-4 text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Loading funnel…</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-chart-bar" style="color:#8b5cf6"></i> Stage Comparison</h6>
+      </div>
+      <div class="chart-body" style="height:320px">
+        <canvas id="funnelChart"></canvas>
+      </div>
+    </div>
+    <div class="chart-card mt-0">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-info-circle" style="color:var(--muted)"></i> What This Means</h6>
+      </div>
+      <div class="chart-body" style="font-size:.82rem;color:var(--muted);line-height:1.7">
+        <p class="mb-1">Each stage shows how many users proceeded from the previous step.</p>
+        <p class="mb-1"><span style="color:#ef4444;font-weight:700">Drop-off %</span> = users lost between stages.</p>
+        <p class="mb-0">High drop-off at "Added to Cart → Checkout" often means delivery fee surprise or payment friction.</p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- TAB: PRODUCT ANALYTICS                                             -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+{% if tab == 'products' %}
+<div class="chart-card">
+  <div class="chart-card-header">
+    <h6><i class="fas fa-box-open" style="color:#3d8b5f"></i> Product Performance</h6>
+    <span style="font-size:.75rem;color:var(--muted)">Sorted by revenue</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table admin-table mb-0" id="productsTable">
+      <thead>
+        <tr>
+          <th>Product</th>
+          <th>Stock</th>
+          <th>Views</th>
+          <th>Cart Adds</th>
+          <th>Orders</th>
+          <th>Qty Sold</th>
+          <th>Revenue (ETB)</th>
+          <th>Conversion</th>
+          <th>Wishlist</th>
+        </tr>
+      </thead>
+      <tbody id="productsBody">
+        <tr><td colspan="9" class="text-center py-4"><i class="fas fa-spinner fa-spin me-2"></i>Loading product data…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Charts row -->
+<div class="row g-4 mt-0">
+  <div class="col-lg-6">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-eye" style="color:#3b82f6"></i> Most Viewed Products</h6>
+      </div>
+      <div class="chart-body" style="height:260px">
+        <canvas id="viewsChart"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-shopping-bag" style="color:#f59e0b"></i> Top Selling Products</h6>
+      </div>
+      <div class="chart-body" style="height:260px">
+        <canvas id="topSalesChart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- TAB: CUSTOMER SEGMENTS                                             -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+{% if tab == 'segments' %}
+<div class="row g-4">
+  <div class="col-lg-5">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-chart-pie" style="color:#8b5cf6"></i> Segment Distribution</h6>
+      </div>
+      <div class="chart-body" style="height:300px">
+        <canvas id="segmentPieChart"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-7">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-layer-group" style="color:#3d8b5f"></i> Segment Details</h6>
+      </div>
+      <div class="table-responsive">
+        <table class="table admin-table mb-0">
+          <thead><tr><th>Segment</th><th>Customers</th><th>Revenue (ETB)</th><th>Avg Spend</th></tr></thead>
+          <tbody id="segmentBody">
+            <tr><td colspan="4" class="text-center py-4"><i class="fas fa-spinner fa-spin me-2"></i>Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-12">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-chart-bar" style="color:#f59e0b"></i> Revenue by Segment</h6>
+      </div>
+      <div class="chart-body" style="height:240px">
+        <canvas id="segmentRevChart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- TAB: COHORT ANALYSIS                                               -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+{% if tab == 'cohort' %}
+<div class="chart-card">
+  <div class="chart-card-header">
+    <h6><i class="fas fa-th" style="color:#14b8a6"></i> Monthly Cohort Retention</h6>
+    <span style="font-size:.75rem;color:var(--muted)">% who purchased again each subsequent month</span>
+  </div>
+  <div class="chart-body" id="cohortWrap">
+    <div class="text-center py-4 text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Building cohort data…</div>
+  </div>
+</div>
+<div class="chart-card">
+  <div class="chart-card-header">
+    <h6><i class="fas fa-info-circle" style="color:var(--muted)"></i> Reading the Cohort Table</h6>
+  </div>
+  <div class="chart-body" style="font-size:.82rem;color:var(--muted);line-height:1.7">
+    <p class="mb-1">Each row = a group of customers who joined in a given month.</p>
+    <p class="mb-1">Each column = % of that cohort who made a purchase in that month (M+0, M+1, M+2…).</p>
+    <p class="mb-0"><span style="background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:4px;font-weight:700">Green</span> = high retention. <span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:4px;font-weight:700">Red</span> = low retention.</p>
+  </div>
+</div>
+{% endif %}
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- TAB: GEOGRAPHIC ANALYTICS                                          -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+{% if tab == 'geo' %}
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-city" style="color:#3d8b5f"></i> Orders by City</h6>
+      </div>
+      <div class="chart-body" id="geoTableWrap">
+        <div class="text-center py-4 text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Loading geographic data…</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-map-marked-alt" style="color:#8b5cf6"></i> Top Cities by Orders</h6>
+      </div>
+      <div class="chart-body" style="height:300px">
+        <canvas id="geoCityChart"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-12">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-map" style="color:#14b8a6"></i> Revenue by Region</h6>
+      </div>
+      <div class="chart-body" style="height:240px">
+        <canvas id="geoRegionChart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- TAB: AI INSIGHTS                                                   -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+{% if tab == 'insights' %}
+<div class="row g-4">
+  <div class="col-lg-4">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-lightbulb" style="color:#f59e0b"></i> Key Insights</h6>
+      </div>
+      <div class="chart-body" id="insightsPanel">
+        <div class="text-center py-4 text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Generating insights…</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-exclamation-triangle" style="color:#ef4444"></i> Warnings</h6>
+      </div>
+      <div class="chart-body" id="warningsPanel">
+        <div class="text-center py-4 text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Checking for issues…</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-star" style="color:#22c55e"></i> Recommendations</h6>
+      </div>
+      <div class="chart-body" id="recommendationsPanel">
+        <div class="text-center py-4 text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Building recommendations…</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
 <!-- TAB: ENGAGEMENT (Activity Feed)                                    -->
 <!-- ══════════════════════════════════════════════════════════════════ -->
 {% if tab == 'engagement' %}
@@ -448,8 +929,6 @@
           <div class="mb-2"><span class="act-dot cart d-inline-flex" style="width:22px;height:22px;font-size:.65rem;margin-right:6px"><i class="fas fa-shopping-cart"></i></span>Add to cart events</div>
           <div class="mb-2"><span class="act-dot buy d-inline-flex" style="width:22px;height:22px;font-size:.65rem;margin-right:6px"><i class="fab fa-telegram"></i></span>Telegram Buy Now clicks</div>
           <div class="mb-2"><span class="act-dot ai d-inline-flex" style="width:22px;height:22px;font-size:.65rem;margin-right:6px"><i class="fas fa-robot"></i></span>AI product suggestions</div>
-          <hr/>
-          <p class="mb-0" style="font-size:.72rem">To track Buy Now clicks from the Telegram channel, call <code>POST /api/mini-app/track</code> with <code>{"action":"telegram_buy_now_click","product_id":ID}</code> when the button is tapped.</p>
         </div>
       </div>
     </div>
@@ -484,7 +963,6 @@
           <td style="font-size:.75rem;font-family:monospace;color:var(--muted)">{{ sess.session_id[:16] }}…</td>
           <td>
             {% if sess.user_id %}
-            {% set u = sess.user_id %}
             <a href="{{ url_for('admin.customer_detail', user_id=sess.user_id) }}" style="font-size:.82rem;color:var(--green);font-weight:600">User #{{ sess.user_id }}</a>
             {% else %}
             <span style="font-size:.82rem;color:var(--muted)">Anonymous</span>
@@ -636,8 +1114,67 @@
 Chart.defaults.font.family = "'Outfit', sans-serif";
 Chart.defaults.color = '#718096';
 
+const COLORS = ['#3d8b5f','#3b82f6','#8b5cf6','#f59e0b','#14b8a6','#ec4899','#ef4444','#06b6d4','#84cc16','#f97316'];
+
+// ── Period management ────────────────────────────────────────────────
+let currentPeriod = 'today';
+const periodBtns = document.querySelectorAll('.period-btn');
+periodBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    periodBtns.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentPeriod = btn.dataset.period;
+    loadKPIs(currentPeriod);
+    // If on a dynamic tab, reload its data
+    const tab = '{{ tab }}';
+    if (tab === 'sales') loadSalesData(currentPeriod);
+    if (tab === 'funnel') loadFunnelData(currentPeriod);
+    if (tab === 'products') loadProductsData(currentPeriod);
+    if (tab === 'geo') loadGeoData(currentPeriod);
+  });
+});
+
+// ── KPI loader ───────────────────────────────────────────────────────
+function fmtNum(n) {
+  if (n >= 1000000) return (n/1000000).toFixed(1) + 'M';
+  if (n >= 1000) return (n/1000).toFixed(1) + 'K';
+  return Math.round(n).toLocaleString();
+}
+function fmtChange(change, el) {
+  if (change === null || change === undefined) { el.textContent = ''; return; }
+  const cls = change > 0 ? 'up' : change < 0 ? 'down' : 'neu';
+  const icon = change > 0 ? '↑' : change < 0 ? '↓' : '→';
+  el.className = 'ci-kpi-change ' + cls;
+  el.textContent = `${icon} ${Math.abs(change)}% vs prev period`;
+}
+
+function loadKPIs(period) {
+  fetch(`/admin/analytics/kpis?period=${period}`)
+    .then(r => r.json())
+    .then(d => {
+      document.getElementById('kpi-visits').textContent = fmtNum(d.visits.value);
+      document.getElementById('kpi-visits-sub').textContent = `${fmtNum(d.product_views.value)} product views`;
+      document.getElementById('kpi-new').textContent = fmtNum(d.new_customers.value);
+      fmtChange(d.new_customers.change, document.getElementById('kpi-new-change'));
+      document.getElementById('kpi-returning').textContent = fmtNum(d.returning_customers.value);
+      document.getElementById('kpi-ret-rate').textContent = `${d.repeat_rate.value}% repeat rate`;
+      document.getElementById('kpi-revenue').textContent = 'ETB ' + fmtNum(d.revenue.value);
+      fmtChange(d.revenue.change, document.getElementById('kpi-revenue-change'));
+      document.getElementById('kpi-orders').textContent = fmtNum(d.orders.value);
+      fmtChange(d.orders.change, document.getElementById('kpi-orders-change'));
+      document.getElementById('kpi-aov').textContent = 'ETB ' + fmtNum(d.aov.value);
+      fmtChange(d.aov.change, document.getElementById('kpi-aov-change'));
+      document.getElementById('kpi-clv').textContent = 'ETB ' + fmtNum(d.clv.value);
+      document.getElementById('kpi-cart-adds').textContent = fmtNum(d.cart_adds.value);
+      document.getElementById('kpi-abandon').textContent = d.cart_abandonment_rate.value + '%';
+      document.getElementById('kpi-repeat').textContent = d.repeat_rate.value + '%';
+    })
+    .catch(e => console.error('KPI load error:', e));
+}
+loadKPIs(currentPeriod);
+
+// ── Overview tab charts ──────────────────────────────────────────────
 {% if tab == 'overview' %}
-// New vs Returning Donut
 new Chart(document.getElementById('pieChart'), {
   type: 'doughnut',
   data: {
@@ -657,7 +1194,6 @@ new Chart(document.getElementById('pieChart'), {
   }
 });
 
-// Daily Visits Line
 const visitLabels = {{ daily_visits | map(attribute='date') | list | tojson }};
 const visitVisitors = {{ daily_visits | map(attribute='visitors') | list | tojson }};
 const visitTotal = {{ daily_visits | map(attribute='visits') | list | tojson }};
@@ -667,126 +1203,63 @@ new Chart(document.getElementById('visitsChart'), {
   data: {
     labels: visitLabels,
     datasets: [
-      {
-        label: 'Total Visits',
-        data: visitTotal,
-        borderColor: '#94a3b8',
-        backgroundColor: 'transparent',
-        borderWidth: 2,
-        borderDash: [5, 5],
-        pointBackgroundColor: '#94a3b8',
-        pointRadius: 3,
-        fill: false,
-        tension: 0.4,
-      },
-      {
-        label: 'Unique Visitors',
-        data: visitVisitors,
-        borderColor: '#3b82f6',
-        backgroundColor: 'rgba(59,130,246,.08)',
-        borderWidth: 2.5,
-        pointBackgroundColor: '#3b82f6',
-        pointRadius: 4,
-        fill: true,
-        tension: 0.4,
-      },
-      {
-        label: 'Returning Customers',
-        data: visitReturning,
-        borderColor: '#10b981',
-        backgroundColor: 'transparent',
-        borderWidth: 2.5,
-        pointBackgroundColor: '#10b981',
-        pointRadius: 4,
-        fill: false,
-        tension: 0.4,
-      }
+      { label: 'Total Visits', data: visitTotal, borderColor: '#94a3b8', backgroundColor: 'transparent', borderWidth: 2, borderDash: [5,5], pointBackgroundColor: '#94a3b8', pointRadius: 3, fill: false, tension: 0.4 },
+      { label: 'Unique Visitors', data: visitVisitors, borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,.08)', borderWidth: 2.5, pointBackgroundColor: '#3b82f6', pointRadius: 4, fill: true, tension: 0.4 },
+      { label: 'Returning Customers', data: visitReturning, borderColor: '#10b981', backgroundColor: 'transparent', borderWidth: 2.5, pointBackgroundColor: '#10b981', pointRadius: 4, fill: false, tension: 0.4 }
     ]
   },
   options: {
     responsive: true, maintainAspectRatio: false,
     plugins: { legend: { display: true, position: 'top', labels: { font: { size: 11 }, usePointStyle: true, boxWidth: 8 } } },
-    scales: {
-      x: { grid: { display: false }, ticks: { font: { size: 11 } } },
-      y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,.04)' }, ticks: { precision: 0 } }
-    }
+    scales: { x: { grid: { display: false }, ticks: { font: { size: 11 } } }, y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,.04)' }, ticks: { precision: 0 } } }
   }
 });
 
-// Weekly Signups Bar
 const signupLabels = {{ weekly_signups | map(attribute='week') | list | tojson }};
 const signupData   = {{ weekly_signups | map(attribute='count') | list | tojson }};
 new Chart(document.getElementById('signupsChart'), {
   type: 'bar',
   data: {
     labels: signupLabels,
-    datasets: [{
-      label: 'New Customers',
-      data: signupData,
-      backgroundColor: ctx => {
-        const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 200);
-        g.addColorStop(0, '#f59e0b');
-        g.addColorStop(1, 'rgba(245,158,11,.2)');
-        return g;
-      },
-      borderRadius: 8,
-      borderSkipped: false,
-    }]
+    datasets: [{ label: 'New Customers', data: signupData, backgroundColor: ctx => { const g = ctx.chart.ctx.createLinearGradient(0,0,0,200); g.addColorStop(0,'#f59e0b'); g.addColorStop(1,'rgba(245,158,11,.2)'); return g; }, borderRadius: 8, borderSkipped: false }]
   },
   options: {
     responsive: true, maintainAspectRatio: false,
     plugins: { legend: { display: false } },
-    scales: {
-      x: { grid: { display: false }, ticks: { font: { size: 11 } } },
-      y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,.04)' }, ticks: { precision: 0 } }
-    }
+    scales: { x: { grid: { display: false }, ticks: { font: { size: 11 } } }, y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,.04)' }, ticks: { precision: 0 } } }
   }
 });
 {% endif %}
 
+// ── Engagement tab ───────────────────────────────────────────────────
 {% if tab == 'engagement' %}
-// Live Activity Polling
 const activityFeed = document.querySelector('.activity-feed');
 if (activityFeed) {
   setInterval(() => {
     fetch('{{ url_for("admin.customers_live_activity") }}')
       .then(res => res.text())
-      .then(html => {
-        if(html && html.trim().length > 0) {
-          activityFeed.innerHTML = html;
-        }
-      })
-      .catch(err => console.error("Live feed error:", err));
+      .then(html => { if (html && html.trim().length > 0) activityFeed.innerHTML = html; })
+      .catch(err => console.error('Live feed error:', err));
   }, 5000);
 }
-
-// Event breakdown pie
 const evtData = {
   labels: ['Mini App Visits', 'Cart Adds', 'Buy Now Clicks', 'AI Suggestions', 'Product Views'],
-  datasets: [{
-    data: [
-      {{ recent_activity | selectattr('action', 'equalto', 'mini_app_visit') | list | length }},
-      {{ recent_activity | selectattr('action', 'equalto', 'add_to_cart') | list | length }},
-      {{ recent_activity | selectattr('action', 'equalto', 'telegram_buy_now_click') | list | length }},
-      {{ recent_activity | selectattr('action', 'equalto', 'ai_suggested_product') | list | length }},
-      {{ recent_activity | selectattr('action', 'equalto', 'view_product') | list | length }},
-    ],
-    backgroundColor: ['#14b8a6','#3d8b5f','#f59e0b','#8b5cf6','#64748b'],
-    borderWidth: 0,
-  }]
+  datasets: [{ data: [
+    {{ recent_activity | selectattr('action', 'equalto', 'mini_app_visit') | list | length }},
+    {{ recent_activity | selectattr('action', 'equalto', 'add_to_cart') | list | length }},
+    {{ recent_activity | selectattr('action', 'equalto', 'telegram_buy_now_click') | list | length }},
+    {{ recent_activity | selectattr('action', 'equalto', 'ai_suggested_product') | list | length }},
+    {{ recent_activity | selectattr('action', 'equalto', 'view_product') | list | length }},
+  ], backgroundColor: ['#14b8a6','#3d8b5f','#f59e0b','#8b5cf6','#64748b'], borderWidth: 0 }]
 };
 new Chart(document.getElementById('eventPieChart'), {
-  type: 'doughnut',
-  data: evtData,
-  options: {
-    cutout: '60%',
-    plugins: { legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 12, boxWidth: 12 } } }
-  }
+  type: 'doughnut', data: evtData,
+  options: { cutout: '60%', plugins: { legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 12, boxWidth: 12 } } } }
 });
 {% endif %}
 
+// ── Weekly report tab ────────────────────────────────────────────────
 {% if tab == 'weekly' %}
-// Load weekly report data
 fetch('{{ url_for("admin.customers_weekly_report") }}')
   .then(r => r.json())
   .then(data => {
@@ -798,46 +1271,336 @@ fetch('{{ url_for("admin.customers_weekly_report") }}')
         <td><span style="background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:20px;font-size:.78rem;font-weight:600">${w.new_users}</span></td>
         <td><span style="background:#e0f2fe;color:#0369a1;padding:2px 8px;border-radius:20px;font-size:.78rem;font-weight:600">${w.visits}</span></td>
         <td>${w.orders}</td>
-        <td class="fw-600">${(w.revenue).toLocaleString('en-ET', {minimumFractionDigits:0, maximumFractionDigits:0})} ETB</td>
+        <td class="fw-600">${(w.revenue).toLocaleString('en-ET',{minimumFractionDigits:0,maximumFractionDigits:0})} ETB</td>
       </tr>
     `).join('');
-
-    // Weekly multi-line chart
     new Chart(document.getElementById('weeklyChart'), {
       type: 'bar',
-      data: {
-        labels: weeks.map(w => w.week),
-        datasets: [
-          {
-            label: 'New Users',
-            data: weeks.map(w => w.new_users),
-            backgroundColor: 'rgba(61,139,95,.75)',
-            borderRadius: 6,
-          },
-          {
-            label: 'Mini App Visits',
-            data: weeks.map(w => w.visits),
-            backgroundColor: 'rgba(59,130,246,.75)',
-            borderRadius: 6,
-          },
-          {
-            label: 'Orders',
-            data: weeks.map(w => w.orders),
-            backgroundColor: 'rgba(245,158,11,.75)',
-            borderRadius: 6,
-          },
-        ]
-      },
+      data: { labels: weeks.map(w=>w.week), datasets: [
+        { label: 'New Users', data: weeks.map(w=>w.new_users), backgroundColor: 'rgba(61,139,95,.75)', borderRadius: 6 },
+        { label: 'Mini App Visits', data: weeks.map(w=>w.visits), backgroundColor: 'rgba(59,130,246,.75)', borderRadius: 6 },
+        { label: 'Orders', data: weeks.map(w=>w.orders), backgroundColor: 'rgba(245,158,11,.75)', borderRadius: 6 },
+      ]},
       options: {
         responsive: true, maintainAspectRatio: false,
         plugins: { legend: { position: 'top', labels: { font: { size: 12 }, padding: 16, boxWidth: 14 } } },
-        scales: {
-          x: { grid: { display: false } },
-          y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,.04)' }, ticks: { precision: 0 } }
-        }
+        scales: { x: { grid: { display: false } }, y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,.04)' }, ticks: { precision: 0 } } }
       }
     });
   });
 {% endif %}
+
+// ── Sales Analytics tab ──────────────────────────────────────────────
+{% if tab == 'sales' %}
+let revenueChartInst = null, catChartInst = null, prodChartInst = null;
+
+function loadSalesData(period) {
+  document.getElementById('salesPeriodLabel').textContent = 'Loading…';
+  fetch(`/admin/analytics/revenue?period=${period}`)
+    .then(r => r.json())
+    .then(d => {
+      document.getElementById('salesPeriodLabel').textContent = `${d.daily.length} days`;
+
+      // Revenue line chart
+      const labels = d.daily.map(x => x.date);
+      const revData = d.daily.map(x => x.revenue);
+      const ordData = d.daily.map(x => x.orders);
+
+      if (revenueChartInst) revenueChartInst.destroy();
+      revenueChartInst = new Chart(document.getElementById('revenueChart'), {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            { label: 'Revenue (ETB)', data: revData, backgroundColor: ctx => { const g=ctx.chart.ctx.createLinearGradient(0,0,0,260); g.addColorStop(0,'rgba(61,139,95,.85)'); g.addColorStop(1,'rgba(61,139,95,.15)'); return g; }, borderRadius: 6, yAxisID: 'y', order: 2 },
+            { label: 'Orders', data: ordData, type: 'line', borderColor: '#f59e0b', backgroundColor: 'transparent', borderWidth: 2.5, pointBackgroundColor: '#f59e0b', pointRadius: 4, tension: 0.4, yAxisID: 'y2', order: 1 }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { position: 'top', labels: { font: { size: 11 }, usePointStyle: true, boxWidth: 8 } } },
+          scales: {
+            x: { grid: { display: false } },
+            y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,.04)' }, position: 'left', ticks: { callback: v => 'ETB '+v.toLocaleString() } },
+            y2: { beginAtZero: true, grid: { display: false }, position: 'right', ticks: { precision: 0 } }
+          }
+        }
+      });
+
+      // Category donut
+      if (catChartInst) catChartInst.destroy();
+      catChartInst = new Chart(document.getElementById('catRevChart'), {
+        type: 'doughnut',
+        data: { labels: d.by_category.map(x=>x.name), datasets: [{ data: d.by_category.map(x=>x.revenue), backgroundColor: COLORS, borderWidth: 2, borderColor: '#fff', hoverOffset: 8 }] },
+        options: { cutout: '55%', plugins: { legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 10, boxWidth: 12 } }, tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ETB ${Math.round(ctx.raw).toLocaleString()}` } } } }
+      });
+
+      // Product bar
+      if (prodChartInst) prodChartInst.destroy();
+      prodChartInst = new Chart(document.getElementById('prodRevChart'), {
+        type: 'bar',
+        data: { labels: d.by_product.map(x=>x.name.length>20?x.name.slice(0,20)+'…':x.name), datasets: [{ label: 'Revenue (ETB)', data: d.by_product.map(x=>x.revenue), backgroundColor: COLORS, borderRadius: 6 }] },
+        options: {
+          indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: { x: { beginAtZero: true, grid: { color: 'rgba(0,0,0,.04)' }, ticks: { callback: v => 'ETB '+v.toLocaleString() } }, y: { grid: { display: false } } }
+        }
+      });
+
+      // Table
+      const tbody = document.getElementById('salesTableBody');
+      tbody.innerHTML = d.daily.slice().reverse().map(x => `
+        <tr>
+          <td class="fw-600">${x.date}</td>
+          <td>ETB ${Math.round(x.revenue).toLocaleString()}</td>
+          <td>${x.orders}</td>
+        </tr>
+      `).join('') || '<tr><td colspan="3" class="text-center text-muted py-3">No data for this period.</td></tr>';
+    });
+}
+loadSalesData(currentPeriod);
+{% endif %}
+
+// ── Funnel tab ───────────────────────────────────────────────────────
+{% if tab == 'funnel' %}
+let funnelChartInst = null;
+const funnelColors = ['#3d8b5f','#3b82f6','#8b5cf6','#f59e0b','#14b8a6','#ec4899'];
+
+function loadFunnelData(period) {
+  document.getElementById('funnelWrap').innerHTML = '<div class="text-center py-4 text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Loading…</div>';
+  fetch(`/admin/analytics/funnel?period=${period}`)
+    .then(r => r.json())
+    .then(d => {
+      const maxCount = Math.max(...d.stages.map(s => s.count), 1);
+      let html = '';
+      d.stages.forEach((s, i) => {
+        const w = Math.max(s.count / maxCount * 100, 2);
+        html += `
+          <div class="funnel-stage">
+            <div class="funnel-label">${s.label}</div>
+            <div class="funnel-bar-outer">
+              <div class="funnel-bar-inner" style="width:${w}%;background:${funnelColors[i]}">
+                <span>${s.count.toLocaleString()}</span>
+              </div>
+            </div>
+            <div class="funnel-meta">
+              <div>${s.pct}%</div>
+              ${i > 0 ? `<div class="funnel-drop">↓ ${s.drop}% lost</div>` : ''}
+            </div>
+          </div>
+          ${i < d.stages.length - 1 ? '<div class="funnel-connector"><div class="funnel-connector-line"></div></div>' : ''}
+        `;
+      });
+      document.getElementById('funnelWrap').innerHTML = html;
+
+      // Bar chart
+      if (funnelChartInst) funnelChartInst.destroy();
+      funnelChartInst = new Chart(document.getElementById('funnelChart'), {
+        type: 'bar',
+        data: {
+          labels: d.stages.map(s => s.label),
+          datasets: [{ label: 'Users', data: d.stages.map(s => s.count), backgroundColor: funnelColors, borderRadius: 8 }]
+        },
+        options: {
+          indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: { x: { beginAtZero: true, grid: { color: 'rgba(0,0,0,.04)' } }, y: { grid: { display: false } } }
+        }
+      });
+    });
+}
+loadFunnelData(currentPeriod);
+{% endif %}
+
+// ── Products tab ─────────────────────────────────────────────────────
+{% if tab == 'products' %}
+let viewsChartInst = null, topSalesChartInst = null;
+
+function loadProductsData(period) {
+  document.getElementById('productsBody').innerHTML = '<tr><td colspan="9" class="text-center py-4"><i class="fas fa-spinner fa-spin me-2"></i>Loading…</td></tr>';
+  fetch(`/admin/analytics/products?period=${period}`)
+    .then(r => r.json())
+    .then(d => {
+      const prods = d.products;
+      const tbody = document.getElementById('productsBody');
+
+      tbody.innerHTML = prods.map(p => `
+        <tr>
+          <td>
+            <div class="fw-600" style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name}</div>
+            ${p.low_stock ? '<span style="background:#fee2e2;color:#991b1b;font-size:.65rem;padding:1px 6px;border-radius:20px;font-weight:700">⚠ Low Stock</span>' : ''}
+          </td>
+          <td><span class="${p.stock <= 0 ? 'tbl-badge-new' : ''}">${p.stock}</span></td>
+          <td>${p.views.toLocaleString()}</td>
+          <td>${p.cart_adds}</td>
+          <td class="fw-600">${p.orders}</td>
+          <td>${p.qty_sold}</td>
+          <td class="fw-600">ETB ${Math.round(p.revenue).toLocaleString()}</td>
+          <td><span style="background:${p.conversion>5?'#d1fae5':'#f1f5f9'};color:${p.conversion>5?'#065f46':'#475569'};padding:2px 8px;border-radius:20px;font-size:.76rem;font-weight:700">${p.conversion}%</span></td>
+          <td>${p.wishlist}</td>
+        </tr>
+      `).join('') || '<tr><td colspan="9" class="text-center text-muted py-4">No product data for this period.</td></tr>';
+
+      // Views chart (top 8)
+      const top8Views = [...prods].sort((a,b)=>b.views-a.views).slice(0,8);
+      if (viewsChartInst) viewsChartInst.destroy();
+      viewsChartInst = new Chart(document.getElementById('viewsChart'), {
+        type: 'bar',
+        data: { labels: top8Views.map(p=>p.name.length>18?p.name.slice(0,18)+'…':p.name), datasets: [{ label: 'Views', data: top8Views.map(p=>p.views), backgroundColor: 'rgba(59,130,246,.75)', borderRadius: 6 }] },
+        options: { indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'rgba(0,0,0,.04)'}},y:{grid:{display:false}}} }
+      });
+
+      // Top sales chart (top 8 by revenue)
+      const top8Rev = [...prods].sort((a,b)=>b.revenue-a.revenue).slice(0,8);
+      if (topSalesChartInst) topSalesChartInst.destroy();
+      topSalesChartInst = new Chart(document.getElementById('topSalesChart'), {
+        type: 'bar',
+        data: { labels: top8Rev.map(p=>p.name.length>18?p.name.slice(0,18)+'…':p.name), datasets: [{ label: 'Revenue (ETB)', data: top8Rev.map(p=>p.revenue), backgroundColor: COLORS.slice(0,8), borderRadius: 6 }] },
+        options: { indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,ticks:{callback:v=>'ETB '+v.toLocaleString()},grid:{color:'rgba(0,0,0,.04)'}},y:{grid:{display:false}}} }
+      });
+    });
+}
+loadProductsData(currentPeriod);
+{% endif %}
+
+// ── Segments tab ─────────────────────────────────────────────────────
+{% if tab == 'segments' %}
+const segColors = {'VIP':'#f59e0b','High Value':'#8b5cf6','Frequent Buyer':'#3d8b5f','Returning':'#3b82f6','First Time Buyer':'#06b6d4','Window Shopper':'#94a3b8','Inactive':'#ef4444','Lost Customer':'#ec4899'};
+const segBadgeClass = {'VIP':'seg-vip','High Value':'seg-high','Frequent Buyer':'seg-freq','Returning':'seg-ret','First Time Buyer':'seg-first','Window Shopper':'seg-window','Inactive':'seg-inactive','Lost Customer':'seg-lost'};
+let segPieInst = null, segRevInst = null;
+
+fetch('/admin/analytics/segments')
+  .then(r => r.json())
+  .then(d => {
+    const segs = d.segments.filter(s => s.count > 0);
+
+    // Table
+    document.getElementById('segmentBody').innerHTML = d.segments.map(s => `
+      <tr>
+        <td><span class="seg-badge ${segBadgeClass[s.segment]||'seg-window'}">${s.segment}</span></td>
+        <td class="fw-600">${s.count}</td>
+        <td>ETB ${s.revenue.toLocaleString()}</td>
+        <td>ETB ${s.avg_spend.toLocaleString()}</td>
+      </tr>
+    `).join('');
+
+    // Pie chart
+    if (segPieInst) segPieInst.destroy();
+    segPieInst = new Chart(document.getElementById('segmentPieChart'), {
+      type: 'doughnut',
+      data: { labels: segs.map(s=>s.segment), datasets: [{ data: segs.map(s=>s.count), backgroundColor: segs.map(s=>segColors[s.segment]||'#94a3b8'), borderWidth: 2, borderColor: '#fff', hoverOffset: 10 }] },
+      options: { cutout:'55%', plugins:{ legend:{ position:'bottom', labels:{font:{size:11},padding:10,boxWidth:12} }, tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.raw} customers`}} } }
+    });
+
+    // Revenue bar
+    if (segRevInst) segRevInst.destroy();
+    segRevInst = new Chart(document.getElementById('segmentRevChart'), {
+      type: 'bar',
+      data: { labels: d.segments.map(s=>s.segment), datasets: [{ label: 'Revenue (ETB)', data: d.segments.map(s=>s.revenue), backgroundColor: d.segments.map(s=>segColors[s.segment]||'#94a3b8'), borderRadius: 8 }] },
+      options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{grid:{display:false}},y:{beginAtZero:true,ticks:{callback:v=>'ETB '+v.toLocaleString()},grid:{color:'rgba(0,0,0,.04)'}}} }
+    });
+  });
+{% endif %}
+
+// ── Cohort tab ───────────────────────────────────────────────────────
+{% if tab == 'cohort' %}
+fetch('/admin/analytics/cohort')
+  .then(r => r.json())
+  .then(d => {
+    const cohorts = d.cohorts;
+    const maxOffset = Math.max(...cohorts.map(c=>c.retention.length));
+    const headers = ['Cohort', 'Size', ...Array.from({length:maxOffset},(_,i)=>i===0?'M+0 (Join)':'M+'+i)];
+    function heatColor(pct) {
+      if (pct === 0) return 'background:#f8faff;color:#94a3b8';
+      if (pct >= 60) return 'background:#d1fae5;color:#065f46';
+      if (pct >= 30) return 'background:#fef3c7;color:#92400e';
+      return 'background:#fee2e2;color:#991b1b';
+    }
+    let html = `<div class="table-responsive"><table class="cohort-table"><thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>`;
+    cohorts.forEach(c => {
+      html += `<tr><td class="fw-600">${c.label}</td><td>${c.size}</td>`;
+      for (let i=0; i<maxOffset; i++) {
+        const pct = c.retention[i] ?? 0;
+        html += `<td><span class="cohort-cell" style="${heatColor(pct)}">${pct > 0 ? pct+'%' : '—'}</span></td>`;
+      }
+      html += '</tr>';
+    });
+    html += '</tbody></table></div>';
+    document.getElementById('cohortWrap').innerHTML = html;
+  });
+{% endif %}
+
+// ── Geographic tab ───────────────────────────────────────────────────
+{% if tab == 'geo' %}
+let geoCityInst = null, geoRegInst = null;
+
+function loadGeoData(period) {
+  document.getElementById('geoTableWrap').innerHTML = '<div class="text-center py-4 text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Loading…</div>';
+  fetch(`/admin/analytics/geographic?period=${period}`)
+    .then(r => r.json())
+    .then(d => {
+      const maxOrders = Math.max(...d.cities.map(c=>c.orders), 1);
+      let html = '<table class="table admin-table mb-0"><thead><tr><th>City</th><th>Orders</th><th>Revenue</th><th>Customers</th></tr></thead><tbody>';
+      d.cities.forEach(c => {
+        const pct = c.orders/maxOrders*100;
+        html += `<tr>
+          <td class="fw-600">${c.city}</td>
+          <td>
+            <div>${c.orders}</div>
+            <div class="geo-bar"><div class="geo-bar-fill" style="width:${pct}%"></div></div>
+          </td>
+          <td>ETB ${Math.round(c.revenue).toLocaleString()}</td>
+          <td>${c.customers}</td>
+        </tr>`;
+      });
+      html += d.cities.length ? '' : '<tr><td colspan="4" class="text-center text-muted py-4">No geographic data yet.</td></tr>';
+      html += '</tbody></table>';
+      document.getElementById('geoTableWrap').innerHTML = html;
+
+      // City chart
+      if (geoCityInst) geoCityInst.destroy();
+      geoCityInst = new Chart(document.getElementById('geoCityChart'), {
+        type: 'doughnut',
+        data: { labels: d.cities.slice(0,8).map(c=>c.city), datasets: [{ data: d.cities.slice(0,8).map(c=>c.orders), backgroundColor: COLORS, borderWidth: 2, borderColor: '#fff', hoverOffset: 8 }] },
+        options: { cutout:'50%', plugins:{ legend:{position:'bottom',labels:{font:{size:11},padding:10,boxWidth:12}} } }
+      });
+
+      // Region bar
+      if (geoRegInst) geoRegInst.destroy();
+      geoRegInst = new Chart(document.getElementById('geoRegionChart'), {
+        type: 'bar',
+        data: { labels: d.regions.map(r=>r.region), datasets: [{ label: 'Revenue (ETB)', data: d.regions.map(r=>r.revenue), backgroundColor: 'rgba(20,184,166,.75)', borderRadius: 8 }] },
+        options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{grid:{display:false}},y:{beginAtZero:true,ticks:{callback:v=>'ETB '+v.toLocaleString()},grid:{color:'rgba(0,0,0,.04)'}}} }
+      });
+    });
+}
+loadGeoData(currentPeriod);
+{% endif %}
+
+// ── Insights tab ─────────────────────────────────────────────────────
+{% if tab == 'insights' %}
+function renderInsightsList(items, type) {
+  const icons = {info:'💡', warn:'⚠️', rec:'🚀'};
+  const icon = icons[type];
+  if (!items.length) {
+    return `<div class="text-muted" style="font-size:.83rem;text-align:center;padding:20px 0">No ${type === 'warn' ? 'warnings' : type === 'rec' ? 'recommendations' : 'insights'} right now. 🎉</div>`;
+  }
+  return items.map(txt => `
+    <div class="insight-card ${type}">
+      <div class="insight-icon">${icon}</div>
+      <div>${txt}</div>
+    </div>
+  `).join('');
+}
+
+fetch('/admin/analytics/insights')
+  .then(r => r.json())
+  .then(d => {
+    document.getElementById('insightsPanel').innerHTML = renderInsightsList(d.insights, 'info');
+    document.getElementById('warningsPanel').innerHTML = renderInsightsList(d.warnings, 'warn');
+    document.getElementById('recommendationsPanel').innerHTML = renderInsightsList(d.recommendations, 'rec');
+  });
+{% endif %}
+
 </script>
 {% endblock %}
