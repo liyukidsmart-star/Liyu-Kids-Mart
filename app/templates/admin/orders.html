@@ -20,6 +20,9 @@
           <td>
             <div class="small fw-600">{{ order.user.full_name if order.user else 'N/A' }}</div>
             <div class="x-small text-muted">{{ order.user.phone if order.user else '' }}</div>
+            {% if order.address and order.address.delivery_scope == 'regional' %}
+            <span class="badge bg-warning text-dark mt-1">Regional Order</span>
+            {% endif %}
           </td>
           <td>{{ order.items|length }}</td>
           <td>ETB {{ "{:,.0f}".format(order.total) }}</td>

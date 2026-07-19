@@ -46,9 +46,16 @@
       {% if order.address %}
       <div class="checkout-card mb-3">
         <h5 class="checkout-section-title"><i class="fas fa-map-marker-alt me-2"></i>Delivery Address</h5>
-        <p class="mb-1 fw-600">{{ order.address.recipient_name }}</p>
+        <div class="d-flex align-items-center gap-2 mb-2">
+          <p class="mb-0 fw-600">{{ order.address.recipient_name }}</p>
+          {% if order.address.delivery_scope == 'regional' %}<span class="badge bg-warning text-dark">Regional Order</span>{% endif %}
+        </div>
         <p class="mb-1">{{ order.address.phone }}</p>
+        {% if order.address.delivery_scope == 'regional' %}
+        <p class="mb-0 text-muted">{{ order.address.region }}, {{ order.address.city_town }}</p>
+        {% else %}
         <p class="mb-0 text-muted">{{ order.address.specific_location }}, {{ order.address.sub_city }}, {{ order.address.city }}</p>
+        {% endif %}
       </div>
       {% endif %}
 

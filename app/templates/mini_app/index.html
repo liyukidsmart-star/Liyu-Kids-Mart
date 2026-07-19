@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
@@ -334,6 +334,18 @@ ul{list-style:none}
 .ck-pin-wrap{width:36px;height:36px;position:relative}
 .ck-pin{width:26px;height:26px;background:#E63946;border:3px solid #fff;border-radius:50% 50% 50% 0;transform:rotate(-45deg) translateX(-3px);box-shadow:0 4px 12px rgba(230,57,70,.4)}
 .ck-pin::after{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(45deg);width:8px;height:8px;background:#fff;border-radius:50%}
+.ck-dest-grid{display:grid;grid-template-columns:1fr;gap:10px}
+.ck-dest-card{background:var(--sf);border:1.5px solid var(--br);border-radius:var(--rm);padding:14px;display:flex;align-items:flex-start;gap:12px;cursor:pointer;transition:transform .18s var(--spr),border-color .18s,background .18s}
+.ck-dest-card:active{transform:scale(.98)}
+.ck-dest-card.on{border-color:var(--g);background:var(--gp)}
+.ck-dest-ico{width:42px;height:42px;border-radius:50%;background:var(--gp);display:flex;align-items:center;justify-content:center;color:var(--g);font-size:1rem;flex-shrink:0}
+.ck-dest-title{font-size:.95rem;font-weight:800;margin-bottom:3px}
+.ck-dest-desc{font-size:.78rem;color:var(--tm);line-height:1.45}
+.ck-region-shell{position:relative;min-height:420px;border-radius:var(--rm);overflow:hidden;border:1px solid var(--br);background:linear-gradient(160deg,#e7eef4,#f6f8fa)}
+.ck-region-map{position:absolute;inset:0;filter:blur(4px) saturate(.9) brightness(.95);transform:scale(1.05);opacity:.78}
+.ck-region-overlay{position:absolute;inset:0;background:linear-gradient(180deg,rgba(26,26,46,.10),rgba(26,26,46,.34))}
+.ck-region-panel{position:relative;z-index:2;display:flex;flex-direction:column;gap:10px;padding:16px}
+.ck-region-chip{display:inline-flex;align-items:center;gap:6px;border-radius:100px;background:rgba(255,255,255,.9);padding:6px 10px;font-size:.72rem;font-weight:800;color:var(--g);box-shadow:0 6px 20px rgba(0,0,0,.12)}
 .leaflet-control-attribution{font-size:.5rem!important}
 
 /* SUCCESS */
@@ -367,7 +379,7 @@ ul{list-style:none}
 .spin{width:30px;height:30px;border:3px solid var(--gp);border-top-color:var(--g);border-radius:50%;animation:sp .7s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
 
-/* LOYALTY — Rewards Tab */
+/* LOYALTY â€” Rewards Tab */
 .rwd-hdr{background:linear-gradient(135deg,#7C3AED,#9F4AFF,#C084FC);padding:24px 16px 32px;position:relative;overflow:hidden;border-radius:0 0 28px 28px;box-shadow:0 8px 30px rgba(124,58,237,.35)}
 .rwd-hdr::before{content:'';position:absolute;inset:0;background:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");opacity:.6}
 .rwd-tier-badge{width:72px;height:72px;border-radius:50%;background:rgba(255,255,255,.2);border:3px solid rgba(255,255,255,.4);display:flex;align-items:center;justify-content:center;font-size:2.2rem;margin:0 auto 10px;position:relative;z-index:1;backdrop-filter:blur(10px);box-shadow:0 8px 24px rgba(0,0,0,.2)}
@@ -403,7 +415,7 @@ ul{list-style:none}
 .rwd-unlock-title{font-size:.8rem;font-weight:800;color:#C2410C;margin-bottom:6px;display:flex;align-items:center;gap:5px}
 .rwd-unlock-row{display:flex;align-items:center;justify-content:space-between;margin-top:6px}
 .rwd-unlock-badge{background:linear-gradient(135deg,#F97316,#EA580C);color:#fff;border-radius:100px;padding:4px 12px;font-size:.75rem;font-weight:800}
-/* LOYALTY — Smart Cart Banner */
+/* LOYALTY â€” Smart Cart Banner */
 .loy-cart-banner{margin:10px 14px 0;border-radius:18px;padding:14px 16px;position:relative;overflow:hidden}
 .loy-cart-banner.thresh{background:linear-gradient(135deg,#1D4ED8,#3B82F6);color:#fff}
 .loy-cart-banner.incentive{background:linear-gradient(135deg,#059669,#10B981);color:#fff}
@@ -435,7 +447,7 @@ ul{list-style:none}
 .sh-premium-title{font-size:.9rem;font-weight:900;color:#5B21B6;margin-bottom:4px}
 .sh-premium-sub{font-size:.8rem;color:#7C3AED}
 .sh-premium-cta{display:block;width:100%;background:linear-gradient(135deg,#7C3AED,#9F4AFF);color:#fff;border-radius:100px;padding:12px;font-size:.85rem;font-weight:800;margin-top:10px;cursor:pointer;border:none}
-/* ME TAB — sub-navigation */
+/* ME TAB â€” sub-navigation */
 .me-hdr{background:linear-gradient(135deg,var(--g),var(--gm));padding:16px 16px 20px;position:relative;overflow:hidden}
 .me-hdr::after{content:'*';position:absolute;right:-10px;top:-10px;font-size:7rem;opacity:.08}
 .me-av{width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.25);border:2px solid rgba(255,255,255,.5);display:flex;align-items:center;justify-content:center;font-size:1.4rem;font-weight:900;color:#fff;flex-shrink:0}
@@ -485,21 +497,21 @@ ul{list-style:none}
       <div class="afil-lbl" data-i18n="h_age">Shop by Age</div>
       <div class="achips">
         <button class="achip" data-mn="0" data-mx="11" onclick="ageFilter(this)" data-i18n="a_u1">Under 1yr</button>
-        <button class="achip" data-mn="12" data-mx="35" onclick="ageFilter(this)" data-i18n="a_13">1 – 3 yrs</button>
-        <button class="achip" data-mn="36" data-mx="83" onclick="ageFilter(this)" data-i18n="a_37">3 – 7 yrs</button>
+        <button class="achip" data-mn="12" data-mx="35" onclick="ageFilter(this)" data-i18n="a_13">1 â€“ 3 yrs</button>
+        <button class="achip" data-mn="36" data-mx="83" onclick="ageFilter(this)" data-i18n="a_37">3 â€“ 7 yrs</button>
         <button class="achip" data-mn="84" data-mx="999" onclick="ageFilter(this)" data-i18n="a_7p">7+ yrs</button>
         <button class="achip on" data-mn="-1" onclick="ageFilter(this,true)" data-i18n="a_all">All Ages</button>
       </div>
     </div>
     <div id="homeCatsSection">
-      <div class="shdr"><h2 data-i18n="c_cats">🗂 Categories</h2><a onclick="showTab('tab-shop')" data-i18n="see_all">See all</a></div>
+      <div class="shdr"><h2 data-i18n="c_cats">ðŸ—‚ Categories</h2><a onclick="showTab('tab-shop')" data-i18n="see_all">See all</a></div>
       <div class="cgrid" id="homeCats"><div class="ldr" style="grid-column:span 4"><div class="spin"></div></div></div>
     </div>
-    <div class="shdr"><h2 data-i18n="c_feat">⭐ Featured</h2><a onclick="showTab('tab-shop')" data-i18n="see_all">See all</a></div>
+    <div class="shdr"><h2 data-i18n="c_feat">â­ Featured</h2><a onclick="showTab('tab-shop')" data-i18n="see_all">See all</a></div>
     <div class="hrow" id="featRow"><div class="ldr"><div class="spin"></div></div></div>
-    <div class="shdr"><h2 data-i18n="c_new">✨ New Arrivals</h2><a onclick="showTab('tab-shop')" data-i18n="see_all">See all</a></div>
+    <div class="shdr"><h2 data-i18n="c_new">âœ¨ New Arrivals</h2><a onclick="showTab('tab-shop')" data-i18n="see_all">See all</a></div>
     <div class="hrow" id="newRow"><div class="ldr"><div class="spin"></div></div></div>
-    <div class="shdr"><h2 data-i18n="c_best">🔥 Best Sellers</h2></div>
+    <div class="shdr"><h2 data-i18n="c_best">ðŸ”¥ Best Sellers</h2></div>
     <div class="pgrid" id="homeGrid"><div class="ldr" style="grid-column:span 2"><div class="spin"></div></div></div>
     <div style="padding: 24px 16px; text-align: center;">
       <button class="lmbtn" style="width: 100%; padding: 14px; font-size: 1.05rem; font-weight: 800; background: var(--g); color: #fff; border: none; box-shadow: 0 4px 14px rgba(45,106,79,0.3);" onclick="showTab('tab-shop')">
@@ -516,16 +528,16 @@ ul{list-style:none}
   <div class="sbar" style="top:0">
     <div class="sbar-inn">
       <i class="fas fa-search"></i>
-      <input type="text" id="shopSrch" placeholder="Search toys, Montessori…" data-i18n-ph="s_srch" oninput="shopSearch(this.value)"/>
+      <input type="text" id="shopSrch" placeholder="Search toys, Montessoriâ€¦" data-i18n-ph="s_srch" oninput="shopSearch(this.value)"/>
       <i class="fas fa-times sclr" id="sclr" onclick="shopClear()"></i>
     </div>
   </div>
   <div class="chips" id="shopCats"><button class="chip on" data-id="0" onclick="shopCat(0,this)" data-i18n="s_all">All</button></div>
   <div class="sortbar">
-    <button class="sbtn on" data-s="popular" onclick="shopSort('popular',this)" data-i18n="s_pop">🔥 Popular</button>
-    <button class="sbtn" data-s="new" onclick="shopSort('new',this)" data-i18n="s_newest">✨ Newest</button>
-    <button class="sbtn" data-s="asc" onclick="shopSort('asc',this)" data-i18n="s_asc">Price ↑</button>
-    <button class="sbtn" data-s="desc" onclick="shopSort('desc',this)" data-i18n="s_desc">Price ↓</button>
+    <button class="sbtn on" data-s="popular" onclick="shopSort('popular',this)" data-i18n="s_pop">ðŸ”¥ Popular</button>
+    <button class="sbtn" data-s="new" onclick="shopSort('new',this)" data-i18n="s_newest">âœ¨ Newest</button>
+    <button class="sbtn" data-s="asc" onclick="shopSort('asc',this)" data-i18n="s_asc">Price â†‘</button>
+    <button class="sbtn" data-s="desc" onclick="shopSort('desc',this)" data-i18n="s_desc">Price â†“</button>
   </div>
   <div style="overflow-y:auto;flex:1">
     <div class="pgrid" id="shopGrid"><div class="ldr" style="grid-column:span 2"><div class="spin"></div></div></div>
@@ -540,7 +552,7 @@ ul{list-style:none}
     <div style="display:flex;align-items:center;gap:10px">
       <div class="ai-av">L</div>
       <div class="ai-info">
-        <div class="ai-name">Liyu — Shopping Guide</div>
+        <div class="ai-name">Liyu â€” Shopping Guide</div>
         <div class="ai-stat"><span class="ai-dot"></span data-i18n="ai_online">Online &amp; ready to help</div>
       </div>
     </div>
@@ -555,7 +567,7 @@ ul{list-style:none}
     <button class="ai-qchip" onclick="aiSend('Gift ideas for 5 year old')" data-i18n="ai_q5">Gift ideas</button>
   </div>
   <div class="ai-inp-row">
-    <input class="ai-inp" id="aiInp" type="text" placeholder="Ask Liyu anything…" data-i18n-ph="ai_ask" onkeydown="if(event.key==='Enter')aiSend()"/>
+    <input class="ai-inp" id="aiInp" type="text" placeholder="Ask Liyu anythingâ€¦" data-i18n-ph="ai_ask" onkeydown="if(event.key==='Enter')aiSend()"/>
     <button class="ai-send" onclick="aiSend()"><i class="fas fa-paper-plane"></i></button>
   </div>
 </div>
@@ -960,9 +972,9 @@ function addCart(id,name,price,img,qty=1){
   const ex=cart.find(i=>i.id===id);
   if(ex)ex.qty+=qty; else cart.push({id,name,price,img,qty});
   saveCart(); hap();
-  toast('🛒 '+name.slice(0,22)+'… added!','ok');
+  toast('ðŸ›’ '+name.slice(0,22)+'â€¦ added!','ok');
   document.querySelectorAll('[data-pid="'+id+'"]').forEach(b=>{
-    b.textContent='✓ Added';b.classList.add('ok');
+    b.textContent='âœ“ Added';b.classList.add('ok');
     setTimeout(()=>{b.textContent='+ Add';b.classList.remove('ok');},1600);
   });
   
@@ -1137,7 +1149,7 @@ function pcard(p,v='grid'){
   const isLocked=minLvl&&(userLvlOrder<prodLvlOrder);
   const lockLvlName=p.min_loyalty_level_name||'a higher tier';
   const qtyEligBadge = (!isLaunchLocked && p.qty_discount_eligible)
-    ? `<span class="bpill" style="background:linear-gradient(135deg,#059669,#10B981);color:#fff;font-size:.6rem">📦 Multi-Buy</span>`
+    ? `<span class="bpill" style="background:linear-gradient(135deg,#059669,#10B981);color:#fff;font-size:.6rem">ðŸ“¦ Multi-Buy</span>`
     : '';
   const bdgs=[p.is_new_arrival?'<span class="bpill bnew">New</span>':'',
     p.compare_price>p.price?'<span class="bpill bsale">Sale</span>':'',
@@ -1260,24 +1272,24 @@ async function loadHomeCats(){
       const cats = boot.categories;
       document.getElementById('homeCats').innerHTML=cats.length
         ?cats.map(c=>`<div class="cgitem" onclick="shopCat(${c.id});showTab('tab-shop')">
-          <div class="cg-ico">${c.icon||'🛍'}</div><div class="cg-name">${c.name}</div></div>`).join('')
+          <div class="cg-ico">${c.icon||'ðŸ›'}</div><div class="cg-name">${c.name}</div></div>`).join('')
         :'';
       const row=document.getElementById('shopCats');
       row.innerHTML='<button class="chip on" data-id="0" onclick="shopCat(0,this)" data-i18n="s_all">All</button>';
       cats.forEach(c=>{const b=document.createElement('button');b.className='chip';b.dataset.id=c.id;
-        b.textContent=(c.icon||'🛍')+' '+c.name;b.onclick=()=>shopCat(c.id,b);row.appendChild(b);});
+        b.textContent=(c.icon||'ðŸ›')+' '+c.name;b.onclick=()=>shopCat(c.id,b);row.appendChild(b);});
       return;
     }
     const d=await fetchJsonWithTimeout('/api/v1/categories', {}, 5000);
     const fallbackCats=(d.data||[]);
     document.getElementById('homeCats').innerHTML=fallbackCats.length
       ?fallbackCats.map(c=>`<div class="cgitem" onclick="shopCat(${c.id});showTab('tab-shop')">
-          <div class="cg-ico">${c.icon||'🛍'}</div><div class="cg-name">${c.name}</div></div>`).join('')
+          <div class="cg-ico">${c.icon||'ðŸ›'}</div><div class="cg-name">${c.name}</div></div>`).join('')
       :'';
     const row=document.getElementById('shopCats');
     row.innerHTML='<button class="chip on" data-id="0" onclick="shopCat(0,this)" data-i18n="s_all">All</button>';
     fallbackCats.forEach(c=>{const b=document.createElement('button');b.className='chip';b.dataset.id=c.id;
-      b.textContent=(c.icon||'🛍')+' '+c.name;b.onclick=()=>shopCat(c.id,b);row.appendChild(b);});
+      b.textContent=(c.icon||'ðŸ›')+' '+c.name;b.onclick=()=>shopCat(c.id,b);row.appendChild(b);});
   }catch{document.getElementById('homeCats').innerHTML='';}
 }
 
@@ -1292,7 +1304,7 @@ async function loadHomeSections(){
       document.getElementById('homeGrid').innerHTML=bp.length?bp.map(p=>pcard(p)).join(''):'<div class="empty" style="grid-column:span 2"><p>No products</p></div>';
       return;
     }
-    // Bootstrap returned nothing — fall back to individual requests
+    // Bootstrap returned nothing â€” fall back to individual requests
     const [fd,nd,bd] = await Promise.allSettled([
       fetchJsonWithTimeout('/api/v1/products?featured=true&per_page=8', {}, 8000),
       fetchJsonWithTimeout('/api/v1/products?new_arrival=true&per_page=8', {}, 8000),
@@ -1368,7 +1380,7 @@ async function loadShop(reset=false){
     if(sCache.has(url)){
       const cached=sCache.get(url);
       sAll=[...cached.products]; sHasMore=cached.hasMore;
-      grid.innerHTML=sAll.length?sAll.map(p=>pcard(p)).join(''):'<div class="empty" style="grid-column:span 2"><div class="ei">🛍</div><p>No products found</p></div>';
+      grid.innerHTML=sAll.length?sAll.map(p=>pcard(p)).join(''):'<div class="empty" style="grid-column:span 2"><div class="ei">ðŸ›</div><p>No products found</p></div>';
       document.getElementById('lmbtn').style.display=sHasMore?'block':'none';
       setupShopObserver();
       return;
@@ -1378,7 +1390,7 @@ async function loadShop(reset=false){
     if(boot?.shop_page?.products && url === '/api/v1/products?page=1&per_page=200&sort=bestselling&order=desc'){
       sAll=[...boot.shop_page.products];
       sHasMore=!!boot.shop_page.has_more;
-      grid.innerHTML=sAll.length?sAll.map(p=>pcard(p)).join(''):'<div class="empty" style="grid-column:span 2"><div class="ei">🛍</div><p>No products found</p></div>';
+      grid.innerHTML=sAll.length?sAll.map(p=>pcard(p)).join(''):'<div class="empty" style="grid-column:span 2"><div class="ei">ðŸ›</div><p>No products found</p></div>';
       document.getElementById('lmbtn').style.display=sHasMore?'block':'none';
       sCache.set(url,{products:[...sAll],hasMore:sHasMore});
       setupShopObserver();
@@ -1443,7 +1455,7 @@ async function init(){
   // Fire bootstrap immediately so it's in-flight while auth runs
   loadMiniBootstrap().catch(()=>{});
 
-  // Run auth and shop/init concurrently — don't block product loading on auth
+  // Run auth and shop/init concurrently â€” don't block product loading on auth
   const authP = auth();
   fetch('/api/v1/shop/init')
     .then(r=>r.json())
@@ -1481,63 +1493,63 @@ const i18n = {
     nav_home: "Home", nav_shop: "Shop", nav_ai: "Liyu AI", nav_cart: "Cart", nav_orders: "Orders",
     h_find: "Find the Perfect Toy", h_sub: "Ethiopia's premier educational toy store",
     h_age: "Shop by Age", a_u1: "Under 1yr", a_13: "1 - 3 yrs", a_37: "3 - 7 yrs", a_7p: "7+ yrs", a_all: "All Ages",
-    c_cats: "🗂 Categories", c_feat: "⭐ Featured", c_new: "✨ New Arrivals", c_best: "🔥 Best Sellers",
+    c_cats: "ðŸ—‚ Categories", c_feat: "â­ Featured", c_new: "âœ¨ New Arrivals", c_best: "ðŸ”¥ Best Sellers",
     see_all: "See all",
-    s_shop: "Shop", s_srch: "Search toys, Montessori…", s_all: "All",
-    s_pop: "🔥 Popular", s_newest: "✨ Newest", s_asc: "Price ↑", s_desc: "Price ↓",
+    s_shop: "Shop", s_srch: "Search toys, Montessoriâ€¦", s_all: "All",
+    s_pop: "ðŸ”¥ Popular", s_newest: "âœ¨ Newest", s_asc: "Price â†‘", s_desc: "Price â†“",
     l_more: "Load More",
-    ai_online: "Online & ready to help", ai_ask: "Ask Liyu anything…",
+    ai_online: "Online & ready to help", ai_ask: "Ask Liyu anythingâ€¦",
     c_cart: "Cart", c_empty: "Your cart is empty", c_empty_p: "Browse our products and add something for your little one!",
     c_start: "Start Shopping",
     c_fd_prog: "Free Delivery Progress", c_sub: "Subtotal", c_df: "Delivery fee", c_tot: "Total", c_co: "Checkout Now",
-    ck_order_sum: "Order Summary", ck_contact: "Contact Information", ck_full_name: "Full Name *", ck_phone: "Phone Number *", ck_location: "Specific Location / Landmark *", ck_notes: "Notes / Sub-City", ck_continue: "Continue to Delivery Map", ck_secure: "Secure Checkout", ck_pin: "Pin Location", ck_tap_map: "Tap the map to set location", ck_locate: "Locate Me", ck_fee: "Delivery Fee", ck_select_loc: "Select location", ck_tap_any: "Tap anywhere on the map", ck_select_pin: "Select Pin", ck_final_review: "Final Review", ck_summary: "Summary", ck_payment: "Payment Method", ck_place_order: "Place Order", ck_view_orders: "View My Orders", ck_continue_shopping: "Continue Shopping", ck_order_placed: "Order Placed!", ck_thanks: "Thank you! Your order has been received.\nOur team will confirm it shortly.", ck_questions: "Questions? Call", ck_map_first: "Please select a delivery location first", ck_pin_first: "Please drop a pin on the map first", ck_name_err: "Please enter your name", ck_phone_err: "Please enter a valid phone number", ck_loc_err: "Please enter your delivery location", ck_free_delivery: "You qualify for FREE delivery!", ck_more_free: "Add ETB {amount} more for free delivery",
+    ck_order_sum: "Order Summary", ck_contact: "Contact Information", ck_full_name: "Full Name *", ck_phone: "Phone Number *", ck_location: "Specific Location / Landmark *", ck_notes: "Notes / Sub-City", ck_continue: "Continue to Delivery Destination", ck_secure: "Secure Checkout", ck_pin: "Pin Location", ck_tap_map: "Tap the map to set location", ck_locate: "Locate Me", ck_fee: "Delivery Fee", ck_select_loc: "Select location", ck_tap_any: "Tap anywhere on the map", ck_select_pin: "Select Pin", ck_final_review: "Final Review", ck_summary: "Summary", ck_payment: "Payment Method", ck_place_order: "Place Order", ck_view_orders: "View My Orders", ck_continue_shopping: "Continue Shopping", ck_order_placed: "Order Placed!", ck_thanks: "Thank you! Your order has been received.\nOur team will confirm it shortly.", ck_questions: "Questions? Call", ck_map_first: "Please select a delivery location first", ck_pin_first: "Please drop a pin on the map first", ck_name_err: "Please enter your name", ck_phone_err: "Please enter a valid phone number", ck_loc_err: "Please enter your delivery location", ck_free_delivery: "You qualify for FREE delivery!", ck_more_free: "Add ETB {amount} more for free delivery", ck_destination: "Delivery Destination", ck_addis: "Addis Delivery", ck_addis_desc: "Stay on the GPS map and drop a pin anywhere in Addis Ababa.", ck_regional: "Regional Delivery", ck_regional_desc: "Use the Ethiopia map background and enter your region and city/town.", ck_regional_hint: "Regional delivery uses a blurred Ethiopia map in the background while you enter region and city/town.", ck_region: "Region *", ck_city_town: "City / Town *", ck_region_err: "Please enter your region", ck_city_err: "Please enter your city or town", ck_place_order_only: "Place Order", ck_regional_payment: "Confirm the order with cash on delivery for regional destinations.", ck_telebirr_payment: "TeleBirr Payment", ck_telebirr_intro: "Send the order total to the TeleBirr number below and upload your receipt.", ck_telebirr_call: "TeleBirr number", ck_telebirr_note: "For regional orders, TeleBirr is a fast option if you prefer to pay before dispatch.",
     o_orders: "My Orders",
     ck_rev: "Order Review", ck_del: "Delivery Information", ck_pm: "Payment Method",
     f_nm: "Full Name *", f_ph: "Phone Number *", f_sc: "Sub-City", f_loc: "Specific Location *", f_not: "Delivery Notes",
     p_cod: "Cash on Delivery", p_cod_s: "Pay when your order arrives",
-    p_tb: "TeleBirr", p_tb_s: "Pay via TeleBirr — send money & upload receipt",
+    p_tb: "TeleBirr", p_tb_s: "Pay via TeleBirr â€” send money & upload receipt",
     p_tb_number: "Send to: +251 91 162 3758", p_tb_name: "Martha Aynalem",
     p_tb_instr: "Send the total amount to the number above, then upload your receipt below.",
-    p_tb_upload: "Upload Payment Receipt", p_tb_uploading: "Uploading…", p_tb_done: "✅ Receipt uploaded",
+    p_tb_upload: "Upload Payment Receipt", p_tb_uploading: "Uploadingâ€¦", p_tb_done: "âœ… Receipt uploaded",
     p_tb_required: "Please upload your TeleBirr receipt before placing the order.",
     p_ch: "Chapa", p_ch_s: "Credit/Debit via Chapa",
-    plc_btn: "Place Order", plc_placing: "Placing order…",
+    plc_btn: "Place Order", plc_placing: "Placing orderâ€¦",
     sh_add: "+ Add", sh_out: "Out of Stock", sh_qty: "Quantity",
     empty_p: "No products found", empty_o: "No orders yet",
-    sl_pen: "⏳ Pending", sl_con: "✅ Confirmed", sl_pac: "📦 Packed", sl_out: "🚚 On the Way", sl_del: "🎉 Delivered", sl_can: "❌ Cancelled", sl_ret: "↩️ Returned",
+    sl_pen: "â³ Pending", sl_con: "âœ… Confirmed", sl_pac: "ðŸ“¦ Packed", sl_out: "ðŸšš On the Way", sl_del: "ðŸŽ‰ Delivered", sl_can: "âŒ Cancelled", sl_ret: "â†©ï¸ Returned",
     ai_q1: "Toy for 2yr old", ai_q2: "Under 500 ETB", ai_q3: "Montessori", ai_q4: "My cart", ai_q5: "Gift ideas",
     c_qty_disc: "Multi-Buy Discount"
   },
   am: {
-    nav_home: "ዋና ገጽ", nav_shop: "ገበያ", nav_ai: "ልዩ AI", nav_cart: "ዘንቢል", nav_orders: "ትዕዛዞች",
-    h_find: "ምርጥ መጫወቻ ያግኙ", h_sub: "የልጆች እድገትን የሚረዱ መጫወቻዎች",
-    h_age: "በእድሜ ይፈልጉ", a_u1: "ከ1 ዓመት በታች", a_13: "1 - 3 ዓመት", a_37: "3 - 7 ዓመት", a_7p: "7+ ዓመት", a_all: "ሁሉም",
-    c_cats: "ምድቦች", c_feat: "ተመራጭ", c_new: "አዳዲስ", c_best: "ተወዳጅ",
-    see_all: "ሁሉንም እይ",
-    s_shop: "ገበያ", s_srch: "ምርቶችን ይፈልጉ...", s_all: "ሁሉም",
-    s_pop: "ተወዳጅ", s_newest: "አዲስ", s_asc: "ዋጋ ↑", s_desc: "ዋጋ ↓",
-    l_more: "ተጨማሪ አሳይ",
-    ai_online: "ለመርዳት ዝግጁ ነኝ", ai_ask: "ሊዩን ይጠይቁ...",
-    c_cart: "ዘንቢል", c_empty: "ዘንቢልዎ ባዶ ነው", c_empty_p: "ለልጅዎ የሚሆኑ ምርጥ እቃዎችን ይመልከቱ!",
-    c_start: "ገበያ ጀምር",
-    c_fd_prog: "የነፃ መላኪያ ሂደት", c_sub: "ድምር", c_df: "የመላኪያ ክፍያ", c_tot: "አጠቃላይ ክፍያ", c_co: "ወደ ክፍያ",
-    ck_order_sum: "የትዕዛዝ ማጠቃለያ", ck_contact: "የአድራሻ መረጃ", ck_full_name: "ሙሉ ስም *", ck_phone: "ስልክ ቁጥር *", ck_location: "ትክክለኛ ቦታ / መለያ *", ck_notes: "ማስታወሻ / ክፍለ ከተማ", ck_continue: "ወደ ካርታ ይቀጥሉ", ck_secure: "ደህንነቱ የተጠበቀ ክፍያ", ck_pin: "ፒን ያስቀምጡ", ck_tap_map: "ቦታዎን ለማስቀመጥ ካርታውን ይንኩ", ck_locate: "እኔን አግኝ", ck_fee: "የመላኪያ ክፍያ", ck_select_loc: "ቦታ ይምረጡ", ck_tap_any: "በካርታው ላይ የትም ይንኩ", ck_select_pin: "ፒን ይምረጡ", ck_final_review: "የመጨረሻ እይታ", ck_summary: "ማጠቃለያ", ck_payment: "የክፍያ ዘዴ", ck_place_order: "ትዕዛዝ ያስገቡ", ck_view_orders: "ትዕዛዞቼን አሳይ", ck_continue_shopping: "ግብይት ይቀጥሉ", ck_order_placed: "ትዕዛዝ ተላከ!", ck_thanks: "እናመሰግናለን! ትዕዛዝዎን ተቀብለናል.\nቡድናችን በቅርቡ ያረጋግጣል.", ck_questions: "ጥያቄ አለዎት? ይደውሉ", ck_map_first: "እባክዎ በመጀመሪያ የመላኪያ ቦታ ይምረጡ", ck_pin_first: "እባክዎ መጀመሪያ በካርታው ላይ ፒን ያድርጉ", ck_name_err: "እባክዎ ስምዎን ያስገቡ", ck_phone_err: "እባክዎ ትክክለኛ ስልክ ቁጥር ያስገቡ", ck_loc_err: "እባክዎ የመላኪያ ቦታዎን ያስገቡ", ck_free_delivery: "ነፃ መላኪያ ብቁ ነዎት!", ck_more_free: "ነፃ መላኪያ ለማግኘት ETB {amount} ተጨማሪ ያክሉ",
-    o_orders: "የእኔ ትዕዛዞች",
-    ck_rev: "የትዕዛዝ ግምገማ", ck_del: "የመላኪያ መረጃ", ck_pm: "የክፍያ ዘዴ",
-    f_nm: "ሙሉ ስም *", f_ph: "ስልክ ቁጥር *", f_sc: "ክፍለ ከተማ", f_loc: "ልዩ ቦታ *", f_not: "ተጨማሪ መረጃ",
-    p_cod: "በጥሬ ገንዘብ ክፈሉ", p_cod_s: "ትዕዛዝዎ ሲደርስ ይክፈሉ",
-    p_tb: "ቴሌብር", p_tb_s: "በቴሌብር ይክፈሉ — ገንዘብ ላኩ እና ደረሰኝ ያቅርቡ",
-    p_tb_number: "ወደዚህ ይላኩ: +251 91 162 3758", p_tb_name: "ማርታ አይናለም",
-    p_tb_instr: "አጠቃላይ ክፍያውን ወደ ላይ ወደ ተዘረዘረው ቁጥር ይላኩ፤ ከዚያም ደረሰኝዎን ከታች ያቅርቡ።",
-    p_tb_upload: "ደረሰኝ ስዕል ያስገቡ", p_tb_uploading: "እየተጫነ ነው…", p_tb_done: "✅ ደረሰኝ ተጭኗል",
-    p_tb_required: "ትዕዛዝ ከማስቀመጥዎ በፊት እባክዎ የቴሌብር ደረሰኝዎን ያቅርቡ።",
-    p_ch: "ቻፓ", p_ch_s: "በካርድ ወይም በባንክ ይክፈሉ",
-    plc_btn: "ትዕዛዝ ያስገቡ", plc_placing: "ትዕዛዝ እየተላከ ነው…",
-    sh_add: "+ ጨምር", sh_out: "አልቋል", sh_qty: "ብዛት",
-    empty_p: "ምንም እቃ አልተገኘም", empty_o: "ምንም ትዕዛዝ የለዎትም",
-    sl_pen: "⏳ በመጠባበቅ ላይ", sl_con: "✅ ተረጋግጧል", sl_pac: "📦 ታሽጎል", sl_out: "🚚 በመንገድ ላይ", sl_del: "🎉 ደርሷል", sl_can: "❌ ተሰርዟል", sl_ret: "↩️ ተመልሷል",
-    ai_q1: "ለ 2 ዓመት ልጅ መጫወቻ", ai_q2: "ከ 500 ብር በታች", ai_q3: "ሞንቴሶሪ", ai_q4: "ዘንቢሌ ውስጥ", ai_q5: "የስጦታ ሀሳቦች",
-    c_qty_disc: "ብዙ ስጦት ቅናሽ"
+    nav_home: "á‹‹áŠ“ áŒˆáŒ½", nav_shop: "áŒˆá‰ á‹«", nav_ai: "áˆá‹© AI", nav_cart: "á‹˜áŠ•á‰¢áˆ", nav_orders: "á‰µá‹•á‹›á‹žá‰½",
+    h_find: "áˆáˆ­áŒ¥ áˆ˜áŒ«á‹ˆá‰» á‹«áŒáŠ™", h_sub: "á‹¨áˆáŒ†á‰½ áŠ¥á‹µáŒˆá‰µáŠ• á‹¨áˆšáˆ¨á‹± áˆ˜áŒ«á‹ˆá‰»á‹Žá‰½",
+    h_age: "á‰ áŠ¥á‹µáˆœ á‹­áˆáˆáŒ‰", a_u1: "áŠ¨1 á‹“áˆ˜á‰µ á‰ á‰³á‰½", a_13: "1 - 3 á‹“áˆ˜á‰µ", a_37: "3 - 7 á‹“áˆ˜á‰µ", a_7p: "7+ á‹“áˆ˜á‰µ", a_all: "áˆáˆ‰áˆ",
+    c_cats: "áˆá‹µá‰¦á‰½", c_feat: "á‰°áˆ˜áˆ«áŒ­", c_new: "áŠ á‹³á‹²áˆµ", c_best: "á‰°á‹ˆá‹³áŒ…",
+    see_all: "áˆáˆ‰áŠ•áˆ áŠ¥á‹­",
+    s_shop: "áŒˆá‰ á‹«", s_srch: "áˆáˆ­á‰¶á‰½áŠ• á‹­áˆáˆáŒ‰...", s_all: "áˆáˆ‰áˆ",
+    s_pop: "á‰°á‹ˆá‹³áŒ…", s_newest: "áŠ á‹²áˆµ", s_asc: "á‹‹áŒ‹ â†‘", s_desc: "á‹‹áŒ‹ â†“",
+    l_more: "á‰°áŒ¨áˆ›áˆª áŠ áˆ³á‹­",
+    ai_online: "áˆˆáˆ˜áˆ­á‹³á‰µ á‹áŒáŒ áŠáŠ", ai_ask: "áˆŠá‹©áŠ• á‹­áŒ á‹­á‰...",
+    c_cart: "á‹˜áŠ•á‰¢áˆ", c_empty: "á‹˜áŠ•á‰¢áˆá‹Ž á‰£á‹¶ áŠá‹", c_empty_p: "áˆˆáˆáŒ…á‹Ž á‹¨áˆšáˆ†áŠ‘ áˆáˆ­áŒ¥ áŠ¥á‰ƒá‹Žá‰½áŠ• á‹­áˆ˜áˆáŠ¨á‰±!",
+    c_start: "áŒˆá‰ á‹« áŒ€áˆáˆ­",
+    c_fd_prog: "á‹¨áŠáƒ áˆ˜áˆ‹áŠªá‹« áˆ‚á‹°á‰µ", c_sub: "á‹µáˆáˆ­", c_df: "á‹¨áˆ˜áˆ‹áŠªá‹« áŠ­áá‹«", c_tot: "áŠ áŒ á‰ƒáˆ‹á‹­ áŠ­áá‹«", c_co: "á‹ˆá‹° áŠ­áá‹«",
+    ck_order_sum: "á‹¨á‰µá‹•á‹›á‹ áˆ›áŒ á‰ƒáˆˆá‹«", ck_contact: "á‹¨áŠ á‹µáˆ«áˆ» áˆ˜áˆ¨áŒƒ", ck_full_name: "áˆ™áˆ‰ áˆµáˆ *", ck_phone: "áˆµáˆáŠ­ á‰áŒ¥áˆ­ *", ck_location: "á‰µáŠ­áŠ­áˆˆáŠ› á‰¦á‰³ / áˆ˜áˆˆá‹« *", ck_notes: "áˆ›áˆµá‰³á‹ˆáˆ» / áŠ­ááˆˆ áŠ¨á‰°áˆ›", ck_continue: "á‹ˆá‹° áŠ«áˆ­á‰³ á‹­á‰€áŒ¥áˆ‰", ck_secure: "á‹°áˆ…áŠ•áŠá‰± á‹¨á‰°áŒ á‰ á‰€ áŠ­áá‹«", ck_pin: "á’áŠ• á‹«áˆµá‰€áˆáŒ¡", ck_tap_map: "á‰¦á‰³á‹ŽáŠ• áˆˆáˆ›áˆµá‰€áˆ˜áŒ¥ áŠ«áˆ­á‰³á‹áŠ• á‹­áŠ•áŠ©", ck_locate: "áŠ¥áŠ”áŠ• áŠ áŒáŠ", ck_fee: "á‹¨áˆ˜áˆ‹áŠªá‹« áŠ­áá‹«", ck_select_loc: "á‰¦á‰³ á‹­áˆáˆ¨áŒ¡", ck_tap_any: "á‰ áŠ«áˆ­á‰³á‹ áˆ‹á‹­ á‹¨á‰µáˆ á‹­áŠ•áŠ©", ck_select_pin: "á’áŠ• á‹­áˆáˆ¨áŒ¡", ck_final_review: "á‹¨áˆ˜áŒ¨áˆ¨áˆ» áŠ¥á‹­á‰³", ck_summary: "áˆ›áŒ á‰ƒáˆˆá‹«", ck_payment: "á‹¨áŠ­áá‹« á‹˜á‹´", ck_place_order: "á‰µá‹•á‹›á‹ á‹«áˆµáŒˆá‰¡", ck_view_orders: "á‰µá‹•á‹›á‹žá‰¼áŠ• áŠ áˆ³á‹­", ck_continue_shopping: "áŒá‰¥á‹­á‰µ á‹­á‰€áŒ¥áˆ‰", ck_order_placed: "á‰µá‹•á‹›á‹ á‰°áˆ‹áŠ¨!", ck_thanks: "áŠ¥áŠ“áˆ˜áˆ°áŒáŠ“áˆˆáŠ•! á‰µá‹•á‹›á‹á‹ŽáŠ• á‰°á‰€á‰¥áˆˆáŠ“áˆ.\ná‰¡á‹µáŠ“á‰½áŠ• á‰ á‰…áˆ­á‰¡ á‹«áˆ¨áŒ‹áŒáŒ£áˆ.", ck_questions: "áŒ¥á‹«á‰„ áŠ áˆˆá‹Žá‰µ? á‹­á‹°á‹áˆ‰", ck_map_first: "áŠ¥á‰£áŠ­á‹Ž á‰ áˆ˜áŒ€áˆ˜áˆªá‹« á‹¨áˆ˜áˆ‹áŠªá‹« á‰¦á‰³ á‹­áˆáˆ¨áŒ¡", ck_pin_first: "áŠ¥á‰£áŠ­á‹Ž áˆ˜áŒ€áˆ˜áˆªá‹« á‰ áŠ«áˆ­á‰³á‹ áˆ‹á‹­ á’áŠ• á‹«á‹µáˆ­áŒ‰", ck_name_err: "áŠ¥á‰£áŠ­á‹Ž áˆµáˆá‹ŽáŠ• á‹«áˆµáŒˆá‰¡", ck_phone_err: "áŠ¥á‰£áŠ­á‹Ž á‰µáŠ­áŠ­áˆˆáŠ› áˆµáˆáŠ­ á‰áŒ¥áˆ­ á‹«áˆµáŒˆá‰¡", ck_loc_err: "áŠ¥á‰£áŠ­á‹Ž á‹¨áˆ˜áˆ‹áŠªá‹« á‰¦á‰³á‹ŽáŠ• á‹«áˆµáŒˆá‰¡", ck_free_delivery: "áŠáƒ áˆ˜áˆ‹áŠªá‹« á‰¥á‰ áŠá‹Žá‰µ!", ck_more_free: "áŠáƒ áˆ˜áˆ‹áŠªá‹« áˆˆáˆ›áŒáŠ˜á‰µ ETB {amount} á‰°áŒ¨áˆ›áˆª á‹«áŠ­áˆ‰",
+    o_orders: "á‹¨áŠ¥áŠ” á‰µá‹•á‹›á‹žá‰½",
+    ck_rev: "á‹¨á‰µá‹•á‹›á‹ áŒáˆáŒˆáˆ›", ck_del: "á‹¨áˆ˜áˆ‹áŠªá‹« áˆ˜áˆ¨áŒƒ", ck_pm: "á‹¨áŠ­áá‹« á‹˜á‹´",
+    f_nm: "áˆ™áˆ‰ áˆµáˆ *", f_ph: "áˆµáˆáŠ­ á‰áŒ¥áˆ­ *", f_sc: "áŠ­ááˆˆ áŠ¨á‰°áˆ›", f_loc: "áˆá‹© á‰¦á‰³ *", f_not: "á‰°áŒ¨áˆ›áˆª áˆ˜áˆ¨áŒƒ",
+    p_cod: "á‰ áŒ¥áˆ¬ áŒˆáŠ•á‹˜á‰¥ áŠ­áˆáˆ‰", p_cod_s: "á‰µá‹•á‹›á‹á‹Ž áˆ²á‹°áˆ­áˆµ á‹­áŠ­áˆáˆ‰",
+    p_tb: "á‰´áˆŒá‰¥áˆ­", p_tb_s: "á‰ á‰´áˆŒá‰¥áˆ­ á‹­áŠ­áˆáˆ‰ â€” áŒˆáŠ•á‹˜á‰¥ áˆ‹áŠ© áŠ¥áŠ“ á‹°áˆ¨áˆ°áŠ á‹«á‰…áˆ­á‰¡",
+    p_tb_number: "á‹ˆá‹°á‹šáˆ… á‹­áˆ‹áŠ©: +251 91 162 3758", p_tb_name: "áˆ›áˆ­á‰³ áŠ á‹­áŠ“áˆˆáˆ",
+    p_tb_instr: "áŠ áŒ á‰ƒáˆ‹á‹­ áŠ­áá‹«á‹áŠ• á‹ˆá‹° áˆ‹á‹­ á‹ˆá‹° á‰°á‹˜áˆ¨á‹˜áˆ¨á‹ á‰áŒ¥áˆ­ á‹­áˆ‹áŠ©á¤ áŠ¨á‹šá‹«áˆ á‹°áˆ¨áˆ°áŠá‹ŽáŠ• áŠ¨á‰³á‰½ á‹«á‰…áˆ­á‰¡á¢",
+    p_tb_upload: "á‹°áˆ¨áˆ°áŠ áˆµá‹•áˆ á‹«áˆµáŒˆá‰¡", p_tb_uploading: "áŠ¥á‹¨á‰°áŒ«áŠ áŠá‹â€¦", p_tb_done: "âœ… á‹°áˆ¨áˆ°áŠ á‰°áŒ­áŠ—áˆ",
+    p_tb_required: "á‰µá‹•á‹›á‹ áŠ¨áˆ›áˆµá‰€áˆ˜áŒ¥á‹Ž á‰ áŠá‰µ áŠ¥á‰£áŠ­á‹Ž á‹¨á‰´áˆŒá‰¥áˆ­ á‹°áˆ¨áˆ°áŠá‹ŽáŠ• á‹«á‰…áˆ­á‰¡á¢",
+    p_ch: "á‰»á“", p_ch_s: "á‰ áŠ«áˆ­á‹µ á‹ˆá‹­áˆ á‰ á‰£áŠ•áŠ­ á‹­áŠ­áˆáˆ‰",
+    plc_btn: "á‰µá‹•á‹›á‹ á‹«áˆµáŒˆá‰¡", plc_placing: "á‰µá‹•á‹›á‹ áŠ¥á‹¨á‰°áˆ‹áŠ¨ áŠá‹â€¦",
+    sh_add: "+ áŒ¨áˆáˆ­", sh_out: "áŠ áˆá‰‹áˆ", sh_qty: "á‰¥á‹›á‰µ",
+    empty_p: "áˆáŠ•áˆ áŠ¥á‰ƒ áŠ áˆá‰°áŒˆáŠ˜áˆ", empty_o: "áˆáŠ•áˆ á‰µá‹•á‹›á‹ á‹¨áˆˆá‹Žá‰µáˆ",
+    sl_pen: "â³ á‰ áˆ˜áŒ á‰£á‰ á‰… áˆ‹á‹­", sl_con: "âœ… á‰°áˆ¨áŒ‹áŒáŒ§áˆ", sl_pac: "ðŸ“¦ á‰³áˆ½áŒŽáˆ", sl_out: "ðŸšš á‰ áˆ˜áŠ•áŒˆá‹µ áˆ‹á‹­", sl_del: "ðŸŽ‰ á‹°áˆ­áˆ·áˆ", sl_can: "âŒ á‰°áˆ°áˆ­á‹Ÿáˆ", sl_ret: "â†©ï¸ á‰°áˆ˜áˆáˆ·áˆ",
+    ai_q1: "áˆˆ 2 á‹“áˆ˜á‰µ áˆáŒ… áˆ˜áŒ«á‹ˆá‰»", ai_q2: "áŠ¨ 500 á‰¥áˆ­ á‰ á‰³á‰½", ai_q3: "áˆžáŠ•á‰´áˆ¶áˆª", ai_q4: "á‹˜áŠ•á‰¢áˆŒ á‹áˆµáŒ¥", ai_q5: "á‹¨áˆµáŒ¦á‰³ áˆ€áˆ³á‰¦á‰½",
+    c_qty_disc: "á‰¥á‹™ áˆµáŒ¦á‰µ á‰…áŠ“áˆ½"
   }
 }
 let curLang = localStorage.getItem('lkm_lang') || 'en';
@@ -1654,7 +1666,7 @@ async function aiSend(text){
   if(!aiDone)aiWelcome();
   aiAppend('user',msg);
   aiTyping=true; aiShowTyping();
-  const ctx=cart.length?'\n[Cart: '+cart.map(i=>i.name+'×'+i.qty).join(', ')+']':'';
+  const ctx=cart.length?'\n[Cart: '+cart.map(i=>i.name+'Ã—'+i.qty).join(', ')+']':'';
   try{
     const r=await fetch('/api/v1/ai/chat',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({message:msg+ctx,session_id:aiSid,telegram_id:TGID,platform:'mini_app'})});
@@ -1712,7 +1724,7 @@ function renderCart(){
   }
   let savingsBanner = '';
   if (d.total > 0) {
-    savingsBanner = `<div class="disc-saved">🎉 ${curLang==='am'?'ዛሬ ETB '+d.total.toLocaleString()+' ቆጠብክ!':'You saved ETB '+d.total.toLocaleString()+' today!'}</div>`;
+    savingsBanner = `<div class="disc-saved">ðŸŽ‰ ${curLang==='am'?'á‹›áˆ¬ ETB '+d.total.toLocaleString()+' á‰†áŒ á‰¥áŠ­!':'You saved ETB '+d.total.toLocaleString()+' today!'}</div>`;
   }
 
   body.innerHTML=`<div class="cscroll">
@@ -1727,7 +1739,7 @@ function renderCart(){
             <button class="qbtn" onclick="cqty(${idx},-1)">-</button>
             <span class="qval">${item.qty}</span>
             <button class="qbtn" onclick="cqty(${idx},1)">+</button>
-            <button class="ci-rm" onclick="crm(${idx})"><i class="fas fa-trash-alt"></i> ${curLang==='am'?'አስወግድ':'Remove'}</button>
+            <button class="ci-rm" onclick="crm(${idx})"><i class="fas fa-trash-alt"></i> ${curLang==='am'?'áŠ áˆµá‹ˆáŒá‹µ':'Remove'}</button>
           </div>
         </div>
       </div>`).join('')}
@@ -1739,7 +1751,7 @@ function renderCart(){
     </div>
     <div style="padding:0 14px 20px">
       <button class="co-btn" ${isLaunchLocked?'disabled':''} onclick="openCheckout()">
-        <i class="fas fa-lock"></i> ${tr('c_co')} — ${isLaunchLocked?'ETB ***':'ETB '+Math.round(tot).toLocaleString()}
+        <i class="fas fa-lock"></i> ${tr('c_co')} â€” ${isLaunchLocked?'ETB ***':'ETB '+Math.round(tot).toLocaleString()}
       </button>
     </div>
   </div>`;
@@ -1761,7 +1773,7 @@ function renderCart(){
   });
 }
 function cqty(idx,d){cart[idx].qty=Math.max(1,cart[idx].qty+d);saveCart();_discountCache=null;renderCart();fetchDiscountFromServer().then(()=>{renderCart();updateGlobalLoyaltyBar();});}
-function crm(idx){const n=cart[idx].name.slice(0,22);cart.splice(idx,1);saveCart();_discountCache=null;renderCart();toast('🗑 '+n+'… removed');}
+function crm(idx){const n=cart[idx].name.slice(0,22);cart.splice(idx,1);saveCart();_discountCache=null;renderCart();toast('ðŸ—‘ '+n+'â€¦ removed');}
 
 /* -- Smart Cart Incentives ----------------------- */
 let _loyIncentiveCache=null, _loyThreshCache=null;
@@ -1772,7 +1784,7 @@ async function fetchDiscountFromServer(){
   // Picks best between loyalty tier discount and spending threshold
   const st = sub();
   // Send each unit's price as a flat list so the backend can apply the min-price
-  // threshold itself — avoids any frontend race condition with loyaltyProfile loading.
+  // threshold itself â€” avoids any frontend race condition with loyaltyProfile loading.
   const priceList = cart.flatMap(i => Array(i.qty).fill(i.price)).join(',');
   try {
     const params = new URLSearchParams({subtotal: st});
@@ -1863,7 +1875,7 @@ async function renderCartLoyaltyBanner(subtotal){
   if(prog.nextThresh && suggestProducts.length){
     const cheap = suggestProducts.filter(p=>!p.min_loyalty_level_id).slice(0,6);
     if(cheap.length){
-      suggestHTML = `<div class="loy-suggest-label">🛒 ${curLang==='am'?'ተጨማሪ ያክሉ':'Add to unlock'}:</div>
+      suggestHTML = `<div class="loy-suggest-label">ðŸ›’ ${curLang==='am'?'á‰°áŒ¨áˆ›áˆª á‹«áŠ­áˆ‰':'Add to unlock'}:</div>
         <div class="loy-suggest-row">${cheap.map(p=>{
           const n=p.name.slice(0,20);
           return `<div class="loy-suggest-card">
@@ -1872,7 +1884,7 @@ async function renderCartLoyaltyBanner(subtotal){
               <div class="loy-suggest-name">${n}</div>
               <div class="loy-suggest-price">ETB ${Math.round(p.price).toLocaleString()}</div>
             </div>
-            <button class="loy-suggest-btn" onclick="addCart(${p.id},'${esc(p.name)}',${p.price},'${p.primary_image}');renderCart()">+ ${curLang==='am'?'ጨምር':'Add'}</button>
+            <button class="loy-suggest-btn" onclick="addCart(${p.id},'${esc(p.name)}',${p.price},'${p.primary_image}');renderCart()">+ ${curLang==='am'?'áŒ¨áˆáˆ­':'Add'}</button>
           </div>`;}).join('')}</div>`;
     }
   }
@@ -1886,10 +1898,10 @@ async function renderCartLoyaltyBanner(subtotal){
     const discAmt = Math.round(subtotal * tierPct / 100);
     tierBannerHTML = `<div class="loy-cart-banner both">
       <div class="loy-banner-top">
-        <div class="loy-banner-ico">${loyaltyProfile.level.badge_icon||'👑'}</div>
+        <div class="loy-banner-ico">${loyaltyProfile.level.badge_icon||'ðŸ‘‘'}</div>
         <div class="loy-banner-text">
-          <div class="loy-banner-title">${loyaltyProfile.level.name} ${curLang==='am'?'ቅናሽ':'discount'}: ${curLang==='am'?'ETB '+discAmt.toLocaleString()+' ቆጠቡ!':'Save ETB '+discAmt.toLocaleString()+'!'}</div>
-          <div class="loy-banner-sub">${tierPct}% ${curLang==='am'?'የታማኝነት ሽልማት — ክፍያ ላይ ይቀነሳል':'loyalty reward — applied at checkout'}</div>
+          <div class="loy-banner-title">${loyaltyProfile.level.name} ${curLang==='am'?'á‰…áŠ“áˆ½':'discount'}: ${curLang==='am'?'ETB '+discAmt.toLocaleString()+' á‰†áŒ á‰¡!':'Save ETB '+discAmt.toLocaleString()+'!'}</div>
+          <div class="loy-banner-sub">${tierPct}% ${curLang==='am'?'á‹¨á‰³áˆ›áŠáŠá‰µ áˆ½áˆáˆ›á‰µ â€” áŠ­áá‹« áˆ‹á‹­ á‹­á‰€áŠáˆ³áˆ':'loyalty reward â€” applied at checkout'}</div>
         </div>
       </div>
     </div>`;
@@ -1901,10 +1913,10 @@ async function renderCartLoyaltyBanner(subtotal){
   if(prog.nextThresh && prog.needed > 0){
     bannerHTML = `<div class="loy-cart-banner thresh">
       <div class="loy-banner-top">
-        <div class="loy-banner-ico">🎁</div>
+        <div class="loy-banner-ico">ðŸŽ</div>
         <div class="loy-banner-text">
-          <div class="loy-banner-title">${curLang==='am'?'ተጨማሪ ETB '+Math.round(prog.needed).toLocaleString()+' ያክሉ — የ '+prog.nextThresh.discount_percentage+'% ቅናሽ ያግኙ!':'Add ETB '+Math.round(prog.needed).toLocaleString()+' more — unlock '+prog.nextThresh.discount_percentage+'% OFF!'}</div>
-          <div class="loy-banner-sub">${curLang==='am'?'በትንሹ ETB '+prog.potSavings.toLocaleString()+' ይቆጥቡ':'Save at least ETB '+prog.potSavings.toLocaleString()+' on your order'}</div>
+          <div class="loy-banner-title">${curLang==='am'?'á‰°áŒ¨áˆ›áˆª ETB '+Math.round(prog.needed).toLocaleString()+' á‹«áŠ­áˆ‰ â€” á‹¨ '+prog.nextThresh.discount_percentage+'% á‰…áŠ“áˆ½ á‹«áŒáŠ™!':'Add ETB '+Math.round(prog.needed).toLocaleString()+' more â€” unlock '+prog.nextThresh.discount_percentage+'% OFF!'}</div>
+          <div class="loy-banner-sub">${curLang==='am'?'á‰ á‰µáŠ•áˆ¹ ETB '+prog.potSavings.toLocaleString()+' á‹­á‰†áŒ¥á‰¡':'Save at least ETB '+prog.potSavings.toLocaleString()+' on your order'}</div>
         </div>
       </div>
       <div class="loy-banner-bar"><div class="loy-banner-fill" style="width:${prog.pct}%"></div></div>
@@ -1915,10 +1927,10 @@ async function renderCartLoyaltyBanner(subtotal){
     const curSaving = Math.round(subtotal * prog.curThresh.discount_percentage / 100);
     bannerHTML = `<div class="loy-cart-banner thresh">
       <div class="loy-banner-top">
-        <div class="loy-banner-ico">🎉</div>
+        <div class="loy-banner-ico">ðŸŽ‰</div>
         <div class="loy-banner-text">
-          <div class="loy-banner-title">${curLang==='am'?'ከፍተኛ ቅናሽ ተከፍቷል!':'Maximum Discount Unlocked!'}</div>
-          <div class="loy-banner-sub">${curLang==='am'?'ETB '+curSaving.toLocaleString()+' ('+prog.curThresh.discount_percentage+'%) እየቆጠቡ ነው':'You are saving ETB '+curSaving.toLocaleString()+' ('+prog.curThresh.discount_percentage+'% OFF)'}</div>
+          <div class="loy-banner-title">${curLang==='am'?'áŠ¨áá‰°áŠ› á‰…áŠ“áˆ½ á‰°áŠ¨áá‰·áˆ!':'Maximum Discount Unlocked!'}</div>
+          <div class="loy-banner-sub">${curLang==='am'?'ETB '+curSaving.toLocaleString()+' ('+prog.curThresh.discount_percentage+'%) áŠ¥á‹¨á‰†áŒ á‰¡ áŠá‹':'You are saving ETB '+curSaving.toLocaleString()+' ('+prog.curThresh.discount_percentage+'% OFF)'}</div>
         </div>
       </div>
     </div>`;
@@ -1944,11 +1956,11 @@ async function renderQtyIncentiveBanner() {
   let msg = '';
   let itemsNeeded = 0;
   if(_discountCache.qtyDiscAmt > 0) {
-    msg = `🎁 Multi-buy reward active! You're saving ETB ${currentSavings.toLocaleString()}`;
+    msg = `ðŸŽ Multi-buy reward active! You're saving ETB ${currentSavings.toLocaleString()}`;
   } else if(qtyEligItems === 0) {
     msg = curLang==='am'
-      ? `📦 የ ETB ${Math.round(qtyMinPrice).toLocaleString()}+ ምርቶችን ያክሉ — የብዛት ቅናሽ ያግኙ!`
-      : `📦 Add products priced ETB ${Math.round(qtyMinPrice).toLocaleString()}+ to unlock multi-buy discounts!`;
+      ? `ðŸ“¦ á‹¨ ETB ${Math.round(qtyMinPrice).toLocaleString()}+ áˆáˆ­á‰¶á‰½áŠ• á‹«áŠ­áˆ‰ â€” á‹¨á‰¥á‹›á‰µ á‰…áŠ“áˆ½ á‹«áŒáŠ™!`
+      : `ðŸ“¦ Add products priced ETB ${Math.round(qtyMinPrice).toLocaleString()}+ to unlock multi-buy discounts!`;
   } else {
     // Find next qty tier from the server-cached profile
     const qtyRules = loyaltyProfile?.qty_discounts || [];
@@ -1960,17 +1972,17 @@ async function renderQtyIncentiveBanner() {
       itemsNeeded = nextRule.min_items - qtyEligItems;
       const savingAmt = Math.round(nextRule.discount_amount);
       msg = itemsNeeded === 1
-        ? `📦 Add just 1 more eligible item → unlock ETB ${savingAmt.toLocaleString()} off!`
-        : `📦 Add ${itemsNeeded} more eligible items → unlock ETB ${savingAmt.toLocaleString()} off!`;
+        ? `ðŸ“¦ Add just 1 more eligible item â†’ unlock ETB ${savingAmt.toLocaleString()} off!`
+        : `ðŸ“¦ Add ${itemsNeeded} more eligible items â†’ unlock ETB ${savingAmt.toLocaleString()} off!`;
     } else {
-      msg = `🎉 Maximum multi-buy tier unlocked!`;
+      msg = `ðŸŽ‰ Maximum multi-buy tier unlocked!`;
     }
   }
 
   if(!msg) return '';
   const isActive = _discountCache.qtyDiscAmt > 0;
   return `<div class="loy-cart-banner" style="background:linear-gradient(135deg,${isActive?'#065F46,#059669':'#1E3A5F,#2563EB'});color:#fff;margin:6px 14px 0;border-radius:14px;padding:12px 14px;font-size:.85rem;display:flex;align-items:center;gap:10px;">
-    <span style="font-size:1.4rem;">${isActive?'🎁':'📦'}</span>
+    <span style="font-size:1.4rem;">${isActive?'ðŸŽ':'ðŸ“¦'}</span>
     <span style="font-weight:600;line-height:1.4;">${msg}</span>
   </div>`;
 }
@@ -2023,7 +2035,7 @@ function calcClientDiscount() {
     }
   }
 
-  // Cart incentive — only for Gold+ (sort_order >= 3)
+  // Cart incentive â€” only for Gold+ (sort_order >= 3)
   if (incentiveAllowed) {
     const inc = _loyIncentiveCache;
     if (inc?.current_savings > 0) {
@@ -2032,7 +2044,7 @@ function calcClientDiscount() {
     }
   }
 
-  // Quantity discount — only for Bronze+ (sort_order >= 1)
+  // Quantity discount â€” only for Bronze+ (sort_order >= 1)
   // Server-calculated; client shows 0 unless we got it from server cache already
   // (Qty discount requires server knowledge of rules, we don't duplicate that logic here)
 
@@ -2078,8 +2090,8 @@ function updateGlobalLoyaltyBar() {
   const pct = prog.nextThresh.discount_percentage;
   
   if(curLang==='am'){
-    document.getElementById('globalIncText').textContent = `ተጨማሪ ETB ${amtNeeded} ያክሉ`;
-    document.getElementById('globalIncSavings').textContent = `${pct}% ቅናሽ ያግኙ (ETB ${potSav})`;
+    document.getElementById('globalIncText').textContent = `á‰°áŒ¨áˆ›áˆª ETB ${amtNeeded} á‹«áŠ­áˆ‰`;
+    document.getElementById('globalIncSavings').textContent = `${pct}% á‰…áŠ“áˆ½ á‹«áŒáŠ™ (ETB ${potSav})`;
   } else {
     document.getElementById('globalIncText').textContent = `Add ETB ${amtNeeded} more`;
     document.getElementById('globalIncSavings').textContent = `Save ${pct}% (ETB ${potSav})`;
@@ -2109,7 +2121,7 @@ async function loadRewards(){
       const tierName = document.getElementById('meName');
       const tierSub = document.getElementById('meStatus');
       const pts = document.getElementById('rwdPoints');
-      badge.textContent = lvl?.badge_icon||'👑';
+      badge.textContent = lvl?.badge_icon||'ðŸ‘‘';
       tierName.textContent = lvl?.name||'New Member';
       tierSub.textContent = lvl?`${lvl.discount_percentage}% loyalty discount active`:'Complete your first order to start earning!';
       pts.textContent = (p.reward_points||0).toLocaleString();
@@ -2141,14 +2153,14 @@ async function loadRewards(){
             <div style="font-size:.8rem;color:#92400E;line-height:1.5">Reach ${nextLvl.name} for ${nextLvl.discount_percentage}% discount on every order. Shop more to level up!</div>
             <div class="rwd-unlock-row">
               <span style="font-size:.75rem;color:#92400E">ETB ${Math.round(rem).toLocaleString()} to go</span>
-              <span class="rwd-unlock-badge">Shop Now →</span>
+              <span class="rwd-unlock-badge">Shop Now â†’</span>
             </div>
           </div>`;
       } else if(lvl){
         progCard.style.display='none';
         document.getElementById('rwdNextUnlock').innerHTML=`
           <div class="rwd-disc-card">
-            <div class="rwd-disc-ico">👑</div>
+            <div class="rwd-disc-ico">ðŸ‘‘</div>
             <div><div class="rwd-disc-val">Max Tier Reached!</div><div class="rwd-disc-sub">You enjoy ${lvl.discount_percentage}% on every order</div></div>
           </div>`;
       }
@@ -2158,11 +2170,11 @@ async function loadRewards(){
       const achieves = achvD.data?.achievements||[];
       document.getElementById('rwdAchCount').textContent=achieves.filter(a=>a.is_unlocked).length;
       if(!achieves.length){
-        document.getElementById('rwdAchvGrid').innerHTML='<div style="grid-column:span 3;text-align:center;color:#9CA3AF;font-size:.82rem;padding:20px">No achievements yet — place your first order!</div>';
+        document.getElementById('rwdAchvGrid').innerHTML='<div style="grid-column:span 3;text-align:center;color:#9CA3AF;font-size:.82rem;padding:20px">No achievements yet â€” place your first order!</div>';
       } else {
         document.getElementById('rwdAchvGrid').innerHTML=achieves.map(a=>`
           <div class="rwd-achv${a.is_unlocked?'':' locked'}">
-            <div class="rwd-achv-ico">${a.badge_icon||'🏆'}</div>
+            <div class="rwd-achv-ico">${a.badge_icon||'ðŸ†'}</div>
             <div class="rwd-achv-name">${a.name}</div>
             <div class="rwd-achv-pts">+${a.points_awarded} pts</div>
           </div>`).join('');
@@ -2177,9 +2189,10 @@ async function loadRewards(){
 <script>
 /* --------------- PART 4: CHECKOUT + ORDERS ----------------- */
 
-let ckStep='form', placing=false, lastON='', selPM='cod';
-let ckLat=null, ckLng=null, ckMap=null, ckMarker=null, ckRoute=null, ckLocating=false;
+let ckStep='form', ckDeliveryMode='addis', placing=false, lastON='', selPM='cod';
+let ckLat=null, ckLng=null, ckMap=null, ckMarker=null, ckRoute=null, ckRegionMap=null, ckLocating=false;
 const CK_STORE_LAT=8.956133150795546, CK_STORE_LNG=38.78781484232836;
+const TELEBIRR_PHONE=((window.__INITIAL_BOOTSTRAP__?.telebirr_payment_phone)||'+251 91 162 3758').trim();
 
 function ckFetchRoute(toLat,toLng){
   return fetch(`https://router.project-osrm.org/route/v1/driving/${CK_STORE_LNG},${CK_STORE_LAT};${toLng},${toLat}?overview=full&geometries=geojson`)
@@ -2201,7 +2214,7 @@ async function ckUpdateLocation(lat,lng){
   if(!feeCard)return;
   feeCard.className='ck-fee-card';
   fcIco.innerHTML='<div class="cfc-spin"></div>';
-  fcVal.textContent='Calculating…';
+  fcVal.textContent='Calculatingâ€¦';
   fcSub.textContent='Fetching route & price';
   fcDistWrap.style.display='none';
   if(proceedBtn){proceedBtn.disabled=true;proceedBtn.innerHTML='<i class="fas fa-spinner fa-spin"></i>';}
@@ -2232,14 +2245,14 @@ async function ckUpdateLocation(lat,lng){
     const price=priceResp.data.price;
     ckDeliveryFee=price;
     feeCard.className='ck-fee-card';
-    fcIco.textContent='🚚';
+    fcIco.textContent='ðŸšš';
     fcVal.textContent='ETB '+price.toFixed(0);
     fcSub.textContent=routeData?`~${routeData.durMin} min estimated delivery`:`${priceResp.data.distance_km} km from store`;
     if(proceedBtn){proceedBtn.disabled=false;proceedBtn.innerHTML=`Proceed <i class="fas fa-arrow-right"></i>`;}
   } else {
     ckDeliveryFee=80; // Default flat rate if calculation fails
     feeCard.className='ck-fee-card error';
-    fcIco.textContent='📍';
+    fcIco.textContent='ðŸ“';
     fcVal.textContent='ETB 80';
     fcSub.textContent='Standard Delivery Fee';
     if(proceedBtn){proceedBtn.disabled=false;proceedBtn.innerHTML=`Proceed <i class="fas fa-arrow-right"></i>`;}
@@ -2269,13 +2282,13 @@ async function initCkMap(){
     ckMap=L.map('ckMap',{zoomControl:false}).setView([9.02,38.76],12);
     L.control.zoom({position:'topleft'}).addTo(ckMap);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{
-      attribution:'© OSM © CARTO',subdomains:'abcd',maxZoom:20
+      attribution:'Â© OSM Â© CARTO',subdomains:'abcd',maxZoom:20
     }).addTo(ckMap);
     const sdEl=document.createElement('div');
     sdEl.className='ck-store-dot';
     L.marker([CK_STORE_LAT,CK_STORE_LNG],{
       icon:L.divIcon({className:'',html:sdEl.outerHTML,iconSize:[16,16],iconAnchor:[8,8]})
-    }).addTo(ckMap).bindPopup('<b style="color:#2D6A4F">🏫 Liyu Kids Mart</b>');
+    }).addTo(ckMap).bindPopup('<b style="color:#2D6A4F">ðŸ« Liyu Kids Mart</b>');
     ckMap.on('click',e=>ckSetPin(e.latlng));
     // Auto-locate
     if(navigator.geolocation){
@@ -2290,6 +2303,22 @@ async function initCkMap(){
       );
     }
     ckMap.invalidateSize();
+  },150);
+}
+
+async function initRegionalMap(){
+  if(ckRegionMap) return;
+  await loadLeaflet();
+  setTimeout(()=>{
+    const el=document.getElementById('ckRegionMap');
+    if(!el) return;
+    ckRegionMap=L.map('ckRegionMap',{zoomControl:false,dragging:false,scrollWheelZoom:false,doubleClickZoom:false,boxZoom:false,keyboard:false,tap:false,touchZoom:false,attributionControl:false}).setView([9.15,39.55],6);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{
+      attribution:'© OSM © CARTO',subdomains:'abcd',maxZoom:18
+    }).addTo(ckRegionMap);
+    L.circle([9.145,40.4897],{radius:60000,color:'#2D6A4F',weight:2,fillColor:'#74C69D',fillOpacity:.08}).addTo(ckRegionMap);
+    L.marker([9.145,40.4897],{icon:L.divIcon({className:'',html:'<div class="ck-store-dot" style="width:12px;height:12px"></div>',iconSize:[12,12],iconAnchor:[6,6]})}).addTo(ckRegionMap);
+    ckRegionMap.invalidateSize();
   },150);
 }
 
@@ -2337,13 +2366,27 @@ function ckLocateMe(){
 
 
 
+function resetCheckoutMaps(){
+  if(ckMap){ckMap.remove();ckMap=null;ckMarker=null;ckRoute=null;}
+  if(ckRegionMap){ckRegionMap.remove();ckRegionMap=null;}
+}
+
 function openCheckout(){
   if(launchGuard()) return;
   if(!cart.length){toast('Your cart is empty!','err');return;}
-  ckStep='form'; ckLat=null; ckLng=null; ckDeliveryFee=80;
+  resetCheckoutMaps();
+  ckStep='form';
+  ckDeliveryMode='addis';
+  ckLat=null; ckLng=null;
+  ckDeliveryFee=80;
+  selPM='cod';
+  tbReceiptUrl='';
+  window.ckFormData = {};
   renderCK();
-  document.getElementById('chkov').classList.add('on'); hap();
+  document.getElementById('chkov').classList.add('on');
+  hap();
 }
+
 function goToMapStep(){
   const cn=document.getElementById('cn')?.value?.trim();
   const cp=document.getElementById('cp')?.value?.trim();
@@ -2351,33 +2394,83 @@ function goToMapStep(){
   if(!cn){toast(tr('ck_name_err'),'err');return;}
   if(!cp||cp.length<9){toast(tr('ck_phone_err'),'err');return;}
   if(!cl){toast(tr('ck_loc_err'),'err');return;}
-  // Save form data globally so we can send it on place order
   window.ckFormData = {
-    cn: cn, cp: cp, cl: cl, cno: document.getElementById('cno')?.value?.trim()||''
+    cn: cn,
+    cp: cp,
+    cl: cl,
+    cno: document.getElementById('cno')?.value?.trim() || ''
   };
-  ckStep='map';
+  ckStep='dest';
   renderCK();
-  initCkMap();
 }
+
+function chooseDeliveryMode(mode){
+  ckDeliveryMode = mode === 'regional' ? 'regional' : 'addis';
+  resetCheckoutMaps();
+  ckLat = null;
+  ckLng = null;
+  ckDeliveryFee = 80;
+  ckStep = ckDeliveryMode === 'regional' ? 'regional' : 'map';
+  renderCK();
+  if(ckDeliveryMode === 'regional') initRegionalMap();
+  else initCkMap();
+}
+
+function backToForm(){
+  resetCheckoutMaps();
+  ckStep='form';
+  renderCK();
+}
+
+function backToDestination(){
+  resetCheckoutMaps();
+  ckStep='dest';
+  renderCK();
+}
+
 function goToPayStep(){
+  if(ckDeliveryMode === 'regional'){
+    const region=document.getElementById('cr')?.value?.trim();
+    const cityTown=document.getElementById('ct')?.value?.trim();
+    const regionalLoc=document.getElementById('cl2')?.value?.trim();
+    if(!region){toast(tr('ck_region_err'),'err');return;}
+    if(!cityTown){toast(tr('ck_city_err'),'err');return;}
+    window.ckFormData = {
+      ...(window.ckFormData || {}),
+      region,
+      city_town: cityTown,
+      cl: regionalLoc || '',
+    };
+    ckStep='pay';
+    renderCK();
+    return;
+  }
   if(!ckLat||!ckLng){toast(tr('ck_map_first'),'err');return;}
   ckStep='pay';
   renderCK();
 }
+
+function goBackFromPay(){
+  ckStep = ckDeliveryMode === 'regional' ? 'regional' : 'map';
+  renderCK();
+  if(ckDeliveryMode === 'regional') initRegionalMap();
+  else initCkMap();
+}
+
 function closeCheckout(){
   document.getElementById('chkov').classList.remove('on');
   ckStep='form';
-  // Reset map so it re-initializes next time
-  if(ckMap){ckMap.remove();ckMap=null;ckMarker=null;ckRoute=null;}
+  ckDeliveryMode='addis';
+  tbReceiptUrl='';
+  resetCheckoutMaps();
 }
 
 function selPayment(m){
   selPM=m;
-  ['cod','telebirr','chapa'].forEach(x=>{
+  ['cod','telebirr'].forEach(x=>{
     document.getElementById('pm_'+x)?.classList.toggle('on',x===m);
     const r=document.getElementById('r_'+x); if(r)r.checked=(x===m);
   });
-  // Show/hide TeleBirr details panel
   const tbPanel = document.getElementById('tb_details');
   if(tbPanel) tbPanel.style.display = m==='telebirr' ? 'block' : 'none';
 }
@@ -2385,13 +2478,12 @@ function selPayment(m){
 function renderCK(){
   const st=sub(), df=delfee(), tot=total();
   const nm=TGU?((TGU.first_name||'')+' '+(TGU.last_name||'')).trim():'';
+  const isRegional = ckDeliveryMode === 'regional';
   if(ckStep==='success'){
     const d = calcClientDiscount();
     let savingsHtml = '';
     if (d.total > 0) {
-      savingsHtml = `<div style="background:linear-gradient(135deg,#ECFDF5,#D1FAE5);border:1.5px solid #A7F3D0;border-radius:12px;padding:12px;margin:12px 0;font-weight:800;color:#065F46">
-        🎉 You saved ETB ${d.total.toLocaleString()} on this order!
-      </div>`;
+      savingsHtml = `<div style="background:linear-gradient(135deg,#ECFDF5,#D1FAE5);border:1.5px solid #A7F3D0;border-radius:12px;padding:12px;margin:12px 0;font-weight:800;color:#065F46">🎉 You saved ETB ${d.total.toLocaleString()} on this order!</div>`;
     }
     document.getElementById('chkBody').innerHTML=`
       <div class="success-scr">
@@ -2416,6 +2508,8 @@ function renderCK(){
     const stored_cn = localStorage.getItem('lkm_cn') || nm;
     const stored_cp = localStorage.getItem('lkm_cp') || '';
     const stored_cl = localStorage.getItem('lkm_cl') || '';
+    document.getElementById('chkBody').style.padding='16px';
+    document.getElementById('chkBody').style.height='auto';
     document.getElementById('chkBody').innerHTML=`
       <div class="chk-sec">
         <h3><i class="fas fa-shopping-bag" style="color:var(--g)"></i> ${tr('ck_order_sum')}</h3>
@@ -2426,35 +2520,55 @@ function renderCK(){
       <div class="chk-sec">
         <h3><i class="fas fa-user" style="color:var(--g)"></i> ${tr('ck_contact')}</h3>
         <div class="fg"><label class="flbl">${tr('ck_full_name')}</label>
-          <input class="finp" id="cn" type="text" placeholder="${curLang==='am'?'?? ??':'Your name'}" value="${window.ckFormData?.cn||stored_cn}"/></div>
+          <input class="finp" id="cn" type="text" placeholder="${curLang==='am'?'ስም ያስገቡ':'Your name'}" value="${window.ckFormData?.cn||stored_cn}"/></div>
         <div class="fg"><label class="flbl">${tr('ck_phone')}</label>
-          <input class="finp" id="cp" type="tel" placeholder="${curLang==='am'?'09XXXXXXXX':'09XXXXXXXX'}" value="${window.ckFormData?.cp||stored_cp}"/></div>
+          <input class="finp" id="cp" type="tel" placeholder="09XXXXXXXX" value="${window.ckFormData?.cp||stored_cp}"/></div>
         <div class="fg"><label class="flbl">${tr('ck_location')}</label>
-          <input class="finp" id="cl" type="text" placeholder="Near landmark, building name…" value="${window.ckFormData?.cl||stored_cl}"/></div>
+          <input class="finp" id="cl" type="text" placeholder="${curLang==='am'?'ምልክት ወይም ሕንፃ':'Apartment, landmark, or building'}" value="${window.ckFormData?.cl||stored_cl}"/></div>
         <div class="fg"><label class="flbl">${tr('ck_notes')}</label>
-          <input class="finp" id="cno" type="text" placeholder="${curLang==='am'?'ማናቸውም ልዩ መመሪያዎች ወይም ክፍለ ከተማ':'Any special instructions or sub-city'}" value="${window.ckFormData?.cno||''}"/></div>
+          <input class="finp" id="cno" type="text" placeholder="${curLang==='am'?'ማስታወሻ ወይም ተጨማሪ መመሪያ':'Any special instructions or sub-city'}" value="${window.ckFormData?.cno||''}"/></div>
       </div>
       <button class="place-btn" onclick="goToMapStep()">
-        ${curLang==='am'?'ወደ ካርታ ቀጥል':'Continue to Delivery Map'} <i class="fas fa-arrow-right"></i>
+        ${tr('ck_continue')} <i class="fas fa-arrow-right"></i>
       </button>
-      <p style="text-align:center;font-size:.75rem;color:var(--ts);margin-top:12px">🔒 Secure Checkout</p>`;
+      <p style="text-align:center;font-size:.75rem;color:var(--ts);margin-top:12px">🔒 ${tr('ck_secure')}</p>`;
     return;
   }
-  
+  if(ckStep==='dest'){
+    document.getElementById('chkBody').style.padding='16px';
+    document.getElementById('chkBody').style.height='auto';
+    document.getElementById('chkBody').innerHTML=`
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+        <button onclick="backToForm()" style="background:transparent;border:none;font-size:1.1rem;color:var(--g);padding:4px"><i class="fas fa-arrow-left"></i></button>
+        <h3 style="margin:0;font-size:1.05rem;font-weight:800">${tr('ck_destination')}</h3>
+      </div>
+      <div class="chk-sec">
+        <div class="ck-dest-grid">
+          <div class="ck-dest-card ${ckDeliveryMode==='addis'?'on':''}" onclick="chooseDeliveryMode('addis')">
+            <div class="ck-dest-ico"><i class="fas fa-location-crosshairs"></i></div>
+            <div><div class="ck-dest-title">${tr('ck_addis')}</div><div class="ck-dest-desc">${tr('ck_addis_desc')}</div></div>
+          </div>
+          <div class="ck-dest-card ${ckDeliveryMode==='regional'?'on':''}" onclick="chooseDeliveryMode('regional')">
+            <div class="ck-dest-ico"><i class="fas fa-map"></i></div>
+            <div><div class="ck-dest-title">${tr('ck_regional')}</div><div class="ck-dest-desc">${tr('ck_regional_desc')}</div></div>
+          </div>
+        </div>
+        <p style="margin:12px 2px 0;font-size:.78rem;color:var(--tm);line-height:1.5">${tr('ck_regional_hint')}</p>
+      </div>
+      <button class="place-btn" onclick="backToForm()" style="background:var(--bg);color:var(--g);border:1.5px solid var(--br);box-shadow:none;margin-top:12px">${curLang==='am'?'ወደ ኋላ':'Back'}</button>`;
+    return;
+  }
   if(ckStep==='map'){
-    // Step 2: Full Map Only
-    document.getElementById('chkBody').style.padding='0'; // Remove padding for full bleed
+    document.getElementById('chkBody').style.padding='0';
     document.getElementById('chkBody').style.height='100%';
     document.getElementById('chkBody').innerHTML=`
       <div style="position:absolute;top:10px;left:10px;z-index:600;background:#fff;border-radius:10px;box-shadow:0 3px 12px rgba(0,0,0,.15);display:flex;align-items:center;padding:4px 10px;gap:6px">
-        <button onclick="ckStep='form';document.getElementById('chkBody').style.padding='16px';document.getElementById('chkBody').style.height='auto';renderCK();" 
-                style="background:transparent;border:none;font-size:1.1rem;color:var(--g);padding:4px"><i class="fas fa-arrow-left"></i></button>
+        <button onclick="backToDestination()" style="background:transparent;border:none;font-size:1.1rem;color:var(--g);padding:4px"><i class="fas fa-arrow-left"></i></button>
         <span style="font-weight:800;font-size:.9rem">${tr('ck_pin')}</span>
       </div>
-      
       <div class="ck-map-wrap" style="height:100vh;margin:0;border-radius:0;">
         <div id="ckMap"></div>
-        <div class="ck-hint" id="ckHint" style="top:60px">📍 Tap the map to set location</div>
+        <div class="ck-hint" id="ckHint" style="top:60px">📍 ${tr('ck_tap_map')}</div>
         <button type="button" class="ck-locate-btn" id="ckLocBtn" onclick="ckLocateMe()" style="top:60px">
           <i class="fas fa-crosshairs"></i> ${tr('ck_locate')}
         </button>
@@ -2476,20 +2590,49 @@ function renderCK(){
       </div>`;
     return;
   }
-
+  if(ckStep==='regional'){
+    document.getElementById('chkBody').style.padding='0';
+    document.getElementById('chkBody').style.height='100%';
+    const storedRegion = window.ckFormData?.region || '';
+    const storedCityTown = window.ckFormData?.city_town || '';
+    const storedRegionalLoc = window.ckFormData?.cl || '';
+    document.getElementById('chkBody').innerHTML=`
+      <div class="ck-region-shell">
+        <div id="ckRegionMap" class="ck-region-map"></div>
+        <div class="ck-region-overlay"></div>
+        <div class="ck-region-panel">
+          <div class="ck-region-chip"><i class="fas fa-satellite-dish"></i> ${tr('ck_regional_hint')}</div>
+          <div class="chk-sec" style="background:rgba(255,255,255,.96);box-shadow:0 12px 30px rgba(0,0,0,.16)">
+            <h3><i class="fas fa-map-location-dot" style="color:var(--g)"></i> ${tr('ck_regional')}</h3>
+            <div class="fg"><label class="flbl">${tr('ck_region')}</label>
+              <input class="finp" id="cr" type="text" placeholder="${curLang==='am'?'ክልል':'Region'}" value="${storedRegion}"/></div>
+            <div class="fg"><label class="flbl">${tr('ck_city_town')}</label>
+              <input class="finp" id="ct" type="text" placeholder="${curLang==='am'?'ከተማ / ከተማ መንደር':'City / town'}" value="${storedCityTown}"/></div>
+            <div class="fg"><label class="flbl">${tr('ck_location')}</label>
+              <input class="finp" id="cl2" type="text" placeholder="${curLang==='am'?'ምልክት ወይም ሕንፃ':'Landmark or building'}" value="${storedRegionalLoc}"/></div>
+            <p style="font-size:.76rem;color:var(--tm);line-height:1.5;margin-top:4px">${curLang==='am' ? 'ከታች ያለው ካርታ የኢትዮጵያ ጠቅላላ እይታ ነው፣ እርስዎ ከተማዎን እየጻፉ እንዲሰማ በቀስታ እንዲታይ ተደርጎአል።' : 'The blurred map below keeps the whole Ethiopia view in the background while you enter your region and city.'}</p>
+          </div>
+          <button class="place-btn" onclick="goToPayStep()">
+            ${tr('ck_continue')} <i class="fas fa-arrow-right"></i>
+          </button>
+        </div>
+      </div>`;
+    return;
+  }
   if(ckStep==='pay'){
-    // Step 3: Payment Method
     document.getElementById('chkBody').style.padding='16px';
     document.getElementById('chkBody').style.height='auto';
     const d = calcClientDiscount();
     const finalTot = tot - d.total;
+    const pmCodTitle = isRegional ? tr('ck_place_order_only') : tr('p_cod');
+    const pmCodSub = isRegional ? tr('ck_regional_payment') : tr('p_cod_s');
+    const pmTbTitle = isRegional ? tr('ck_telebirr_payment') : tr('p_tb');
+    const pmTbSub = isRegional ? tr('ck_telebirr_intro') : tr('p_tb_s');
     document.getElementById('chkBody').innerHTML=`
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
-        <button onclick="ckStep='map';renderCK();initCkMap();" 
-                style="background:transparent;border:none;font-size:1.2rem;color:var(--g);padding:4px"><i class="fas fa-arrow-left"></i></button>
+        <button onclick="goBackFromPay()" style="background:transparent;border:none;font-size:1.2rem;color:var(--g);padding:4px"><i class="fas fa-arrow-left"></i></button>
         <h3 style="margin:0;font-size:1.1rem;font-weight:800">${tr('ck_final_review')}</h3>
       </div>
-      
       <div class="chk-sec">
         <h3><i class="fas fa-receipt" style="color:var(--g)"></i> ${tr('ck_summary')}</h3>
         <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:.9rem">
@@ -2505,32 +2648,30 @@ function renderCK(){
         <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:1.1rem;font-weight:900">
           <span>${tr('c_tot')}</span><span style="color:var(--g)">${isLaunchLocked?'ETB ***':'ETB '+Math.round(finalTot).toLocaleString()}</span>
         </div>
+        ${isRegional && window.ckFormData?.region ? `<div style="margin-top:10px;padding:10px 12px;border-radius:12px;background:#F8FAFC;border:1px solid var(--br);font-size:.82rem;color:var(--tm)"><strong>${tr('ck_regional')}:</strong> ${window.ckFormData.region}, ${window.ckFormData.city_town}</div>` : ''}
       </div>
-      
       <div class="chk-sec" style="margin-bottom:20px">
         <h3><i class="fas fa-wallet" style="color:var(--g)"></i> ${tr('ck_payment')}</h3>
         <div class="pmopts">
           <div class="pmopt on" id="pm_cod" onclick="selPayment('cod')">
             <input type="radio" name="pm" id="r_cod" checked/>
             <span class="pm-ico">💵</span>
-            <label for="r_cod"><strong>${tr("p_cod")}</strong><br><span style="font-size:.75rem;color:var(--ts)">${tr('p_cod_s')}</span></label>
+            <label for="r_cod"><strong>${pmCodTitle}</strong><br><span style="font-size:.75rem;color:var(--ts)">${pmCodSub}</span></label>
           </div>
           <div class="pmopt" id="pm_telebirr" onclick="selPayment('telebirr')">
             <input type="radio" name="pm" id="r_telebirr"/>
             <span class="pm-ico">📱</span>
-            <label for="r_telebirr"><strong>${tr("p_tb")}</strong><br><span style="font-size:.75rem;color:var(--ts)">${tr('p_tb_s')}</span></label>
+            <label for="r_telebirr"><strong>${pmTbTitle}</strong><br><span style="font-size:.75rem;color:var(--ts)">${pmTbSub}</span></label>
           </div>
         </div>
-        
-        <!-- TeleBirr Details Panel (hidden unless telebirr selected) -->
         <div id="tb_details" style="display:none;margin-top:14px;background:linear-gradient(135deg,#FFF8E1,#FFF3CD);border:1.5px solid #F59E0B;border-radius:14px;padding:16px">
           <div style="font-weight:800;font-size:.95rem;color:#92400E;margin-bottom:8px">📱 ${tr('p_tb')}</div>
-          <div style="font-size:.85rem;color:#78350F;margin-bottom:4px">${tr('p_tb_instr')}</div>
+          <div style="font-size:.85rem;color:#78350F;margin-bottom:4px">${tr('ck_telebirr_intro')}</div>
           <div style="background:#fff;border-radius:10px;padding:12px;margin:10px 0;border:1px solid #FCD34D">
-            <div style="font-size:.75rem;color:#6B7280;margin-bottom:2px">${tr('p_tb_name')}</div>
-            <div style="font-size:1.15rem;font-weight:900;color:#1a1a2e;letter-spacing:.04em">+251 91 162 3758</div>
+            <div style="font-size:.75rem;color:#6B7280;margin-bottom:2px">${tr('ck_telebirr_call')}</div>
+            <div style="font-size:1.15rem;font-weight:900;color:#1a1a2e;letter-spacing:.04em">${TELEBIRR_PHONE}</div>
           </div>
-          <div style="font-size:.8rem;color:#92400E;margin-bottom:10px">${tr('p_tb_number')}</div>
+          <div style="font-size:.8rem;color:#92400E;margin-bottom:10px">${tr('ck_telebirr_note')}</div>
           <label style="display:block;font-weight:700;font-size:.85rem;color:#78350F;margin-bottom:6px">${tr('p_tb_upload')}</label>
           <div style="border:2px dashed #F59E0B;border-radius:10px;padding:12px;text-align:center;cursor:pointer;position:relative" onclick="document.getElementById('receiptInput').click()">
             <input type="file" id="receiptInput" accept="image/*" style="display:none" onchange="handleReceiptUpload(this)"/>
@@ -2542,13 +2683,93 @@ function renderCK(){
           <div id="receiptStatus" style="font-size:.8rem;margin-top:8px;text-align:center"></div>
         </div>
       </div>
-      
       <button class="place-btn" id="placeBtn" onclick="placeOrder()">
         <i class="fas fa-check-circle"></i> ${tr('plc_btn')} — ETB ${Math.round(finalTot).toLocaleString()}
-      </button>
-    `;
+      </button>`;
     return;
   }
+}
+
+async function placeOrder(){
+  if(launchGuard()) return;
+  if(placing)return;
+  const cn=window.ckFormData?.cn || '';
+  const cp=window.ckFormData?.cp || '';
+  const cl=window.ckFormData?.cl || '';
+  const cno=window.ckFormData?.cno || '';
+  if(!cn || !cp){toast(tr('ck_name_err'),'err');return;}
+  if(ckDeliveryMode === 'regional'){
+    if(!window.ckFormData?.region){toast(tr('ck_region_err'),'err');return;}
+    if(!window.ckFormData?.city_town){toast(tr('ck_city_err'),'err');return;}
+  } else if(!ckLat||!ckLng){toast(tr('ck_map_first'),'err');return;}
+  if(selPM==='telebirr' && !tbReceiptUrl){
+    toast(tr('p_tb_required'),'err');
+    return;
+  }
+  placing=true;
+  const btn=document.getElementById('placeBtn');
+  if(btn){btn.disabled=true;btn.innerHTML=`<i class="fas fa-spinner fa-spin"></i> ${tr('plc_placing')}`;}
+  try{
+    const discParams = calcClientDiscount();
+    const isRegionalOrder = ckDeliveryMode === 'regional';
+    const deliveryPayload = isRegionalOrder ? {
+      name: cn,
+      phone: cp,
+      region: window.ckFormData?.region || '',
+      city_town: window.ckFormData?.city_town || '',
+      city: '',
+      sub_city: '',
+      specific_location: cl || '',
+      lat: null,
+      lng: null,
+      delivery_fee: ckDeliveryFee,
+      delivery_scope: 'regional'
+    } : {
+      name: cn,
+      phone: cp,
+      sub_city: '',
+      specific_location: cl,
+      city: 'Addis Ababa',
+      lat: ckLat,
+      lng: ckLng,
+      delivery_fee: ckDeliveryFee,
+      delivery_scope: 'addis'
+    };
+    const r=await fetch('/api/v1/mini-app/checkout',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        telegram_id:TGID,
+        full_name:TGU?((TGU.first_name||'')+' '+(TGU.last_name||'')).trim():cn,
+        telegram_username:TGU?.username||'',
+        cart_items:cart.map(i=>({id:i.id,qty:i.qty})),
+        delivery:deliveryPayload,
+        payment_method:selPM,
+        payment_receipt_url:tbReceiptUrl||'',
+        loyalty_discount_amount: discParams.loyaltyDiscAmt,
+        spending_discount_amount: discParams.threshDiscAmt,
+        cart_incentive_discount: discParams.incentiveDiscAmt,
+        total_discount_amount: discParams.total,
+        notes:cno||'Placed via Telegram Mini App'
+      })});
+    const d=await r.json();
+    if(d.success){
+      localStorage.setItem('lkm_cn', cn);
+      localStorage.setItem('lkm_cp', cp);
+      localStorage.setItem('lkm_cl', cl);
+      if(window.ckFormData?.region) localStorage.setItem('lkm_region', window.ckFormData.region);
+      if(window.ckFormData?.city_town) localStorage.setItem('lkm_city_town', window.ckFormData.city_town);
+      tbReceiptUrl = '';
+      lastON=d.data?.order_number||'LKM-0001';
+      cart=[];saveCart();ckStep='success';renderCK();
+      try{tg?.HapticFeedback?.notificationOccurred('success');}catch{}
+    }else{
+      toast(d.message||(curLang==='am'?'ትዕዛዙ አልተሳካም። እባክዎ እንደገና ይሞክሩ።':'Order failed. Please try again.'),'err');
+      if(btn){btn.disabled=false;btn.innerHTML=`<i class="fas fa-check-circle"></i> ${tr('plc_btn')}`;}
+    }
+  }catch{
+    toast(curLang==='am'?'የኢንተርኔት ችግር። እባክዎ እንደገና ይሞክሩ።':'Network error. Please try again.','err');
+    if(btn){btn.disabled=false;btn.innerHTML=`<i class="fas fa-check-circle"></i> ${tr('plc_btn')}`;}
+  }
+  placing=false;
 }
 
 /* -- TeleBirr receipt upload ------------------------- */
@@ -2580,11 +2801,11 @@ async function handleReceiptUpload(input){
       tbReceiptUrl = d.data.receipt_url;
       if(status) status.innerHTML = `<span style="color:#059669;font-weight:700">${tr('p_tb_done')}</span>`;
     } else {
-      if(status) status.innerHTML = `<span style="color:#DC2626">${curLang==='am'?'መጫን አልተሳካም — እባክዎ እንደገና ይሞክሩ':'Upload failed — please retry'}</span>`;
+      if(status) status.innerHTML = `<span style="color:#DC2626">${curLang==='am'?'áˆ˜áŒ«áŠ• áŠ áˆá‰°áˆ³áŠ«áˆ â€” áŠ¥á‰£áŠ­á‹Ž áŠ¥áŠ•á‹°áŒˆáŠ“ á‹­áˆžáŠ­áˆ©':'Upload failed â€” please retry'}</span>`;
       tbReceiptUrl = '';
     }
   } catch {
-    if(status) status.innerHTML = `<span style="color:#DC2626">${curLang==='am'?'የኢንተርኔት ችግር':'Network error during upload'}</span>`;
+    if(status) status.innerHTML = `<span style="color:#DC2626">${curLang==='am'?'á‹¨áŠ¢áŠ•á‰°áˆ­áŠ”á‰µ á‰½áŒáˆ­':'Network error during upload'}</span>`;
     tbReceiptUrl = '';
   }
   tbUploading = false;
@@ -2633,29 +2854,29 @@ async function placeOrder(){
       cart=[];saveCart();ckStep='success';renderCK();
       try{tg?.HapticFeedback?.notificationOccurred('success');}catch{}
       }else{
-      toast(d.message||(curLang==='am'?'ትዕዛዙ አልተሳካም። እባክዎ እንደገና ይሞክሩ።':'Order failed. Please try again.'),'err');
+      toast(d.message||(curLang==='am'?'á‰µá‹•á‹›á‹™ áŠ áˆá‰°áˆ³áŠ«áˆá¢ áŠ¥á‰£áŠ­á‹Ž áŠ¥áŠ•á‹°áŒˆáŠ“ á‹­áˆžáŠ­áˆ©á¢':'Order failed. Please try again.'),'err');
       if(btn){btn.disabled=false;btn.innerHTML=`<i class="fas fa-check-circle"></i> ${tr('plc_btn')}`;}
     }
   }catch{
-    toast(curLang==='am'?'የኢንተርኔት ችግር። እባክዎ እንደገና ይሞክሩ።':'Network error. Please try again.','err');
+    toast(curLang==='am'?'á‹¨áŠ¢áŠ•á‰°áˆ­áŠ”á‰µ á‰½áŒáˆ­á¢ áŠ¥á‰£áŠ­á‹Ž áŠ¥áŠ•á‹°áŒˆáŠ“ á‹­áˆžáŠ­áˆ©á¢':'Network error. Please try again.','err');
     if(btn){btn.disabled=false;btn.innerHTML=`<i class="fas fa-check-circle"></i> ${tr('plc_btn')}`;}
   }
   placing=false;
 }
 
 /* -- Orders tab --------------------------------- */
-const SL={pending:'⏳ Pending',confirmed:'✅ Confirmed',packed:'📦 Packed',
-  out_for_delivery:'🚚 On the Way',delivered:'🎉 Delivered',cancelled:'❌ Cancelled',returned:'↩️ Returned'};
+const SL={pending:'â³ Pending',confirmed:'âœ… Confirmed',packed:'ðŸ“¦ Packed',
+  out_for_delivery:'ðŸšš On the Way',delivered:'ðŸŽ‰ Delivered',cancelled:'âŒ Cancelled',returned:'â†©ï¸ Returned'};
 
 async function loadOrders(){
   const el=document.getElementById('ordersList');
   el.innerHTML='<div class="ldr"><div class="spin"></div></div>';
-  if(!TGID){el.innerHTML='<div class="empty"><div class="ei">📦</div><p>'+(curLang==='am'?'ትዕዛዞችዎን ለማየት ቴሌግራምን ይክፈቱ':'Open in Telegram to view orders.')+'</p></div>';return;}
+  if(!TGID){el.innerHTML='<div class="empty"><div class="ei">ðŸ“¦</div><p>'+(curLang==='am'?'á‰µá‹•á‹›á‹žá‰½á‹ŽáŠ• áˆˆáˆ›á‹¨á‰µ á‰´áˆŒáŒáˆ«áˆáŠ• á‹­áŠ­áˆá‰±':'Open in Telegram to view orders.')+'</p></div>';return;}
   try{
     const d=await(await fetch(`/api/v1/orders/my?telegram_id=${TGID}&t=${Date.now()}`)).json();
     const os=d.data?.orders||[];
     if(!os.length){
-      el.innerHTML=`<div class="empty"><div class="ei">📦</div><p>${tr("empty_o")}</p>
+      el.innerHTML=`<div class="empty"><div class="ei">ðŸ“¦</div><p>${tr("empty_o")}</p>
         <button style="margin-top:12px;background:var(--g);color:#fff;border-radius:100px;padding:10px 24px;font-size:.85rem;font-weight:700"
           onclick="showTab('tab-shop')">${tr("c_start")}</button></div>`;
       return;
@@ -2683,7 +2904,7 @@ async function loadOrders(){
             ${STEPS.map((s,i)=>`
               <div style="display:flex;flex-direction:column;align-items:center;gap:5px;flex:1">
                 <div style="width:22px;height:22px;border-radius:50%;border:2px solid ${i<=si?'var(--g)':'rgba(255,255,255,.2)'};background:${i<=si?'var(--g)':'var(--bg)'};display:flex;align-items:center;justify-content:center;font-size:.55rem;color:${i<=si?'#fff':'rgba(255,255,255,.3)'};font-weight:700">
-                  ${i<si?'✓':i===si?'📍':''}
+                  ${i<si?'âœ“':i===si?'ðŸ“':''}
                 </div>
                 <div style="font-size:.5rem;color:${i<=si?'var(--g)':'rgba(255,255,255,.3)'};font-weight:${i===si?'800':'600'};text-align:center;line-height:1.2">${STEP_LABELS[i]}</div>
               </div>
@@ -2721,7 +2942,7 @@ async function openTrackModal(orderNumber){
       <div id="trackMap" style="flex:1;min-height:0"></div>
       <div style="padding:16px;background:var(--card);border-top:1px solid rgba(255,255,255,.08)">
         <div style="display:flex;gap:12px;align-items:center">
-          <div style="font-size:1.5rem">🚚</div>
+          <div style="font-size:1.5rem">ðŸšš</div>
           <div><div style="font-size:.85rem;font-weight:800" id="trackStatusText">Driver is on the way!</div><div style="font-size:.75rem;color:var(--sub)">The map updates every 5 seconds</div></div>
         </div>
       </div>`;
@@ -2753,12 +2974,12 @@ async function startTrackPolling(orderNumber){
       const destLat=td.delivery_lat, destLng=td.delivery_lng;
       
       if(destLat&&destLng&&!trackDestMarker){
-        trackDestMarker=L.marker([destLat,destLng],{icon:L.divIcon({className:'',html:'<div style="background:var(--g,#00C853);border:3px solid #fff;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:.8rem;box-shadow:0 2px 8px rgba(0,0,0,.4)">📍</div>',iconSize:[24,24],iconAnchor:[12,12]})}).addTo(trackMap);
+        trackDestMarker=L.marker([destLat,destLng],{icon:L.divIcon({className:'',html:'<div style="background:var(--g,#00C853);border:3px solid #fff;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:.8rem;box-shadow:0 2px 8px rgba(0,0,0,.4)">ðŸ“</div>',iconSize:[24,24],iconAnchor:[12,12]})}).addTo(trackMap);
       }
       
       if(dLat&&dLng){
         if(!trackDriverMarker){
-          trackDriverMarker=L.marker([dLat,dLng],{icon:L.divIcon({className:'',html:'<div style="background:#FF8C42;border:3px solid #fff;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:1rem;box-shadow:0 4px 12px rgba(0,0,0,.4);animation:pulse 2s infinite">🚚</div>',iconSize:[36,36],iconAnchor:[18,18]})}).addTo(trackMap);
+          trackDriverMarker=L.marker([dLat,dLng],{icon:L.divIcon({className:'',html:'<div style="background:#FF8C42;border:3px solid #fff;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:1rem;box-shadow:0 4px 12px rgba(0,0,0,.4);animation:pulse 2s infinite">ðŸšš</div>',iconSize:[36,36],iconAnchor:[18,18]})}).addTo(trackMap);
           trackMap.setView([dLat,dLng],15,{animate:true});
         } else {
           trackDriverMarker.setLatLng([dLat,dLng]);
@@ -2792,7 +3013,7 @@ if(tg){
 </script>
 
 <div id="topRewardToast" style="position:fixed;top:15px;left:50%;transform:translateX(-50%) translateY(-150%);width:90%;max-width:400px;background:var(--sf);border-radius:100px;padding:10px 16px;box-shadow:0 10px 40px rgba(0,0,0,.2);display:flex;align-items:center;gap:12px;z-index:999;transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1);border:2px solid var(--g)">
-  <div style="width:36px;height:36px;border-radius:50%;background:var(--gp);display:flex;align-items:center;justify-content:center;font-size:1.2rem">🎉</div>
+  <div style="width:36px;height:36px;border-radius:50%;background:var(--gp);display:flex;align-items:center;justify-content:center;font-size:1.2rem">ðŸŽ‰</div>
   <div style="flex:1">
     <div style="font-size:0.75rem;font-weight:800;color:var(--g);text-transform:uppercase;letter-spacing:0.5px">Discount Unlocked!</div>
     <div id="topRewardText" style="font-size:0.85rem;font-weight:700;color:var(--tx)"></div>
@@ -2816,14 +3037,14 @@ if(tg){
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
       <img id="popupImg" style="width:60px;height:60px;border-radius:12px;object-fit:cover;background:var(--br)" src="" />
       <div style="flex:1">
-        <div style="font-size:.65rem;font-weight:800;color:var(--g);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">✓ Added to Cart!</div>
+        <div style="font-size:.65rem;font-weight:800;color:var(--g);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">âœ“ Added to Cart!</div>
         <div id="popupName" style="font-size:.9rem;font-weight:800;line-height:1.3"></div>
         <div id="popupPrice" style="font-size:.82rem;color:var(--tm);margin-top:2px"></div>
       </div>
     </div>
     <div id="popupDiscountBadge" style="display:none;background:linear-gradient(135deg,#ECFDF5,#D1FAE5);border:1.5px solid #A7F3D0;border-radius:12px;padding:10px 14px;margin-bottom:12px">
       <div style="font-size:.75rem;font-weight:900;color:#065F46;display:flex;align-items:center;gap:6px">
-        <span style="font-size:1.1rem">💰</span>
+        <span style="font-size:1.1rem">ðŸ’°</span>
         <span id="popupDiscountText"></span>
       </div>
     </div>
@@ -2842,3 +3063,12 @@ if(tg){
 
 </body>
 </html>
+
+
+
+
+
+
+
+
+

@@ -1,4 +1,4 @@
-"""
+﻿"""
 Mini App dedicated API endpoints for Liyu Kids Mart Telegram Mini App.
 Handles in-app checkout, orders, wishlist, and receipt uploads for Telegram users.
 """
@@ -234,7 +234,7 @@ def mini_app_checkout():
     d_fee = delivery.get('delivery_fee')
     delivery_fee = float(d_fee) if d_fee is not None and str(d_fee).strip() != '' else 80.0
 
-    # ── Calculate Loyalty Discount ────────────────────────────────
+    # â”€â”€ Calculate Loyalty Discount â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     from app.services.loyalty_service import calculate_loyalty_discount, process_order_rewards, _get_settings
     total_items = sum(oi['qty'] for oi in order_items)
     settings = _get_settings()
@@ -271,7 +271,7 @@ def mini_app_checkout():
     db.session.add(addr)
     db.session.flush()
 
-    # Build notes — include receipt URL for TeleBirr
+    # Build notes â€” include receipt URL for TeleBirr
     notes = data.get('notes', 'Placed via Telegram Mini App')
     if payment_receipt_url and payment_method_str == 'telebirr':
         notes = f"{notes} | TeleBirr Receipt: {payment_receipt_url}"
@@ -327,7 +327,7 @@ def mini_app_checkout():
     import logging
     _logger = logging.getLogger(__name__)
 
-    # ── Commit everything to the database ────────────────────────
+    # â”€â”€ Commit everything to the database â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     try:
         _logger.info(f'[checkout] Committing order {order_number} for user_id={user.id} telegram_id={user.telegram_id}')
         db.session.commit()
@@ -337,7 +337,7 @@ def mini_app_checkout():
         db.session.rollback()
         return error_response(f'Failed to save order: {str(db_exc)}', 500)
 
-    # ── Notify store managers ─────────────────────────────────────
+    # â”€â”€ Notify store managers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     try:
         notify_store_managers(order, order_items, addr, payment_method_str, discount_amount, payment_receipt_url)
     except Exception as exc:
@@ -397,14 +397,14 @@ def _notify_store_managers(order, order_items, addr, payment_method_str, discoun
     for oi in order_items:
         p = oi['product']
         items_lines.append(
-            f"  • <b>{p.name[:40]}</b>  ×{oi['qty']}  —  <b>ETB {oi['item_total']:,.0f}</b>"
+            f"  â€¢ <b>{p.name[:40]}</b>  Ã—{oi['qty']}  â€”  <b>ETB {oi['item_total']:,.0f}</b>"
         )
     items_text = '\n'.join(items_lines)
 
     pm_labels = {
-        'cod':      '💵 Cash on Delivery',
-        'telebirr': '📱 TeleBirr',
-        'chapa':    '💳 Chapa',
+        'cod':      'ðŸ’µ Cash on Delivery',
+        'telebirr': 'ðŸ“± TeleBirr',
+        'chapa':    'ðŸ’³ Chapa',
     }
     pm_label = pm_labels.get(payment_method_str, payment_method_str.upper())
     subtotal = float(order.subtotal)
@@ -416,39 +416,39 @@ def _notify_store_managers(order, order_items, addr, payment_method_str, discoun
     # Google Maps link for the delivery location
     maps_link = ''
     if addr.lat and addr.lng:
-        maps_link = f'\n🗺 <a href="https://maps.google.com/?q={addr.lat},{addr.lng}">View on Map</a>'
+        maps_link = f'\nðŸ—º <a href="https://maps.google.com/?q={addr.lat},{addr.lng}">View on Map</a>'
 
     discount_line = ''
     if order.spending_discount_amount and float(order.spending_discount_amount) > 0:
-        discount_line += f'\n🏷️ <b>Spending Discount:</b>  -ETB {float(order.spending_discount_amount):,.0f}'
+        discount_line += f'\nðŸ·ï¸ <b>Spending Discount:</b>  -ETB {float(order.spending_discount_amount):,.0f}'
     if order.qty_discount_amount_saved and float(order.qty_discount_amount_saved) > 0:
-        discount_line += f'\n📦 <b>Multi-Buy Discount:</b>  -ETB {float(order.qty_discount_amount_saved):,.0f}'
+        discount_line += f'\nðŸ“¦ <b>Multi-Buy Discount:</b>  -ETB {float(order.qty_discount_amount_saved):,.0f}'
     if float(order.discount_amount) > 0 and not float(order.spending_discount_amount or 0) > 0 and not float(order.qty_discount_amount_saved or 0) > 0:
-        discount_line = f'\n🎁 <b>Discount:</b>  -ETB {float(order.discount_amount):,.0f}'
+        discount_line = f'\nðŸŽ <b>Discount:</b>  -ETB {float(order.discount_amount):,.0f}'
 
     receipt_line = ''
     if payment_receipt_url and payment_method_str == 'telebirr':
-        receipt_line = f'\n🧾 <a href="{payment_receipt_url}">View TeleBirr Receipt</a>'
+        receipt_line = f'\nðŸ§¾ <a href="{payment_receipt_url}">View TeleBirr Receipt</a>'
 
     msg = (
-        f"🛍️ <b>NEW ORDER #{order.order_number}</b>\n\n"
-        f"👤 <b>Customer:</b>  {order.user.full_name or 'Customer'}\n"
-        f"📞 <b>Phone:</b>  {addr.phone}\n"
-        f"📍 <b>Location:</b>  {addr.specific_location or 'Not specified'}{maps_link}\n\n"
-        f"📦 <b>Items:</b>\n{items_text}\n\n"
-        f"💰 <b>Subtotal:</b>  ETB {subtotal:,.0f}"
+        f"ðŸ›ï¸ <b>NEW ORDER #{order.order_number}</b>\n\n"
+        f"ðŸ‘¤ <b>Customer:</b>  {order.user.full_name or 'Customer'}\n"
+        f"ðŸ“ž <b>Phone:</b>  {addr.phone}\n"
+        f"ðŸ“ <b>Location:</b>  {addr.specific_location or 'Not specified'}{maps_link}\n\n"
+        f"ðŸ“¦ <b>Items:</b>\n{items_text}\n\n"
+        f"ðŸ’° <b>Subtotal:</b>  ETB {subtotal:,.0f}"
         f"{discount_line}\n"
-        f"🚚 <b>Delivery:</b>  ETB {delivery_fee:,.0f}\n"
-        f"━━━━━━━━━━━━━━━\n"
-        f"💳 <b>TOTAL:  ETB {total:,.0f}</b>\n"
-        f"💳 <b>Payment:</b>  {pm_label}"
+        f"ðŸšš <b>Delivery:</b>  ETB {delivery_fee:,.0f}\n"
+        f"â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”\n"
+        f"ðŸ’³ <b>TOTAL:  ETB {total:,.0f}</b>\n"
+        f"ðŸ’³ <b>Payment:</b>  {pm_label}"
         f"{receipt_line}"
     )
 
     reply_markup = {
         'inline_keyboard': [[
-            {'text': '🤖 Open Bot', 'url': 'https://t.me/Liyu_Kids_Mart_Bot'},
-            {'text': '🌐 Open Store Portal', 'web_app': {'url': store_url}}
+            {'text': 'ðŸ¤– Open Bot', 'url': 'https://t.me/Liyu_Kids_Mart_Bot'},
+            {'text': 'ðŸŒ Open Store Portal', 'web_app': {'url': store_url}}
         ]]
     }
 
@@ -646,9 +646,9 @@ def debug_migrate():
         return error_response(str(e), 500)
 
 
-# ─────────────────────────────────────────────────────────────
-# QR Code Scan — Public Product Info
-# ─────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# QR Code Scan â€” Public Product Info
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @api_bp.route('/product/<int:product_id>/info', methods=['GET'])
 def product_qr_info(product_id):
@@ -689,3 +689,4 @@ def product_qr_info(product_id):
         'is_featured': p.is_featured,
         'sku': p.sku or ('P-' + str(p.id)),
     })
+

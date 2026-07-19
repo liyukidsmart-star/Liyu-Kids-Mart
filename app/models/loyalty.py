@@ -353,6 +353,8 @@ class LoyaltySettings(db.Model):
     # Mini-app visibility controls for category and age-range navigation
     show_categories_in_mini_app = db.Column(db.Boolean, default=True, nullable=False)
     show_age_filter_in_mini_app = db.Column(db.Boolean, default=True, nullable=False)
+    # TeleBirr contact details shown on the regional checkout payment screen
+    telebirr_payment_phone = db.Column(db.String(32), default='', nullable=False)
     # ── Quantity Discount Eligibility ───────────────────────────
     # Minimum product price (current_price) to count toward quantity discounts
     qty_discount_min_price = db.Column(db.Numeric(10, 2), default=2500.00, nullable=False)
@@ -376,6 +378,7 @@ class LoyaltySettings(db.Model):
             'is_enabled': self.is_enabled,
             'show_categories_in_mini_app': self.show_categories_in_mini_app,
             'show_age_filter_in_mini_app': self.show_age_filter_in_mini_app,
+            'telebirr_payment_phone': self.telebirr_payment_phone,
             'qty_discount_min_price': float(self.qty_discount_min_price),
             'qty_discount_open_to_all': self.qty_discount_open_to_all,
         }

@@ -148,6 +148,13 @@
                 style="width:3rem; height:1.5rem;" {{ 'checked' if settings.qty_discount_open_to_all }}>
             </div>
           </div>
+          <div class="setting-row">
+            <div>
+              <div class="setting-label">TeleBirr Payment Number</div>
+              <div class="setting-desc">Shown to regional customers who want to pay in advance by TeleBirr.</div>
+            </div>
+            <input type="text" name="telebirr_payment_phone" class="form-control setting-input" placeholder="+251..." value="{{ settings.telebirr_payment_phone or '' }}">
+          </div>
           <div class="mt-3 p-3 rounded-3" style="background:#F0FDF4; border:1px solid #BBF7D0; font-size:.85rem; color:#166534;">
             <i class="fas fa-info-circle me-1"></i>
             Currently: products priced <strong>{{ "{:,.0f}".format(settings.qty_discount_min_price | float) }}+ Birr</strong>

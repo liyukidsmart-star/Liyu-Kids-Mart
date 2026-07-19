@@ -340,6 +340,7 @@ def loyalty_settings():
         # Quantity discount eligibility settings
         settings.qty_discount_min_price = float(request.form.get('qty_discount_min_price', 2500) or 2500)
         settings.qty_discount_open_to_all = 'qty_discount_open_to_all' in request.form
+        settings.telebirr_payment_phone = request.form.get('telebirr_payment_phone', '').strip()
         db.session.commit()
         flash('✅ Loyalty settings updated!', 'success')
         return redirect(url_for('admin.loyalty_settings'))

@@ -41,6 +41,7 @@ def _default_settings() -> SimpleNamespace:
         is_enabled=True,
         show_categories_in_mini_app=True,
         show_age_filter_in_mini_app=True,
+        telebirr_payment_phone='',
     )
 
 
@@ -52,6 +53,7 @@ def _repair_loyalty_settings_visibility_columns(missing_columns):
     ddl_columns = {
         'show_categories_in_mini_app': 'BOOLEAN NOT NULL DEFAULT TRUE',
         'show_age_filter_in_mini_app': 'BOOLEAN NOT NULL DEFAULT TRUE',
+        'telebirr_payment_phone': "VARCHAR(32) NOT NULL DEFAULT ''",
         'qty_discount_min_price': 'NUMERIC(10,2) NOT NULL DEFAULT 2500.00',
         'qty_discount_open_to_all': 'BOOLEAN NOT NULL DEFAULT TRUE',
     }
@@ -90,7 +92,7 @@ def _get_settings():
         return _default_settings()
 
     required_columns = {
-        'show_categories_in_mini_app', 'show_age_filter_in_mini_app',
+        'show_categories_in_mini_app', 'show_age_filter_in_mini_app', 'telebirr_payment_phone',
         'qty_discount_min_price', 'qty_discount_open_to_all',
     }
     missing_columns = required_columns - columns
@@ -166,6 +168,7 @@ def get_store_launch_state() -> dict:
         'launch_locked': bool(launch_date and datetime.now(timezone.utc) < launch_date),
         'show_categories_in_mini_app': getattr(settings, 'show_categories_in_mini_app', True),
         'show_age_filter_in_mini_app': getattr(settings, 'show_age_filter_in_mini_app', True),
+        'telebirr_payment_phone': getattr(settings, 'telebirr_payment_phone', ''),
     }
 
 

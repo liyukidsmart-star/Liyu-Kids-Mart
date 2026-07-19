@@ -42,6 +42,10 @@ class Address(db.Model):
     phone = db.Column(db.String(20), nullable=False)
     city = db.Column(db.String(100), default='Addis Ababa')
     sub_city = db.Column(db.String(100), nullable=True)
+    # Regional delivery details used when the customer is outside Addis Ababa.
+    region = db.Column(db.String(100), nullable=True)
+    city_town = db.Column(db.String(100), nullable=True)
+    delivery_scope = db.Column(db.String(20), default='addis', nullable=False)
     woreda = db.Column(db.String(100), nullable=True)
     specific_location = db.Column(db.Text, nullable=True)
     lat = db.Column(db.Float, nullable=True)
@@ -60,6 +64,9 @@ class Address(db.Model):
             'phone': self.phone,
             'city': self.city,
             'sub_city': self.sub_city,
+            'region': self.region,
+            'city_town': self.city_town,
+            'delivery_scope': self.delivery_scope,
             'woreda': self.woreda,
             'specific_location': self.specific_location,
             'lat': self.lat,
@@ -177,6 +184,16 @@ class Order(db.Model):
         'returned': 'secondary',
     }
 
+    @property
+    def delivery_scope_value(self):
+        if self.address and self.address.delivery_scope:
+            return self.address.delivery_scope
+        return 'addis'
+
+    @property
+    def is_regional(self):
+        return self.delivery_scope_value == 'regional'
+
     def status_label(self):
         return self.STATUS_LABELS.get(self.status.value, self.status.value)
 
@@ -197,6 +214,8 @@ class Order(db.Model):
             'total': float(self.total),
             'payment_method': self.payment_method.value,
             'payment_status': self.payment_status if isinstance(self.payment_status, str) else (self.payment_status.value if self.payment_status else 'pending'),
+            'delivery_scope': self.delivery_scope_value,
+            'is_regional': self.is_regional,
             'notes': self.notes,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'items_count': len(self.items),
