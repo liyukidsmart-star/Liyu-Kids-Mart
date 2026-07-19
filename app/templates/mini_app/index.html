@@ -714,6 +714,59 @@ let miniBootstrap=null, miniBootstrapPromise=null;
 
 function gid(){return Math.random().toString(36).slice(2)+Date.now().toString(36);}
 
+/* ── Analytics tracking ──────────────────────────────────── */
+const _trackedViews = new Set(); // prevent duplicate view events per session
+function trackEvent(action, productId, meta){}
+(function(){
+  // fire-and-forget POST to /api/v1/mini-app/track
+  trackEvent = function(action, productId, meta){
+    try{
+      fetch('/api/v1/mini-app/track',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({action, product_id: productId||null, telegram_id: TGID||null, meta: meta||{}}),
+        keepalive: true
+      }).catch(()=>{});
+    }catch(e){}
+  };
+})();
+
+// Use IntersectionObserver to track when product cards scroll into view
+let _cardViewObserver = null;
+function _getCardViewObserver(){
+  if(_cardViewObserver) return _cardViewObserver;
+  _cardViewObserver = new IntersectionObserver((entries)=>{
+    entries.forEach(e=>{
+      if(!e.isIntersecting) return;
+      const pid = e.target.dataset.trackId;
+      if(!pid || _trackedViews.has(pid)) return;
+      _trackedViews.add(pid);
+      trackEvent('view_product', parseInt(pid, 10));
+      _cardViewObserver.unobserve(e.target); // only count once per session
+    });
+  }, {rootMargin:'0px', threshold:0.5});
+  return _cardViewObserver;
+}
+
+// Attach view-tracking observers to all .pcard and .hcard elements inside a container
+function attachViewTracking(container){
+  if(!container) return;
+  const obs = _getCardViewObserver();
+  container.querySelectorAll('[data-track-id]').forEach(el=>obs.observe(el));
+}
+
+// Sync existing cart from localStorage to analytics on first load (once per session)
+(function syncCartToAnalytics(){
+  const synced = sessionStorage.getItem('_lkm_cart_synced');
+  if(synced) return;
+  sessionStorage.setItem('_lkm_cart_synced','1');
+  if(!cart || cart.length === 0) return;
+  // fire add_to_cart for each unique product already in cart
+  cart.forEach(item=>{
+    if(item && item.id) trackEvent('add_to_cart', item.id, {qty: item.qty||1, synced: true});
+  });
+})();
+
 let launchDateVal = null;
 let isLaunchLocked = false;
 let launchTicker = null;
@@ -973,6 +1026,8 @@ function addCart(id,name,price,img,qty=1){
   if(ex)ex.qty+=qty; else cart.push({id,name,price,img,qty});
   saveCart(); hap();
   toast('🛒 '+name.slice(0,22)+'… added!','ok');
+  // Track add_to_cart event
+  trackEvent('add_to_cart', id, {qty, name: name.slice(0,60)});
   document.querySelectorAll('[data-pid="'+id+'"]').forEach(b=>{
     b.textContent='✓ Added';b.classList.add('ok');
     setTimeout(()=>{b.textContent='+ Add';b.classList.remove('ok');},1600);
@@ -1164,7 +1219,7 @@ function pcard(p,v='grid'){
   const disc=!isLaunchLocked && p.compare_price>p.price&&!priceHidden?'<div class="pcard-cmp">ETB '+Math.round(p.compare_price).toLocaleString()+'</div>':'';
   const pj=encodeURIComponent(JSON.stringify(p));
   if(v==='h') return `
-    <div class="hcard" onclick="openSheet(this.dataset.p)" data-p="${pj}">
+    <div class="hcard" onclick="openSheet(this.dataset.p)" data-p="${pj}" data-track-id="${p.id}">
       <img src="${p.primary_image}" alt="${esc(n)}" loading="lazy" decoding="async" onerror="this.src='/static/images/placeholder.png'"/>
       <div class="hcard-body">
         <div class="hcard-name">${n}</div>
@@ -1175,7 +1230,7 @@ function pcard(p,v='grid'){
       </div>
     </div>`;
   return `
-    <div class="pcard${isPremium?' premium-card':''}${isLocked?' premium-locked':''}" onclick="openSheet(this.dataset.p)" data-p="${pj}" style="position:relative">
+    <div class="pcard${isPremium?' premium-card':''}${isLocked?' premium-locked':''}" onclick="openSheet(this.dataset.p)" data-p="${pj}" data-track-id="${p.id}" style="position:relative">
       <div class="pbadges">${bdgs}</div>
       <button class="pwish${w?' on':''}" onclick="event.stopPropagation();toggleWish(${p.id},this)">
         <i class="fas fa-heart"></i></button>
@@ -1302,6 +1357,10 @@ async function loadHomeSections(){
       document.getElementById('featRow').innerHTML=fp.length?fp.map(p=>pcard(p,'h')).join(''):'<div class="empty"><p>No featured products</p></div>';
       document.getElementById('newRow').innerHTML=np.length?np.map(p=>pcard(p,'h')).join(''):'<div class="empty"><p>No new arrivals</p></div>';
       document.getElementById('homeGrid').innerHTML=bp.length?bp.map(p=>pcard(p)).join(''):'<div class="empty" style="grid-column:span 2"><p>No products</p></div>';
+      // Attach view-tracking after rendering
+      attachViewTracking(document.getElementById('featRow'));
+      attachViewTracking(document.getElementById('newRow'));
+      attachViewTracking(document.getElementById('homeGrid'));
       return;
     }
     // Bootstrap returned nothing - fall back to individual requests
@@ -1316,6 +1375,9 @@ async function loadHomeSections(){
     document.getElementById('featRow').innerHTML=fp2.length?fp2.map(p=>pcard(p,'h')).join(''):'<div class="empty"><p>No featured products</p></div>';
     document.getElementById('newRow').innerHTML=np2.length?np2.map(p=>pcard(p,'h')).join(''):'<div class="empty"><p>No new arrivals</p></div>';
     document.getElementById('homeGrid').innerHTML=bp2.length?bp2.map(p=>pcard(p)).join(''):'<div class="empty" style="grid-column:span 2"><p>No products</p></div>';
+    attachViewTracking(document.getElementById('featRow'));
+    attachViewTracking(document.getElementById('newRow'));
+    attachViewTracking(document.getElementById('homeGrid'));
   }catch{
     document.getElementById('featRow').innerHTML='<div class="empty"><p>Failed to load</p></div>';
     document.getElementById('newRow').innerHTML='<div class="empty"><p>Failed to load</p></div>';
@@ -1381,6 +1443,7 @@ async function loadShop(reset=false){
       const cached=sCache.get(url);
       sAll=[...cached.products]; sHasMore=cached.hasMore;
       grid.innerHTML=sAll.length?sAll.map(p=>pcard(p)).join(''):'<div class="empty" style="grid-column:span 2"><div class="ei">🛍</div><p>No products found</p></div>';
+      attachViewTracking(grid);
       document.getElementById('lmbtn').style.display=sHasMore?'block':'none';
       setupShopObserver();
       return;
@@ -1391,6 +1454,7 @@ async function loadShop(reset=false){
       sAll=[...boot.shop_page.products];
       sHasMore=!!boot.shop_page.has_more;
       grid.innerHTML=sAll.length?sAll.map(p=>pcard(p)).join(''):'<div class="empty" style="grid-column:span 2"><div class="ei">🛍</div><p>No products found</p></div>';
+      attachViewTracking(grid);
       document.getElementById('lmbtn').style.display=sHasMore?'block':'none';
       sCache.set(url,{products:[...sAll],hasMore:sHasMore});
       setupShopObserver();
@@ -1415,6 +1479,7 @@ async function loadShop(reset=false){
       animateShopCards(Array.from(grid.children).slice(before));
     }
     if(reset) sCache.set(url,{products:sAll,hasMore:sHasMore});
+    attachViewTracking(grid);
     document.getElementById('lmbtn').style.display=sHasMore?'block':'none';
     setupShopObserver();
   }catch(err){
@@ -2374,6 +2439,7 @@ function resetCheckoutMaps(){
 function openCheckout(){
   if(launchGuard()) return;
   if(!cart.length){toast('Your cart is empty!','err');return;}
+  trackEvent('checkout_started');
   resetCheckoutMaps();
   ckStep='form';
   ckDeliveryMode='addis';

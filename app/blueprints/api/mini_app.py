@@ -1,4 +1,4 @@
-﻿"""
+"""
 Mini App dedicated API endpoints for Liyu Kids Mart Telegram Mini App.
 Handles in-app checkout, orders, wishlist, and receipt uploads for Telegram users.
 """
@@ -146,6 +146,7 @@ def mini_app_track():
     allowed_actions = {
         'add_to_cart', 'remove_from_cart', 'view_product',
         'telegram_buy_now_click', 'wishlist_add', 'product_share',
+        'checkout_started'
     }
     if action not in allowed_actions:
         return error_response('Unknown action', 400)

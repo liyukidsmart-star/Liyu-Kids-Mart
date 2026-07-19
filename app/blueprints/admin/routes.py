@@ -1328,6 +1328,7 @@ def analytics_revenue():
     cat_rev = db.session.query(
         Category.name,
         func.sum(OrderItem.price * OrderItem.quantity).label('rev')
+    ).select_from(OrderItem
     ).join(Product, OrderItem.product_id == Product.id
     ).join(Category, Product.category_id == Category.id
     ).join(Order, OrderItem.order_id == Order.id
@@ -1341,6 +1342,7 @@ def analytics_revenue():
         Product.name,
         func.sum(OrderItem.price * OrderItem.quantity).label('rev'),
         func.sum(OrderItem.quantity).label('qty')
+    ).select_from(OrderItem
     ).join(Product, OrderItem.product_id == Product.id
     ).join(Order, OrderItem.order_id == Order.id
     ).filter(
