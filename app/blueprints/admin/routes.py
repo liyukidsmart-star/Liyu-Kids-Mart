@@ -803,7 +803,7 @@ def customers():
             'identifier': identifier,
             'telegram_username': telegram_username,
             'phone': phone,
-            'items': int(qty or 0),
+            'total_items': int(qty or 0),
             'total': float(total_value or 0),
             'last_active': last_str,
             'products_list': products_list,
@@ -811,29 +811,43 @@ def customers():
         })
 
     # ── Historical Abandoned Intents (ActivityLog) ──────────────────
-    # Find users who added to cart but aren't currently active.
     historical_logs = db.session.query(
         ActivityLog.user_id,
+        ActivityLog.session_id,
         func.max(ActivityLog.created_at).label('last_active'),
         func.count(ActivityLog.id).label('add_count')
     ).filter(
-        ActivityLog.action == 'add_to_cart',
-        ActivityLog.user_id.isnot(None)
+        ActivityLog.action == 'add_to_cart'
     ).group_by(
-        ActivityLog.user_id
+        ActivityLog.user_id, ActivityLog.session_id
     ).order_by(
         func.max(ActivityLog.created_at).desc()
-    ).limit(150).all()
+    ).limit(300).all()
 
-    for uid, last_active, add_count in historical_logs:
+    processed_identifiers = set() # To track users/sessions we've already added
+
+    for uid, sess_id, last_active, add_count in historical_logs:
         if uid in active_user_ids:
             continue # Skip, they are already in Live Active carts
             
-        user = db.session.get(User, uid)
-        if not user: continue
+        identifier_key = f"user_{uid}" if uid else f"session_{sess_id}"
+        if identifier_key in processed_identifiers:
+            continue
+        processed_identifiers.add(identifier_key)
+            
+        # Get user details if available
+        user = db.session.get(User, uid) if uid else None
         
         # Find which products they added historically
-        added_logs = ActivityLog.query.filter_by(action='add_to_cart', user_id=uid).order_by(ActivityLog.created_at.desc()).limit(10).all()
+        user_logs = ActivityLog.query.filter(
+            ActivityLog.action == 'add_to_cart'
+        )
+        if uid:
+            user_logs = user_logs.filter(ActivityLog.user_id == uid)
+        else:
+            user_logs = user_logs.filter(ActivityLog.session_id == sess_id)
+            
+        added_logs = user_logs.order_by(ActivityLog.created_at.desc()).limit(20).all()
         hist_products = {}
         for log in added_logs:
             if log.entity_id and log.entity_id not in hist_products:
@@ -855,11 +869,19 @@ def customers():
         total_val = sum([p['price'] * p['qty'] for p in products_detailed])
         total_items = sum([p['qty'] for p in products_detailed])
         
-        telegram_username = user.telegram_username
-        if telegram_username:
-            identifier = f"@{telegram_username}"
+        if user:
+            name = user.full_name
+            telegram_username = user.telegram_username
+            phone = user.phone
+            if telegram_username:
+                identifier = f"@{telegram_username}"
+            else:
+                identifier = f"User #{user.id}"
         else:
-            identifier = f"User #{user.id}"
+            name = "Anonymous User"
+            telegram_username = None
+            phone = None
+            identifier = f"Session: {sess_id[:8]}..." if sess_id else "Guest"
             
         if isinstance(last_active, str):
             try:
@@ -871,11 +893,11 @@ def customers():
         
         active_carts_data.append({
             'status': 'Abandoned',
-            'name': user.full_name,
+            'name': name,
             'identifier': identifier,
             'telegram_username': telegram_username,
-            'phone': user.phone,
-            'items': int(total_items),
+            'phone': phone,
+            'total_items': int(total_items),
             'total': float(total_val),
             'last_active': last_str,
             'products_list': products_list,
