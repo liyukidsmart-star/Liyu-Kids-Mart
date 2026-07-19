@@ -883,12 +883,11 @@ def customers():
         })
         
     # Sort the combined list by last_active
-    import datetime
     def _parse_time(d):
         try:
-            return datetime.datetime.strptime(d['last_active'], '%b %d, %H:%M')
+            return datetime.strptime(d['last_active'], '%b %d, %H:%M')
         except:
-            return datetime.datetime.min
+            return datetime.min
     active_carts_data.sort(key=_parse_time, reverse=True)
     # limit to top 20 total
     active_carts_data = active_carts_data[:20]
