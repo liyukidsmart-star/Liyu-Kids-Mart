@@ -163,6 +163,38 @@ def mini_app_track():
     return success_response({'tracked': True})
 
 
+@api_bp.route('/mini-app/sync-cart', methods=['POST'])
+def mini_app_sync_cart():
+    """
+    Syncs the client's localStorage cart state to the backend Cart table.
+    Allows the Admin Dashboard to see active/abandoned carts.
+    """
+    data = request.get_json(silent=True) or {}
+    cart_items = data.get('cart', [])
+    telegram_id = data.get('telegram_id')
+
+    if not telegram_id:
+        return error_response('telegram_id is required', 400)
+
+    user = User.query.filter_by(telegram_id=str(telegram_id)).first()
+    if not user:
+        return error_response('User not found', 404)
+
+    # 1. Delete all existing cart items for this user
+    from app.models.order import Cart
+    Cart.query.filter_by(user_id=user.id).delete()
+
+    # 2. Insert the current cart state
+    for item in cart_items:
+        product_id = item.get('id')
+        qty = item.get('qty', 1)
+        if product_id:
+            db.session.add(Cart(user_id=user.id, session_id=str(telegram_id), product_id=product_id, quantity=qty))
+
+    db.session.commit()
+    return success_response({'synced': True})
+
+
 @api_bp.route('/mini-app/checkout', methods=['POST'])
 def mini_app_checkout():
     """

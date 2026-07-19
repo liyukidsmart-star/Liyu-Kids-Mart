@@ -765,6 +765,8 @@ function attachViewTracking(container){
   cart.forEach(item=>{
     if(item && item.id) trackEvent('add_to_cart', item.id, {qty: item.qty||1, synced: true});
   });
+  // Also push the entire cart state to the backend Cart table
+  setTimeout(() => saveCart(), 500);
 })();
 
 let launchDateVal = null;
@@ -992,7 +994,17 @@ function updBdg(){
   b.textContent=n; b.classList.toggle('on',n>0);
   if(hb){hb.textContent=n;hb.classList.toggle('on',n>0);}
 }
-function saveCart(){localStorage.setItem('lkm_c',JSON.stringify(cart));updBdg();}
+function saveCart() {
+  localStorage.setItem('lkm_c', JSON.stringify(cart));
+  updBdg();
+  if (TGU && TGU.id) {
+    fetch('/api/v1/mini-app/sync-cart', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ telegram_id: TGU.id, cart: cart })
+    }).catch(e => console.error('Cart sync error:', e));
+  }
+}
 function saveWish(){localStorage.setItem('lkm_w',JSON.stringify([...wish]));}
 
 /* -- Add to cart -------------------------------- */
