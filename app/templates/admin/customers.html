@@ -462,32 +462,8 @@
     </div>
   </div>
 
-  <!-- Daily Visits Line Chart -->
+  <!-- Active & Abandoned Carts (MOVED TO TOP) -->
   <div class="col-lg-8">
-    <div class="chart-card h-100">
-      <div class="chart-card-header">
-        <h6><i class="fas fa-chart-line" style="color:#3b82f6"></i> Daily Mini App Visits (14 days)</h6>
-      </div>
-      <div class="chart-body" style="height:260px">
-        <canvas id="visitsChart"></canvas>
-      </div>
-    </div>
-  </div>
-
-  <!-- Weekly Signups Bar Chart -->
-  <div class="col-lg-7">
-    <div class="chart-card">
-      <div class="chart-card-header">
-        <h6><i class="fas fa-user-plus" style="color:#f59e0b"></i> Weekly New Customers (8 weeks)</h6>
-      </div>
-      <div class="chart-body" style="height:230px">
-        <canvas id="signupsChart"></canvas>
-      </div>
-    </div>
-  </div>
-
-  <!-- Active & Abandoned Carts -->
-  <div class="col-lg-5">
     <div class="chart-card">
       <div class="chart-card-header">
         <h6><i class="fas fa-shopping-cart" style="color:#059669"></i> Active &amp; Abandoned Carts</h6>
@@ -525,6 +501,30 @@
         {% else %}
         <div class="text-center text-muted py-4" style="font-size:.85rem">No active carts found.<br><small>Customers checking out cleanly!</small></div>
         {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Daily Visits Line Chart -->
+  <div class="col-lg-12">
+    <div class="chart-card h-100">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-chart-line" style="color:#3b82f6"></i> Daily Mini App Visits (14 days)</h6>
+      </div>
+      <div class="chart-body" style="height:260px">
+        <canvas id="visitsChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Weekly Signups Bar Chart -->
+  <div class="col-lg-6">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-user-plus" style="color:#f59e0b"></i> Weekly New Customers (8 weeks)</h6>
+      </div>
+      <div class="chart-body" style="height:230px">
+        <canvas id="signupsChart"></canvas>
       </div>
     </div>
   </div>
