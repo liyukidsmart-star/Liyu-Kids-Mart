@@ -683,15 +683,42 @@ ul{list-style:none}
 
 <!-- --- CHANNEL POST SHEET --- -->
 <div class="sov" id="postSov" onclick="if(event.target===this)closePostSheet()">
-  <div class="sheet" style="max-height:90vh;display:flex;flex-direction:column">
+  <div class="sheet" style="max-height:90vh;display:flex;flex-direction:column;background:var(--bg)">
     <div class="shdl"></div>
     <div style="flex-shrink:0;padding:16px 16px 0">
-      <div id="postTitle" style="font-weight:800;font-size:1.1rem;margin-bottom:8px"></div>
-      <div id="postCaption" style="font-size:0.85rem;color:var(--tm);line-height:1.4;margin-bottom:16px"></div>
-      <div style="font-size:0.9rem;font-weight:700;margin-bottom:12px;color:var(--g)">Select an item to add:</div>
+      <div id="postHeaderInfo" style="transition:all 0.3s ease;overflow:hidden;max-height:300px;opacity:1;margin-bottom:16px">
+        <div id="postTitle" style="font-weight:800;font-size:1.2rem;margin-bottom:8px;color:var(--text)"></div>
+        <div id="postCaption" style="font-size:0.9rem;color:var(--tm);line-height:1.5;"></div>
+      </div>
+      <div style="font-size:0.95rem;font-weight:800;margin-bottom:12px;color:var(--g)">Select items to add:</div>
     </div>
-    <div id="postProductsList" style="flex:1;overflow-y:auto;padding:0 16px 16px;display:flex;flex-direction:column;gap:12px">
+    <div id="postProductsList" onscroll="onPostListScroll(event)" style="flex:1;overflow-y:auto;padding:0 16px 16px;display:flex;flex-direction:column;gap:12px">
       <!-- Injected via JS -->
+    </div>
+  </div>
+</div>
+
+<!-- --- POST ITEM PREVIEW SHEET (Nested) --- -->
+<div class="sov" id="postItemSov" style="z-index:210" onclick="if(event.target===this)closePostItemSheet()">
+  <div class="sheet" style="max-height:90vh;display:flex;flex-direction:column">
+    <div style="display:flex;align-items:center;padding:12px 16px;border-bottom:1px solid var(--br)">
+      <button onclick="closePostItemSheet()" style="background:none;border:none;font-size:1.1rem;color:var(--g);cursor:pointer;padding:4px"><i class="fas fa-arrow-left"></i> Back</button>
+    </div>
+    <div style="flex:1;overflow-y:auto">
+      <div class="sh-img-wrap" style="margin-top:0">
+        <img id="piImg" src="" alt="" class="sh-img" onclick="openImageLightbox(this.src)"/>
+      </div>
+      <div class="sh-body">
+        <div class="sh-bdgs" id="piBdgs"></div>
+        <div class="sh-name" id="piName"></div>
+        <div class="sh-prices">
+          <div class="sh-price" id="piPrice"></div>
+          <div class="sh-cmp" id="piCmp" style="display:none"></div>
+        </div>
+        <div class="age-bdg" id="piAge" style="margin-bottom:10px"></div>
+        <div class="sh-desc" id="piDesc" style="margin-bottom:16px"></div>
+        <button class="sh-add" id="piAdd" onclick="piAddCart()"><i class="fas fa-shopping-bag"></i> Add to Cart</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1366,14 +1393,37 @@ function shDelta(d){shQty=Math.max(1,shQty+d);document.getElementById('shQval').
 function shAddCart(){if(!shProd)return;addCart(shProd.id,shProd.name,shProd.price,shProd.primary_image,shQty);closeSheet();}
 
 /* -- Post Sheet --------------------------------- */
+let currentGroupedProducts = {};
+
+function onPostListScroll(e){
+  const hdr=document.getElementById('postHeaderInfo');
+  if(e.target.scrollTop>20){
+    hdr.style.maxHeight='0px';
+    hdr.style.opacity='0';
+    hdr.style.marginBottom='0px';
+  }else{
+    hdr.style.maxHeight='300px';
+    hdr.style.opacity='1';
+    hdr.style.marginBottom='16px';
+  }
+}
+
 function openPostSheet(postData){
   document.getElementById('postTitle').textContent=postData.title||'';
   document.getElementById('postCaption').textContent=postData.caption||'';
+  document.getElementById('postHeaderInfo').style.maxHeight='300px';
+  document.getElementById('postHeaderInfo').style.opacity='1';
+  document.getElementById('postHeaderInfo').style.marginBottom='16px';
+  document.getElementById('postProductsList').scrollTop=0;
+  
   const list=document.getElementById('postProductsList');
+  currentGroupedProducts = {};
+
   if(!postData.products||!postData.products.length){
     list.innerHTML='<div class="empty"><p>No items available</p></div>';
   } else {
     list.innerHTML = postData.products.map(p => {
+      currentGroupedProducts[p.id] = p;
       const n = curLang==='am'&&(p.name_am||'')?p.name_am:p.name;
       const isLocked=p.min_loyalty_level_id && ((loyaltyProfile?.level?.sort_order||0)<(p.min_loyalty_level_sort_order||0));
       const outOfStock=p.stock_qty===0;
@@ -1382,19 +1432,19 @@ function openPostSheet(postData){
       if(isLaunchLocked) {
         btnHTML = `<button class="padd" disabled style="background:linear-gradient(135deg,#7C3AED,#C084FC);color:#fff">Locked</button>`;
       } else if(isLocked) {
-        btnHTML = `<button class="padd" onclick="closePostSheet();showTab('tab-rewards')" style="background:linear-gradient(135deg,#7C3AED,#C084FC);color:#fff">Unlock</button>`;
+        btnHTML = `<button class="padd" onclick="event.stopPropagation();closePostSheet();showTab('tab-rewards')" style="background:linear-gradient(135deg,#7C3AED,#C084FC);color:#fff">Unlock</button>`;
       } else if(outOfStock) {
         btnHTML = `<button class="padd" disabled>Out of Stock</button>`;
       } else {
-        btnHTML = `<button class="padd" onclick="addCart(${p.id},'${esc(n)}',${p.price},'${p.primary_image}',1);toast('${esc(n)} added to cart','success');">+ Add</button>`;
+        btnHTML = `<button class="padd" onclick="event.stopPropagation();addCart(${p.id},'${esc(n)}',${p.price},'${p.primary_image}',1);toast('${esc(n)} added to cart','success');">+ Add</button>`;
       }
 
       return `
-        <div style="display:flex;gap:12px;padding:12px;background:var(--sf);border:1px solid var(--br);border-radius:12px;align-items:center">
-          <img src="${p.primary_image}" alt="${esc(n)}" style="width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--br)" onerror="this.src='/static/images/placeholder.png'"/>
+        <div onclick="openPostItemSheet(${p.id})" style="display:flex;gap:12px;padding:12px;background:var(--sf);border:1px solid var(--br);border-radius:12px;align-items:center;cursor:pointer;transition:transform 0.1s ease" onactive="this.style.transform='scale(0.98)'">
+          <img src="${p.primary_image}" alt="${esc(n)}" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--br);background:#fff" onerror="this.src='/static/images/placeholder.png'"/>
           <div style="flex:1">
-            <div style="font-size:0.85rem;font-weight:700;line-height:1.2;margin-bottom:4px">${n}</div>
-            <div style="font-size:0.9rem;font-weight:800;color:var(--g)">${isLaunchLocked?'ETB ***':(p.price_hidden&&isLocked?'Members Only':'ETB '+Math.round(p.price).toLocaleString())}</div>
+            <div style="font-size:0.9rem;font-weight:700;line-height:1.2;margin-bottom:6px;color:var(--text)">${n}</div>
+            <div style="font-size:0.95rem;font-weight:800;color:var(--g)">${isLaunchLocked?'ETB ***':(p.price_hidden&&isLocked?'Members Only':'ETB '+Math.round(p.price).toLocaleString())}</div>
           </div>
           <div style="width:90px">${btnHTML}</div>
         </div>
@@ -1405,6 +1455,64 @@ function openPostSheet(postData){
   hap();
 }
 function closePostSheet(){document.getElementById('postSov').classList.remove('on');}
+
+/* -- Post Item Sheet (Nested) ------------------- */
+let piProd = null;
+function openPostItemSheet(pid){
+  const p = currentGroupedProducts[pid];
+  if(!p) return;
+  piProd = p;
+  const n = curLang==='am'&&(p.name_am||'')?p.name_am:p.name;
+  const d = curLang==='am'&&(p.short_description_am||'')?p.short_description_am:p.short_description;
+  
+  document.getElementById('piImg').src=p.primary_image||'/static/images/placeholder.png';
+  document.getElementById('piName').textContent=n;
+  document.getElementById('piPrice').textContent='ETB '+Math.round(p.price).toLocaleString();
+  
+  const cmp=document.getElementById('piCmp');
+  if(p.compare_price>p.price){
+    cmp.style.display='inline-block';
+    cmp.textContent='ETB '+Math.round(p.compare_price).toLocaleString();
+  }else cmp.style.display='none';
+  
+  const age=document.getElementById('piAge');
+  if(p.age_label){age.style.display='inline-block';age.textContent=p.age_label;}
+  else age.style.display='none';
+  
+  document.getElementById('piDesc').textContent=d||'';
+  
+  const isLocked=p.min_loyalty_level_id && ((loyaltyProfile?.level?.sort_order||0)<(p.min_loyalty_level_sort_order||0));
+  const isPremium=p.min_loyalty_level_id && !isLocked;
+  
+  const btn=document.getElementById('piAdd');
+  if(isLocked){
+    btn.innerHTML='Unlock via Rewards';
+    btn.disabled=false;
+    btn.onclick=()=>{closePostItemSheet();closePostSheet();showTab('tab-rewards');};
+    btn.style.background='linear-gradient(135deg,#7C3AED,#9F4AFF)';
+  } else if(p.stock_qty===0){
+    btn.textContent='Out of Stock';btn.disabled=true;btn.style.background='';
+  } else {
+    btn.innerHTML='<i class="fas fa-shopping-bag"></i> Add to Cart';btn.disabled=false;
+    btn.style.background='';btn.onclick=piAddCart;
+  }
+  
+  const bdg=document.getElementById('piBdgs');
+  bdg.innerHTML=(p.is_new_arrival?'<span class="bpill bnew">New</span>':'')+
+    (p.compare_price>p.price?'<span class="bpill bsale">Sale</span>':'')+
+    (isPremium?'<span class="bpill" style="background:linear-gradient(135deg,#7C3AED,#C084FC);color:#fff">Premium</span>':'');
+    
+  document.getElementById('postItemSov').classList.add('on');
+  hap();
+}
+function closePostItemSheet(){document.getElementById('postItemSov').classList.remove('on');piProd=null;}
+function piAddCart(){
+  if(!piProd)return;
+  const n = curLang==='am'&&(piProd.name_am||'')?piProd.name_am:piProd.name;
+  addCart(piProd.id,n,piProd.price,piProd.primary_image,1);
+  toast(n+' added to cart','success');
+  closePostItemSheet();
+}
 
 /* -- Home: Categories --------------------------- */
 async function loadHomeCats(){
