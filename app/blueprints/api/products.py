@@ -384,6 +384,14 @@ def get_channel_post_products(post_id):
     items = []
     for p in products:
         d = p.to_card_dict(qty_discount_min_price=qty_min_price)
+        
+        # Build images array
+        from app.models.product import ProductImage
+        img_urls = [img.image_url for img in p.images.order_by(ProductImage.sort_order.asc()).all()]
+        if not img_urls and p.primary_image():
+            img_urls = [p.primary_image()]
+        
+        d['images'] = img_urls
         # Include full descriptions for the modal
         d['description'] = p.description
         d['description_am'] = p.description_am

@@ -686,9 +686,12 @@ ul{list-style:none}
   <div class="sheet" style="max-height:90vh;display:flex;flex-direction:column;background:var(--bg)">
     <div class="shdl"></div>
     <div style="flex-shrink:0;padding:16px 16px 0">
-      <div id="postHeaderInfo" style="transition:all 0.3s ease;overflow:hidden;max-height:300px;opacity:1;margin-bottom:16px">
+      <div id="postHeaderInfo" style="transition:all 0.3s ease;overflow:hidden;max-height:400px;opacity:1;margin-bottom:16px">
         <div id="postTitle" style="font-weight:800;font-size:1.2rem;margin-bottom:8px;color:var(--text)"></div>
-        <div id="postCaption" style="font-size:0.9rem;color:var(--tm);line-height:1.5;"></div>
+        <div id="postCaptionWrap" style="position:relative">
+          <div id="postCaption" style="font-size:0.9rem;color:var(--tm);line-height:1.5;white-space:pre-wrap;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;transition:all 0.3s ease"></div>
+          <div id="postCaptionToggle" onclick="togglePostCaption()" style="color:var(--p);font-size:0.85rem;font-weight:700;cursor:pointer;margin-top:4px;display:none">View more</div>
+        </div>
       </div>
       <div style="font-size:0.95rem;font-weight:800;margin-bottom:12px;color:var(--g)">Select items to add:</div>
     </div>
@@ -705,8 +708,13 @@ ul{list-style:none}
       <button onclick="closePostItemSheet()" style="background:none;border:none;font-size:1.1rem;color:var(--g);cursor:pointer;padding:4px"><i class="fas fa-arrow-left"></i> Back</button>
     </div>
     <div style="flex:1;overflow-y:auto">
-      <div class="sh-img-wrap" style="margin-top:0">
-        <img id="piImg" src="" alt="" class="sh-img" onclick="openImageLightbox(this.src)"/>
+      <div class="sh-img-wrap" style="margin-top:0;position:relative;background:#f3f4f6">
+        <div id="piImgCarousel" style="display:flex;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none">
+          <!-- Injected via JS -->
+        </div>
+        <div id="piImgDots" style="position:absolute;bottom:12px;width:100%;display:flex;justify-content:center;gap:6px;pointer-events:none">
+          <!-- Injected via JS -->
+        </div>
       </div>
       <div class="sh-body">
         <div class="sh-bdgs" id="piBdgs"></div>
@@ -1394,6 +1402,20 @@ function shAddCart(){if(!shProd)return;addCart(shProd.id,shProd.name,shProd.pric
 
 /* -- Post Sheet --------------------------------- */
 let currentGroupedProducts = {};
+let isPostCaptionExpanded = false;
+
+function togglePostCaption(){
+  const cap = document.getElementById('postCaption');
+  const tgl = document.getElementById('postCaptionToggle');
+  isPostCaptionExpanded = !isPostCaptionExpanded;
+  if(isPostCaptionExpanded){
+    cap.style.webkitLineClamp = 'unset';
+    tgl.textContent = 'View less';
+  } else {
+    cap.style.webkitLineClamp = '3';
+    tgl.textContent = 'View more';
+  }
+}
 
 function onPostListScroll(e){
   const hdr=document.getElementById('postHeaderInfo');
@@ -1402,7 +1424,7 @@ function onPostListScroll(e){
     hdr.style.opacity='0';
     hdr.style.marginBottom='0px';
   }else{
-    hdr.style.maxHeight='300px';
+    hdr.style.maxHeight='400px';
     hdr.style.opacity='1';
     hdr.style.marginBottom='16px';
   }
@@ -1410,8 +1432,25 @@ function onPostListScroll(e){
 
 function openPostSheet(postData){
   document.getElementById('postTitle').textContent=postData.title||'';
-  document.getElementById('postCaption').textContent=postData.caption||'';
-  document.getElementById('postHeaderInfo').style.maxHeight='300px';
+  
+  const cap = document.getElementById('postCaption');
+  const tgl = document.getElementById('postCaptionToggle');
+  cap.textContent = postData.caption||'';
+  isPostCaptionExpanded = false;
+  cap.style.webkitLineClamp = '3';
+  
+  // Only show 'View more' if text is long enough to truncate
+  // We can loosely estimate by character count or wait for layout.
+  // Using character count as a fast heuristic (e.g. > 150 chars or contains multiple newlines)
+  const capStr = postData.caption||'';
+  if(capStr.length > 150 || (capStr.match(/\n/g)||[]).length >= 3){
+    tgl.style.display = 'inline-block';
+    tgl.textContent = 'View more';
+  } else {
+    tgl.style.display = 'none';
+  }
+
+  document.getElementById('postHeaderInfo').style.maxHeight='400px';
   document.getElementById('postHeaderInfo').style.opacity='1';
   document.getElementById('postHeaderInfo').style.marginBottom='16px';
   document.getElementById('postProductsList').scrollTop=0;
@@ -1458,6 +1497,14 @@ function closePostSheet(){document.getElementById('postSov').classList.remove('o
 
 /* -- Post Item Sheet (Nested) ------------------- */
 let piProd = null;
+function updatePiDots(index) {
+  const dots = document.querySelectorAll('#piImgDots .dot');
+  dots.forEach((d, i) => {
+    d.style.background = i === index ? 'var(--p)' : 'rgba(0,0,0,0.2)';
+    d.style.transform = i === index ? 'scale(1.2)' : 'scale(1)';
+  });
+}
+
 function openPostItemSheet(pid){
   const p = currentGroupedProducts[pid];
   if(!p) return;
@@ -1465,7 +1512,25 @@ function openPostItemSheet(pid){
   const n = curLang==='am'&&(p.name_am||'')?p.name_am:p.name;
   const d = curLang==='am'&&(p.short_description_am||'')?p.short_description_am:p.short_description;
   
-  document.getElementById('piImg').src=p.primary_image||'/static/images/placeholder.png';
+  // Carousel Images
+  const images = (p.images && p.images.length > 0) ? p.images : (p.primary_image ? [p.primary_image] : ['/static/images/placeholder.png']);
+  const carousel = document.getElementById('piImgCarousel');
+  const dotsContainer = document.getElementById('piImgDots');
+  
+  carousel.innerHTML = images.map(src => `<img src="${src}" onclick="openImageLightbox('${src}')" style="flex:0 0 100%;width:100%;aspect-ratio:1/1;object-fit:cover;scroll-snap-align:center;background:#fff" onerror="this.src='/static/images/placeholder.png'"/>`).join('');
+  
+  if(images.length > 1) {
+    dotsContainer.innerHTML = images.map((_, i) => `<div class="dot" style="width:6px;height:6px;border-radius:50%;background:${i===0?'var(--p)':'rgba(0,0,0,0.2)'};transition:all 0.2s"></div>`).join('');
+    carousel.onscroll = () => {
+      const index = Math.round(carousel.scrollLeft / carousel.offsetWidth);
+      updatePiDots(index);
+    };
+  } else {
+    dotsContainer.innerHTML = '';
+    carousel.onscroll = null;
+  }
+  carousel.scrollLeft = 0;
+  
   document.getElementById('piName').textContent=n;
   document.getElementById('piPrice').textContent='ETB '+Math.round(p.price).toLocaleString();
   
