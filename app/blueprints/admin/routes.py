@@ -2160,7 +2160,7 @@ def channel_posts():
                 for idx, p in enumerate(selected_products):
                     db.session.execute(
                         __import__('sqlalchemy').text(
-                            'INSERT OR IGNORE INTO channel_post_products (post_id, product_id, sort_order) VALUES (:post_id, :product_id, :sort_order)'
+                            'INSERT INTO channel_post_products (post_id, product_id, sort_order) VALUES (:post_id, :product_id, :sort_order)'
                         ),
                         {'post_id': post.id, 'product_id': p.id, 'sort_order': idx}
                     )
@@ -2245,7 +2245,7 @@ def edit_channel_post(post_id):
                 db.session.flush()
                 for idx, p in enumerate(selected_products_edit):
                     db.session.execute(
-                        sa.text('INSERT OR IGNORE INTO channel_post_products (post_id, product_id, sort_order) VALUES (:post_id, :product_id, :sort_order)'),
+                        sa.text('INSERT INTO channel_post_products (post_id, product_id, sort_order) VALUES (:post_id, :product_id, :sort_order)'),
                         {'post_id': post.id, 'product_id': p.id, 'sort_order': idx}
                     )
 
