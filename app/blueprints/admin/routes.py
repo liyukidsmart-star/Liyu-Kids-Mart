@@ -16,7 +16,7 @@ from app.models.order import Order, OrderStatus, Coupon, DiscountType, OrderItem
 from app.models.loyalty import LoyaltySettings
 from app.services.loyalty_service import _get_settings
 from app.models.marketing import ProductDiscount, TelegramChannelPost, TelegramChannelPostImage
-from app.services.telegram_marketing import publish_channel_post, _telegram_mini_app_link, channel_button_link_mode
+from app.services.telegram_marketing import publish_channel_post, _telegram_mini_app_link, channel_button_link_mode, send_grouped_post_approval_preview
 from app.services.image_delivery import media_url_for_file_id
 from app.models.user import User, UserRole
 from app.models.delivery import Driver
@@ -1978,6 +1978,32 @@ def _save_post_images(post, image_urls):
 def _publish_post(post, product=None):
     if post.post_type == 'product' and product is None and post.product:
         product = post.product
+
+    # --- Grouped post: send approval preview to managers first ---
+    is_grouped = False
+    try:
+        if post.post_type == 'product' and getattr(post, 'grouped_products', None):
+            is_grouped = post.grouped_products.count() > 1
+    except Exception:
+        pass
+
+    if is_grouped:
+        result = asyncio.run(send_grouped_post_approval_preview(post, product=product))
+        if result.get('ok'):
+            post.status = 'pending_approval'
+            post.error_message = None
+            db.session.commit()
+            return True, (
+                '📦 Grouped post sent to admins/managers for approval. '
+                'They can test the "አሁን ይግዙ" button and approve to publish.'
+            )
+        # If no managers configured yet, fall through to direct publish with a warning
+        current_app.logger.warning(
+            'No managers have a Telegram ID set — publishing grouped post directly. '
+            'Set a Telegram ID on admin/manager users to enable approval workflow.'
+        )
+
+    # --- Standard publish (single product or announcement, or fallback) ---
     image_urls = _post_image_urls(post)
     if post.post_type == 'product' and not image_urls and product is not None:
         image_urls = [product.primary_image()]
@@ -2012,6 +2038,7 @@ def _publish_post(post, product=None):
     post.error_message = result.get('error') or result.get('description') or 'Telegram returned an error'
     db.session.commit()
     return False, post.error_message
+
 
 
 def _process_due_channel_posts():

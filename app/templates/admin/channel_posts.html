@@ -324,7 +324,7 @@ document.addEventListener('DOMContentLoaded', function() {
               <div class="small text-muted">{{ post.product.name }} - ETB {{ '{:,.0f}'.format(post.product.current_price()) }}</div>
             {% endif %}
           </td>
-          <td><span class="badge bg-{{ 'success' if post.status == 'sent' else 'secondary' if post.status == 'draft' else 'warning' if post.status == 'scheduled' else 'danger' if post.status == 'failed' else 'info' }}">{{ post.status|title }}</span></td>
+          <td><span class="badge bg-{{ 'success' if post.status == 'sent' else 'secondary' if post.status == 'draft' else 'warning text-dark' if post.status == 'scheduled' else 'danger' if post.status == 'failed' else 'info text-dark' if post.status == 'pending_approval' else 'info' }}">{{ 'Pending Approval' if post.status == 'pending_approval' else post.status|title }}</span></td>
           <td class="small">{{ post.scheduled_at.astimezone(configured_tz).strftime('%b %d, %Y %H:%M') if post.scheduled_at else post.sent_at.astimezone(configured_tz).strftime('%b %d, %Y %H:%M') if post.sent_at else post.created_at.astimezone(configured_tz).strftime('%b %d, %Y %H:%M') if post.created_at else '?' }}</td>
           <td class="small text-danger">{{ post.error_message or '—' }}</td>
           <td class="text-end">

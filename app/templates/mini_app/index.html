@@ -1118,23 +1118,30 @@ function getStartupIntent(){
   const params=new URLSearchParams(window.location.search);
   let raw=(tg?.initDataUnsafe?.start_param || params.get('startapp') || '').trim();
   let query=(params.get('query')||'').trim();
-  if(!query && raw.includes('__')){
-    const splitAt=raw.indexOf('__');
-    query=decodeURIComponent(raw.slice(splitAt+2).replace(/\+/g,' '));
-    raw=raw.slice(0,splitAt);
-  }
-  const tabParam=(params.get('tab')||'').trim();
-  const target=_resolveStartTab(tabParam || raw);
-  const normalized=raw.toLowerCase();
+
+  // Named deep-link prefixes must be detected BEFORE the generic __ split.
+  // post__<id>  → open grouped post modal
+  // product__<id> → open single product sheet
   let productId='';
   let postId='';
-  if(normalized === 'product' && query){
-    productId=query;
-  } else if(normalized.startsWith('product__')){
-    productId=raw.split('__')[1] || '';
-  } else if(normalized.startsWith('post__')){
-    postId=raw.split('__')[1] || '';
+  const normalizedRaw = raw.toLowerCase();
+  if(normalizedRaw.startsWith('post__')){
+    postId = raw.slice(6);               // everything after "post__"
+  } else if(normalizedRaw.startsWith('product__')){
+    productId = raw.slice(9);            // everything after "product__"
+  } else if(!query && raw.includes('__')){
+    // Generic tab__query encoding (e.g. "ai__search term")
+    const splitAt = raw.indexOf('__');
+    query = decodeURIComponent(raw.slice(splitAt+2).replace(/\+/g,' '));
+    raw = raw.slice(0, splitAt);
   }
+  // Also support ?startapp=product with ?query=<id>
+  if(!productId && !postId && normalizedRaw === 'product' && query){
+    productId = query;
+  }
+
+  const tabParam=(params.get('tab')||'').trim();
+  const target=_resolveStartTab(tabParam || raw);
   startupIntent={target, query, raw, productId, postId};
   return startupIntent;
 }

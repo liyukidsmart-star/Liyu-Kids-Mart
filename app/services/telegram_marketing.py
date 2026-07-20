@@ -559,3 +559,120 @@ def build_announcement_payload(title: str, caption: str, *, button_text: str = '
         'button_text': button_text,
         'button_url': button_url or _telegram_mini_app_link(tab='home'),
     }
+
+
+def _get_manager_telegram_ids() -> list:
+    """Return telegram_ids of all active admins and managers."""
+    try:
+        from app.models.user import User, UserRole
+        users = User.query.filter(
+            User.telegram_id.isnot(None),
+            User.is_active == True,  # noqa: E712
+            User.role.in_([UserRole.admin, UserRole.manager]),
+        ).all()
+        return [u.telegram_id for u in users if u.telegram_id]
+    except Exception as exc:
+        logger.warning('Could not fetch manager Telegram IDs: %s', exc)
+        return []
+
+
+async def send_grouped_post_approval_preview(post, product=None) -> dict:
+    """Send the grouped post as a preview to all admins/managers for approval.
+
+    The preview message contains:
+    - A thumbnail of the cover image
+    - The post caption
+    - Three inline buttons:
+        * ✅ Approve  (callback: approve_post_<id>)
+        * ❌ Reject   (callback: reject_post_<id>)
+        * 🛒 Test link (the live "አሁን ይግዙ" deep link so they can verify the modal)
+    """
+    token = _token()
+    if not token:
+        return {'ok': False, 'error': 'No bot token'}
+
+    manager_ids = _get_manager_telegram_ids()
+    if not manager_ids:
+        logger.warning('No admin/manager Telegram IDs found – skipping approval preview.')
+        return {'ok': False, 'error': 'No managers configured with a Telegram ID'}
+
+    post_id = getattr(post, 'id', None)
+    buy_url = getattr(post, 'button_url', '') or _telegram_mini_app_link(startapp=f'post__{post_id}')
+
+    # Build grouped product summary
+    try:
+        grouped = post.grouped_products.all()
+    except Exception:
+        grouped = [product] if product else []
+
+    product_lines = ''
+    for p in grouped:
+        price = float(p.current_price())
+        name = getattr(p, 'name_am', None) or getattr(p, 'name', '') or ''
+        product_lines += f'\n  • {html.escape(name)} — ETB {price:,.0f}'
+
+    caption_text = (
+        f'<b>📦 Grouped Post Preview — Post #{post_id}</b>\n\n'
+        f'<b>Title:</b> {html.escape(getattr(post, "title", "") or "")}\n'
+        f'<b>Caption:</b> {html.escape(getattr(post, "caption", "") or "")}\n\n'
+        f'<b>Products ({len(grouped)}):</b>{product_lines}\n\n'
+        f'👆 Test "አሁን ይግዙ" button below to verify the modal, '
+        f'then approve or reject.'
+    )
+
+    reply_markup = {
+        'inline_keyboard': [
+            [
+                {'text': '✅ Approve & Post to Channel', 'callback_data': f'approve_post_{post_id}'},
+                {'text': '❌ Reject', 'callback_data': f'reject_post_{post_id}'},
+            ],
+            [
+                _channel_button(f'🛒 Test — አሁን ይግዙ', url=buy_url),
+            ],
+        ]
+    }
+
+    image_urls = []
+    try:
+        from app.models.marketing import TelegramChannelPostImage
+        image_urls = [img.image_url for img in post.images.order_by(
+            TelegramChannelPostImage.sort_order.asc()).all() if img.image_url]
+    except Exception:
+        pass
+    cover_url = _telegram_image_input(image_urls[0]) if image_urls else ''
+
+    results = []
+    async with httpx.AsyncClient() as client:
+        for chat_id in manager_ids:
+            try:
+                if cover_url:
+                    resp = await client.post(
+                        f'https://api.telegram.org/bot{token}/sendPhoto',
+                        json={
+                            'chat_id': chat_id,
+                            'photo': cover_url,
+                            'caption': _truncate(caption_text, 1024),
+                            'parse_mode': 'HTML',
+                            'reply_markup': reply_markup,
+                        },
+                        timeout=20,
+                    )
+                else:
+                    resp = await client.post(
+                        f'https://api.telegram.org/bot{token}/sendMessage',
+                        json={
+                            'chat_id': chat_id,
+                            'text': _truncate(caption_text, 4096),
+                            'parse_mode': 'HTML',
+                            'reply_markup': reply_markup,
+                            'disable_web_page_preview': True,
+                        },
+                        timeout=20,
+                    )
+                results.append(resp.json())
+            except Exception as exc:
+                logger.warning('Failed to send approval preview to %s: %s', chat_id, exc)
+                results.append({'ok': False, 'error': str(exc)})
+
+    success = any(r.get('ok') for r in results)
+    return {'ok': success, 'results': results}
