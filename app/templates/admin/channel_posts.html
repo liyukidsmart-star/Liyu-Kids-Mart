@@ -1,6 +1,58 @@
 {% extends 'admin/base_admin.html' %}
 {% block title %}Telegram Channel Posts - Admin{% endblock %}
 {% block page_title %}Telegram Channel Posts{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet"/>
+<style>
+  /* Select2 custom styling to match admin theme */
+  .select2-container--default .select2-selection--multiple {
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    min-height: 42px;
+    padding: 4px 8px;
+  }
+  .select2-container--default.select2-container--focus .select2-selection--multiple {
+    border-color: #198754;
+    box-shadow: 0 0 0 0.2rem rgba(25,135,84,.15);
+  }
+  .select2-container--default .select2-selection--multiple .select2-selection__choice {
+    background-color: #198754;
+    border: none;
+    color: #fff;
+    border-radius: 20px;
+    padding: 2px 10px;
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+  .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+    color: rgba(255,255,255,0.8);
+    margin-right: 4px;
+  }
+  .select2-container--default .select2-selection--multiple .select2-selection__choice__remove:hover {
+    color: #fff;
+    background: transparent;
+  }
+  .select2-dropdown {
+    border-radius: 0.375rem;
+    border: 1px solid #dee2e6;
+    box-shadow: 0 4px 24px rgba(0,0,0,.1);
+  }
+  .select2-container--default .select2-results__option--highlighted[aria-selected] {
+    background-color: #198754;
+  }
+  .select2-search--dropdown .select2-search__field {
+    border-radius: 0.25rem;
+    border: 1px solid #dee2e6;
+    padding: 6px 10px;
+  }
+  .select2-results__option {
+    padding: 7px 12px;
+    font-size: 0.88rem;
+  }
+</style>
+{% endblock %}
+
 {% block content %}
 {% if processed %}
 <div class="alert alert-info">Automatically published {{ processed }} scheduled post{{ 's' if processed != 1 else '' }} while loading this page.</div>
@@ -54,42 +106,62 @@
         <input type="hidden" name="post_type" value="product"/>
         <input type="hidden" name="custom_photo_url" id="custom_photo_url"/>
         <input type="hidden" name="custom_video_url" id="custom_video_url"/>
+
+        <!-- Grouped Products Multi-Select -->
         <div class="mb-3">
-          <label class="form-label fw-600">Product *</label>
-          <select name="product_id" id="product_selector" class="form-select" required>
-            <option value="">Select a product</option>
+          <label class="form-label fw-600">
+            Products *
+            <span class="badge bg-secondary ms-1" style="font-size:.68rem;font-weight:600">Searchable multi-select</span>
+          </label>
+          <select name="product_ids[]" id="product_selector" class="form-select" multiple required style="width:100%">
             {% for product in products %}
-            <option value="{{ product.id }}">{{ product.name }} - ETB {{ '{:,.0f}'.format(product.current_price()) }}</option>
+            <option value="{{ product.id }}" data-price="{{ '{:,.0f}'.format(product.current_price()) }}">
+              {{ product.name }} — ETB {{ '{:,.0f}'.format(product.current_price()) }}
+            </option>
             {% endfor %}
           </select>
+          <div class="form-text mt-1">
+            Select <strong>one product</strong> for a standard post or <strong>multiple products</strong> to create a variant group (e.g. different jigsaw puzzle sizes). Customers will see a selection modal when they click "አሁን ይግዙ".
+          </div>
         </div>
+
+        <!-- Custom Caption -->
         <div class="mb-3">
-          <label class="form-label fw-600">Custom Caption</label>
-          <textarea name="caption" id="product_caption" class="form-control" rows="5" placeholder="Optional extra note below the product caption." maxlength="1024"></textarea>
+          <label class="form-label fw-600">Custom Caption / Description</label>
+          <textarea name="caption" id="product_caption" class="form-control" rows="5" placeholder="Write the Telegram post caption here. For grouped posts, describe the collection." maxlength="1024"></textarea>
           <div class="d-flex justify-content-between form-text">
-            <span>Edit this to fit Telegram's limit if you upload media.</span>
+            <span>This text appears in the Telegram channel message.</span>
             <span id="caption_counter">0 / 1024</span>
           </div>
         </div>
-        <div class="row g-2 mb-3">
-          <div class="col-md-6">
-            <label class="form-label fw-600">Upload Photo</label>
-            <input type="file" name="custom_photo" id="custom_photo" class="form-control" accept="image/*"/>
-            <div class="form-text">Optional. Overrides default.</div>
-          </div>
-          <div class="col-md-6">
-            <label class="form-label fw-600">Upload Video</label>
-            <input type="file" name="custom_video" id="custom_video" class="form-control" accept="video/mp4,video/quicktime"/>
-            <div class="form-text">Optional. Sent as media group.</div>
-          </div>
+
+        <!-- Custom Cover Image (required for grouped posts, optional for single) -->
+        <div class="mb-3">
+          <label class="form-label fw-600">
+            Cover Photo
+            <span class="badge bg-warning text-dark ms-1" id="cover_photo_badge" style="font-size:.68rem;display:none">Required for grouped posts</span>
+          </label>
+          <input type="file" name="custom_photo" id="custom_photo" class="form-control" accept="image/*"/>
+          <div class="form-text">For grouped posts, upload a custom cover image. For single-product posts this overrides the product's primary image.</div>
         </div>
+
+        <!-- Video Upload -->
+        <div class="mb-3">
+          <label class="form-label fw-600">Upload Video <span class="text-muted small">(optional)</span></label>
+          <input type="file" name="custom_video" id="custom_video" class="form-control" accept="video/mp4,video/quicktime"/>
+          <div class="form-text">Sent as media group alongside the photo.</div>
+        </div>
+
+        <!-- Schedule -->
         <div class="mb-3">
           <label class="form-label fw-600">Schedule For</label>
           <input type="datetime-local" name="scheduled_at" class="form-control"/>
           <div class="form-text">Leave blank to publish immediately.</div>
         </div>
-        <div class="alert alert-info small">
-          The post will include your uploaded photo/video + the two buttons: <strong>ልዩን ይጠይቁ</strong> and <strong>አሁን ይግዙ</strong> (links directly to this product).
+
+        <div class="alert alert-info small" id="post_type_hint">
+          A single-product post includes two buttons: <strong>ልዩን ይጠይቁ</strong> and <strong>አሁን ይግዙ</strong> (links directly to that product).<br>
+          A grouped post links "አሁን ይግዙ" to a variant selection modal inside the mini app.
         </div>
         <button type="submit" id="product_submit_btn" class="btn admin-btn-green w-100">Publish Product Post</button>
       </form>
@@ -97,52 +169,75 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const sel = document.getElementById('product_selector');
+    // --- Select2 initialization ---
+    $('#product_selector').select2({
+        placeholder: 'Search and select products…',
+        allowClear: true,
+        width: '100%',
+        closeOnSelect: false,
+        templateResult: function(data) {
+            if (!data.id) return data.text;
+            const price = $(data.element).data('price');
+            return $('<span>' + data.text + (price ? ' <small style="color:#6c757d">ETB ' + price + '</small>' : '') + '</span>');
+        },
+    });
+
     const cap = document.getElementById('product_caption');
     const counter = document.getElementById('caption_counter');
+    const coverBadge = document.getElementById('cover_photo_badge');
+    const hint = document.getElementById('post_type_hint');
 
     function updateCounter() {
-        const len = cap.value.length;
+        const len = (cap.value || '').length;
         counter.textContent = len + ' / 1024';
-        if (len > 1024) counter.style.color = 'red';
-        else counter.style.color = '';
+        counter.style.color = len > 1024 ? 'red' : '';
     }
 
-    if (sel && cap) {
-        sel.addEventListener('change', async function() {
-            const opt = sel.options[sel.selectedIndex];
-            if (opt && opt.value) {
-                cap.value = 'Loading description...';
-                updateCounter();
-                try {
-                    const res = await fetch('/api/v1/products/' + opt.value);
-                    const data = await res.json();
+    function onSelectionChange() {
+        const selected = $('#product_selector').val() || [];
+        const isGrouped = selected.length > 1;
+        coverBadge.style.display = isGrouped ? '' : 'none';
+        if (isGrouped) {
+            hint.innerHTML = '🎉 Grouped post: customers will see a <strong>variant selection modal</strong> inside the mini app when they click "አሁን ይግዙ".';
+        } else {
+            hint.innerHTML = 'A single-product post includes two buttons: <strong>ልዩን ይጠይቁ</strong> and <strong>አሁን ይግዙ</strong> (links directly to that product).<br>A grouped post links "አሁን ይግዙ" to a variant selection modal inside the mini app.';
+        }
+        // Auto-populate caption from first selected product if only 1 selected and caption empty
+        if (selected.length === 1 && !(cap.value || '').trim()) {
+            cap.value = 'Loading description...';
+            updateCounter();
+            fetch('/api/v1/products/' + selected[0])
+                .then(r => r.json())
+                .then(data => {
                     if (data.success && data.data) {
                         const p = data.data;
                         cap.value = p.description_am || p.short_description_am || p.description || p.short_description || '';
                     } else {
                         cap.value = '';
                     }
-                } catch (err) {
-                    console.error('Failed to load product description:', err);
-                    cap.value = '';
-                }
-                updateCounter();
-            } else {
-                cap.value = '';
-                updateCounter();
-            }
-        });
-        cap.addEventListener('input', updateCounter);
+                    updateCounter();
+                })
+                .catch(() => { cap.value = ''; updateCounter(); });
+        }
     }
 
+    $('#product_selector').on('change', onSelectionChange);
+    if (cap) cap.addEventListener('input', updateCounter);
 
+    // --- Form submit with media pre-upload ---
     const productForm = document.getElementById('product_form');
     if (productForm) {
         productForm.addEventListener('submit', async function(e) {
             e.preventDefault();
+            const selected = $('#product_selector').val() || [];
+            if (!selected.length) {
+                alert('Please select at least one product.');
+                return;
+            }
             const btn = document.getElementById('product_submit_btn');
             const originalText = btn.textContent;
             btn.disabled = true;
@@ -164,7 +259,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (data.signed_url) {
                         await fetch(data.signed_url, { method: 'PUT', body: file });
                         document.getElementById('custom_photo_url').value = data.public_url;
-                        photoInput.removeAttribute('name'); // Prevent form from sending file
+                        photoInput.removeAttribute('name');
                     }
                 }
 
@@ -180,7 +275,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (data.signed_url) {
                         await fetch(data.signed_url, { method: 'PUT', body: file });
                         document.getElementById('custom_video_url').value = data.public_url;
-                        videoInput.removeAttribute('name'); // Prevent form from sending file
+                        videoInput.removeAttribute('name');
                     }
                 }
 
@@ -219,11 +314,19 @@ document.addEventListener('DOMContentLoaded', function() {
           <td><span class="badge bg-{{ 'primary' if post.post_type == 'product' else 'warning' }} text-dark">{{ post.post_type|title }}</span></td>
           <td>
             <div class="fw-600">{{ post.title or (post.product.name if post.product else 'Untitled') }}</div>
-            {% if post.product %}<div class="small text-muted">{{ post.product.name }} - ETB {{ '{:,.0f}'.format(post.product.current_price()) }}</div>{% endif %}
+            {% set gp = post.grouped_products.all() %}
+            {% if gp|length > 1 %}
+              <div class="small text-muted">
+                <span class="badge bg-success me-1">{{ gp|length }} products grouped</span>
+                {{ gp|map(attribute='name')|join(', ')|truncate(60) }}
+              </div>
+            {% elif post.product %}
+              <div class="small text-muted">{{ post.product.name }} - ETB {{ '{:,.0f}'.format(post.product.current_price()) }}</div>
+            {% endif %}
           </td>
           <td><span class="badge bg-{{ 'success' if post.status == 'sent' else 'secondary' if post.status == 'draft' else 'warning' if post.status == 'scheduled' else 'danger' if post.status == 'failed' else 'info' }}">{{ post.status|title }}</span></td>
           <td class="small">{{ post.scheduled_at.astimezone(configured_tz).strftime('%b %d, %Y %H:%M') if post.scheduled_at else post.sent_at.astimezone(configured_tz).strftime('%b %d, %Y %H:%M') if post.sent_at else post.created_at.astimezone(configured_tz).strftime('%b %d, %Y %H:%M') if post.created_at else '?' }}</td>
-          <td class="small text-danger">{{ post.error_message or '?' }}</td>
+          <td class="small text-danger">{{ post.error_message or '—' }}</td>
           <td class="text-end">
             <a href="{{ url_for('admin.edit_channel_post', post_id=post.id) }}" class="btn btn-sm admin-btn-outline me-1">Edit</a>
             <form method="POST" action="{{ url_for('admin.send_channel_post_now', post_id=post.id) }}" class="d-inline">

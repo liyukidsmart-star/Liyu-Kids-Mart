@@ -362,3 +362,40 @@ def get_categories():
         return success_response([])
     cats = Category.query.filter_by(is_active=True, parent_id=None).order_by(Category.sort_order).all()
     return success_response([c.to_dict() for c in cats])
+
+
+@api_bp.route('/channel-posts/<int:post_id>')
+def get_channel_post_products(post_id):
+    """Return grouped products for a channel post (used by the mini app buy modal)."""
+    post = db.session.get(TelegramChannelPost, post_id)
+    if not post:
+        return error_response('Channel post not found', 404)
+
+    settings = _get_settings()
+    qty_min_price = float(getattr(settings, 'qty_discount_min_price', 2500))
+
+    # Prefer grouped_products; fall back to legacy single product
+    products = post.grouped_products.all()
+    if not products and post.product:
+        products = [post.product]
+
+    prime_product_image_lookup(products)
+
+    items = []
+    for p in products:
+        d = p.to_card_dict(qty_discount_min_price=qty_min_price)
+        # Include full descriptions for the modal
+        d['description'] = p.description
+        d['description_am'] = p.description_am
+        d['short_description'] = p.short_description
+        d['short_description_am'] = p.short_description_am
+        items.append(d)
+
+    return success_response({
+        'post_id': post.id,
+        'title': post.title or '',
+        'caption': post.caption or '',
+        'post_type': post.post_type,
+        'products': items,
+    })
+

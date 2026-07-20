@@ -2077,38 +2077,56 @@ def channel_posts():
         image_urls = []
         try:
             if post_type == 'product':
-                product_id = _safe_int(request.form.get('product_id'))
-                product = db.session.get(Product, product_id)
-                if not product:
-                    flash('Select a valid product for the channel post.', 'danger')
+                # Support new multi-select (product_ids[]) and old single-select (product_id)
+                raw_ids = request.form.getlist('product_ids[]') or [request.form.get('product_id', '')]
+                product_ids = [_safe_int(v) for v in raw_ids if str(v).strip() and _safe_int(v)]
+                product_ids = list(dict.fromkeys(product_ids))  # deduplicate, preserve order
+
+                if not product_ids:
+                    flash('Select at least one product for the channel post.', 'danger')
                     return render_template('admin/channel_posts.html', products=products, recent_posts=recent_posts, processed=processed, configured_tz=ADMIN_TZ)
+
+                selected_products = [db.session.get(Product, pid) for pid in product_ids]
+                selected_products = [p for p in selected_products if p]
+
+                if not selected_products:
+                    flash('Could not find the selected products. Please try again.', 'danger')
+                    return render_template('admin/channel_posts.html', products=products, recent_posts=recent_posts, processed=processed, configured_tz=ADMIN_TZ)
+
+                is_grouped = len(selected_products) > 1
+
+                # Primary product (first selected) — kept for legacy single-product compatibility
+                product = selected_products[0]
                 post.product_id = product.id
                 post.title = title or product.name
+
+                # Handle custom cover image / video
                 custom_photo_url = request.form.get('custom_photo_url', '').strip()
                 custom_video_url = request.form.get('custom_video_url', '').strip()
-
                 custom_photo = request.files.get('custom_photo')
                 custom_video = request.files.get('custom_video')
-                
+
                 if custom_photo_url:
                     image_urls.append(custom_photo_url)
                 elif custom_photo and custom_photo.filename and allowed_file(custom_photo.filename):
                     img_url = _upload_to_telegram(custom_photo)
-                    if img_url: image_urls.append(img_url)
-                
+                    if img_url:
+                        image_urls.append(img_url)
+
                 if custom_video_url:
                     image_urls.append(custom_video_url)
                 elif custom_video and custom_video.filename:
                     vid_url = _upload_video_to_telegram(custom_video)
-                    if vid_url: image_urls.append(vid_url)
-                
+                    if vid_url:
+                        image_urls.append(vid_url)
+
                 if not image_urls:
                     image_urls = [product.primary_image()]
-                
-                post.button_url = _configured_telegram_mini_app_link(product_id=product.id)
-                
+
                 if not caption:
                     post.caption = ''
+
+                # Button URL is set after flush (need post.id for grouped posts)
             else:
                 uploaded = request.files.getlist('images')
                 if uploaded:
@@ -2135,7 +2153,22 @@ def channel_posts():
                     return render_template('admin/channel_posts.html', products=products, recent_posts=recent_posts, processed=processed, configured_tz=ADMIN_TZ)
 
             db.session.add(post)
-            db.session.flush()
+            db.session.flush()  # get post.id
+
+            # Save grouped products and set button URL
+            if post_type == 'product':
+                for idx, p in enumerate(selected_products):
+                    db.session.execute(
+                        __import__('sqlalchemy').text(
+                            'INSERT OR IGNORE INTO channel_post_products (post_id, product_id, sort_order) VALUES (:post_id, :product_id, :sort_order)'
+                        ),
+                        {'post_id': post.id, 'product_id': p.id, 'sort_order': idx}
+                    )
+                if is_grouped:
+                    post.button_url = _configured_telegram_mini_app_link(startapp=f'post__{post.id}')
+                else:
+                    post.button_url = _configured_telegram_mini_app_link(product_id=product.id)
+
             if image_urls:
                 _save_post_images(post, image_urls)
             db.session.commit()
@@ -2153,6 +2186,7 @@ def channel_posts():
             return render_template('admin/channel_posts.html', products=products, recent_posts=recent_posts, processed=processed, configured_tz=ADMIN_TZ)
 
     return render_template('admin/channel_posts.html', products=products, recent_posts=recent_posts, processed=processed, configured_tz=ADMIN_TZ)
+
 
 
 @admin_bp.route('/channel-posts/<int:post_id>/edit', methods=['GET', 'POST'])
@@ -2182,21 +2216,54 @@ def edit_channel_post(post_id):
 
         try:
             if post.post_type == 'product':
-                product_id = _safe_int(request.form.get('product_id'))
-                product = db.session.get(Product, product_id)
-                if not product:
-                    flash('Select a valid product.', 'danger')
+                # Support new multi-select (product_ids[]) and old single-select (product_id)
+                raw_ids = request.form.getlist('product_ids[]') or [request.form.get('product_id', '')]
+                product_ids_edit = [_safe_int(v) for v in raw_ids if str(v).strip() and _safe_int(v)]
+                product_ids_edit = list(dict.fromkeys(product_ids_edit))
+
+                if not product_ids_edit:
+                    flash('Select at least one product.', 'danger')
                     return render_template('admin/channel_post_edit.html', post=post, products=products, configured_tz=ADMIN_TZ)
-                post.product_id = product.id
+
+                selected_products_edit = [db.session.get(Product, pid) for pid in product_ids_edit]
+                selected_products_edit = [p for p in selected_products_edit if p]
+
+                if not selected_products_edit:
+                    flash('Could not find the selected products.', 'danger')
+                    return render_template('admin/channel_post_edit.html', post=post, products=products, configured_tz=ADMIN_TZ)
+
+                is_grouped_edit = len(selected_products_edit) > 1
+                primary_product = selected_products_edit[0]
+                post.product_id = primary_product.id
+
+                # Update grouped_products: clear old, insert new
+                import sqlalchemy as sa
+                db.session.execute(
+                    sa.text('DELETE FROM channel_post_products WHERE post_id = :post_id'),
+                    {'post_id': post.id}
+                )
+                db.session.flush()
+                for idx, p in enumerate(selected_products_edit):
+                    db.session.execute(
+                        sa.text('INSERT OR IGNORE INTO channel_post_products (post_id, product_id, sort_order) VALUES (:post_id, :product_id, :sort_order)'),
+                        {'post_id': post.id, 'product_id': p.id, 'sort_order': idx}
+                    )
+
                 image_mode = request.form.get('product_image_mode', 'primary')
                 if request.files.getlist('images'):
                     post.images.delete()
                     db.session.flush()
                 if post.images.count() == 0:
-                    image_urls = product.all_images() if image_mode == 'gallery' else [product.primary_image()]
-                    _save_post_images(post, image_urls)
+                    image_urls_edit = primary_product.all_images() if image_mode == 'gallery' else [primary_product.primary_image()]
+                    _save_post_images(post, image_urls_edit)
                 if not post.caption:
                     post.caption = ''
+
+                # Update button URL based on grouping
+                if is_grouped_edit:
+                    post.button_url = _configured_telegram_mini_app_link(startapp=f'post__{post.id}')
+                else:
+                    post.button_url = _configured_telegram_mini_app_link(product_id=primary_product.id)
             else:
                 uploaded = request.files.getlist('images')
                 if uploaded:
@@ -2238,6 +2305,7 @@ def edit_channel_post(post_id):
             return render_template('admin/channel_post_edit.html', post=post, products=products, configured_tz=ADMIN_TZ)
 
     return render_template('admin/channel_post_edit.html', post=post, products=products, configured_tz=ADMIN_TZ)
+
 
 
 @admin_bp.route('/channel-posts/<int:post_id>/delete', methods=['POST'])

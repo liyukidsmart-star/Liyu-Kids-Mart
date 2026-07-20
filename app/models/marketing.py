@@ -63,6 +63,15 @@ class ProductDiscount(db.Model):
         return f'ETB {float(self.discount_value):,.0f} OFF'
 
 
+# Association table for grouped products on a channel post
+channel_post_products = db.Table(
+    'channel_post_products',
+    db.Column('post_id', db.Integer, db.ForeignKey('telegram_channel_posts.id', ondelete='CASCADE'), primary_key=True),
+    db.Column('product_id', db.Integer, db.ForeignKey('products.id', ondelete='CASCADE'), primary_key=True),
+    db.Column('sort_order', db.Integer, default=0),
+)
+
+
 class TelegramChannelPost(db.Model):
     __tablename__ = 'telegram_channel_posts'
 
@@ -72,7 +81,7 @@ class TelegramChannelPost(db.Model):
     caption = db.Column(db.Text, nullable=True)
     button_text = db.Column(db.String(120), nullable=True)
     button_url = db.Column(db.String(512), nullable=True)
-    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=True)  # legacy single-product FK
     channel_chat_id = db.Column(db.String(128), nullable=True)
     status = db.Column(db.String(20), nullable=False, default='draft')
     scheduled_at = db.Column(db.DateTime, nullable=True)
@@ -82,8 +91,15 @@ class TelegramChannelPost(db.Model):
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
-    product = db.relationship('Product')
+    product = db.relationship('Product', foreign_keys=[product_id])
     images = db.relationship('TelegramChannelPostImage', back_populates='post', lazy='dynamic', cascade='all, delete-orphan', order_by='TelegramChannelPostImage.sort_order')
+    # Many-to-many grouped products for this post
+    grouped_products = db.relationship(
+        'Product',
+        secondary=channel_post_products,
+        lazy='dynamic',
+        order_by='channel_post_products.c.sort_order',
+    )
 
     def is_product_post(self):
         return self.post_type == 'product'
