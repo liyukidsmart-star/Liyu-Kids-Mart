@@ -217,11 +217,16 @@ def _button_markup(button_text: str, button_url: str = '', *, tab: str = 'home')
     }
 
 
-def _product_reply_markup(product) -> dict:
+def _product_reply_markup(product, post_id: int = None) -> dict:
     product_id = getattr(product, 'id', None)
     product_name = getattr(product, 'name_am', None) or getattr(product, 'name', '') or ''
     query = product_name or (f'product:{product_id}' if product_id else '')
-    shop_tab_startapp = f'product__{product_id}' if product_id else ''
+    
+    if post_id:
+        shop_tab_startapp = f'post__{post_id}'
+    else:
+        shop_tab_startapp = f'product__{product_id}' if product_id else ''
+        
     return {
         'inline_keyboard': [[
             _channel_button(f'💬 {ASK_LIYU_LABEL}', tab='ai', query=query),
@@ -398,7 +403,15 @@ async def publish_channel_post(post, *, images: Optional[Iterable[str]] = None, 
         caption = _build_product_caption(product, getattr(post, 'caption', '') or '')
         if images is None:
             images = [getattr(product, 'primary_image', lambda: '')()]
-        reply_markup = _product_reply_markup(product)
+        
+        is_grouped = False
+        try:
+            if getattr(post, 'grouped_products', None):
+                is_grouped = post.grouped_products.count() > 1
+        except Exception:
+            pass
+
+        reply_markup = _product_reply_markup(product, post_id=post.id if is_grouped else None)
     else:
         caption = _build_announcement_caption(getattr(post, 'title', '') or '', getattr(post, 'caption', '') or '')
         reply_markup = _button_markup(
