@@ -14,6 +14,16 @@ import os
 import time
 import urllib.request
 import urllib.error
+import socket
+
+# --- PATCH FOR VERCEL/AWS LAMBDA PYTHON 3.12 EBUSY ERROR ---
+# Python 3.12 on Lambda sometimes throws [Errno 16] Device or resource busy 
+# during getaddrinfo for dual-stack (IPv6) domains. Forcing IPv4 prevents this.
+_orig_getaddrinfo = socket.getaddrinfo
+def _ipv4_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
+    return _orig_getaddrinfo(host, port, socket.AF_INET, type, proto, flags)
+socket.getaddrinfo = _ipv4_getaddrinfo
+# -----------------------------------------------------------
 
 logger = logging.getLogger(__name__)
 
@@ -45,14 +55,27 @@ def is_configured() -> bool:
 _pinecone_client = None
 _pinecone_index = None
 
+
 def _get_pinecone_index():
-    """Return a Pinecone Index object using a globally cached client and index to prevent socket exhaustion."""
+    """Return a Pinecone Index object using a globally cached client and index."""
     global _pinecone_client, _pinecone_index
-    from pinecone import Pinecone  # lazy import so missing package doesn't crash startup
+
+    api_key = _pinecone_api_key()
+    index_name = _pinecone_index_name()
+    if not api_key:
+        raise RuntimeError("PINECONE_API_KEY is not set")
+    if not index_name:
+        raise RuntimeError("PINECONE_INDEX is not set")
+
+    try:
+        from pinecone import Pinecone  # lazy import so missing package doesn't crash startup
+    except Exception as exc:
+        raise RuntimeError(f"Pinecone package is unavailable: {exc}") from exc
+
     if _pinecone_client is None:
-        _pinecone_client = Pinecone(api_key=_pinecone_api_key())
+        _pinecone_client = Pinecone(api_key=api_key)
     if _pinecone_index is None:
-        _pinecone_index = _pinecone_client.Index(_pinecone_index_name())
+        _pinecone_index = _pinecone_client.Index(index_name)
     return _pinecone_index
 
 
