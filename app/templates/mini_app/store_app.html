@@ -1423,47 +1423,95 @@ async function runProductIndex() {
     box.style.display = 'block';
 
     try {
+        box.innerHTML = '⏳ Loading configuration...';
+        const conf = await fetchAPI('/store/pos/visual-search-config');
+        if (!conf || !conf.configured || !conf.hf_token) {
+            box.innerHTML = '❌ Visual search not configured on backend.';
+            btn.disabled = false;
+            return;
+        }
+        const hfToken = conf.hf_token;
+
         while (true) {
-            btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Indexing… (${offset} processed)`;
-            box.innerHTML = `⏳ Processing… indexed ${totalIndexed} so far.`;
-
-            const url = new URL('/api/v1/store/pos/index-products', window.location.origin);
-            url.searchParams.append('manager_id', managerId);
-            url.searchParams.append('offset', offset);
-            url.searchParams.append('limit', limit);
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Fetching products… (${offset})`;
             
-            const res = await fetch(url, { method: 'POST' });
-            const data = await res.json();
-
-            if (data.success) {
-                const d = data.data;
-                totalIndexed += d.indexed || 0;
-                totalSkipped += d.skipped || 0;
-                if (d.errors) allErrors = allErrors.concat(d.errors);
-                
-                if (d.done) {
-                    const errorLines = allErrors.map(e => `  • Product #${e.product_id}: ${e.error}`).join('\n');
-                    box.innerHTML =
-                        `✅ <strong>Indexing complete!</strong><br>` +
-                        `📦 Indexed: ${totalIndexed} products<br>` +
-                        `⏭️ Skipped (no image): ${totalSkipped}<br>` +
-                        (allErrors.length ? `⚠️ Errors: ${allErrors.length}<br><pre style="font-size:0.7rem;white-space:pre-wrap;margin-top:6px">${errorLines}</pre>` : '');
-                    if (window.Telegram && window.Telegram.WebApp) Telegram.WebApp.HapticFeedback.notificationOccurred('success');
-                    btn.innerHTML = '<i class="fas fa-check"></i> Index Complete — Run Again';
-                    break;
-                } else {
-                    offset = d.next_offset;
-                    const waitTime = d.retry_after ? d.retry_after * 1000 : 1500;
-                    if (d.retry_after) {
-                        box.innerHTML = `⏳ ${d.message || "AI is warming up, pausing for a moment..."}`;
-                    }
-                    await new Promise(r => setTimeout(r, waitTime));
-                }
-            } else {
-                box.innerHTML = `❌ ${data.message || 'Indexing failed at offset ' + offset}`;
-                btn.innerHTML = '<i class="fas fa-sync-alt"></i> Resume Index';
+            const pRes = await fetchAPI(`/store/pos/products-to-index?offset=${offset}&limit=${limit}`);
+            if (!pRes || !pRes.products) {
+                box.innerHTML = `❌ Failed to fetch products at offset ${offset}`;
                 break;
             }
+            
+            const products = pRes.products;
+            if (products.length === 0) {
+                const errorLines = allErrors.map(e => `  • Product #${e.product_id}: ${e.error}`).join('\n');
+                box.innerHTML =
+                    `✅ <strong>Indexing complete!</strong><br>` +
+                    `📦 Indexed: ${totalIndexed} products<br>` +
+                    `⏭️ Skipped (no image): ${totalSkipped}<br>` +
+                    (allErrors.length ? `⚠️ Errors: ${allErrors.length}<br><pre style="font-size:0.7rem;white-space:pre-wrap;margin-top:6px">${errorLines}</pre>` : '');
+                if (window.Telegram && window.Telegram.WebApp) Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+                btn.innerHTML = '<i class="fas fa-check"></i> Index Complete — Run Again';
+                break;
+            }
+
+            for (const p of products) {
+                box.innerHTML = `⏳ Processing Product #${p.id} (${p.sku})...<br>Indexed: ${totalIndexed} / Skipped: ${totalSkipped} / Errors: ${allErrors.length}`;
+                
+                if (!p.image || p.image.includes('placeholder')) {
+                    totalSkipped++;
+                    continue;
+                }
+                
+                try {
+                    // 1. Download image (resolve relative URL against backend to use proxy)
+                    let imgUrl = p.image;
+                    if (imgUrl.startsWith('/')) imgUrl = window.location.origin + imgUrl;
+                    
+                    const imgRes = await fetch(imgUrl);
+                    if (!imgRes.ok) throw new Error('Image download failed: HTTP ' + imgRes.status);
+                    const blob = await imgRes.blob();
+                    
+                    // 2. Embed with Hugging Face (Retry loop)
+                    let embedding = null;
+                    for (let attempt = 0; attempt < 3; attempt++) {
+                        const hfRes = await fetch('https://api-inference.huggingface.co/models/openai/clip-vit-base-patch32', {
+                            method: 'POST',
+                            headers: { 'Authorization': `Bearer ${hfToken}` },
+                            body: blob
+                        });
+                        
+                        if (hfRes.status === 503) {
+                            box.innerHTML = `⏳ AI model loading, pausing for 10s...`;
+                            await new Promise(r => setTimeout(r, 10000));
+                            continue;
+                        }
+                        if (!hfRes.ok) {
+                            const errText = await hfRes.text();
+                            throw new Error(`HF error HTTP ${hfRes.status}: ${errText.substring(0,50)}`);
+                        }
+                        
+                        const result = await hfRes.json();
+                        embedding = Array.isArray(result[0]) ? result[0] : result;
+                        break;
+                    }
+                    
+                    if (!embedding) throw new Error("AI embedding failed after retries.");
+                    
+                    // 3. Upsert to Pinecone via backend
+                    const upRes = await fetchAPI('/store/pos/upsert-embedding', {
+                        method: 'POST',
+                        body: JSON.stringify({ product_id: p.id, sku: p.sku, embedding: embedding })
+                    });
+                    if (!upRes) throw new Error("Upsert to Pinecone failed.");
+                    
+                    totalIndexed++;
+                } catch (err) {
+                    console.error("Index error on", p.id, err);
+                    allErrors.push({ product_id: p.id, error: err.message });
+                }
+            }
+            
+            offset += limit;
         }
     } catch (e) {
         box.innerHTML = `❌ Network error: ${e.message}`;

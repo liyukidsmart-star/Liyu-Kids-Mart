@@ -688,31 +688,69 @@ def store_pos_visual_search():
         return error_response(f'Visual search error: {exc}', 500)
 
 
-@api_bp.route('/store/pos/index-products', methods=['POST'])
-def store_pos_index_products():
-    """Trigger bulk Pinecone indexing of all active products (manager only)."""
-    from flask import current_app
-    from app.services import visual_search as vs
-
+@api_bp.route('/store/pos/visual-search-config', methods=['GET'])
+def store_pos_visual_search_config():
+    """Return HF token and config status securely to the manager frontend."""
     manager_id = _get_manager_from_request()
     if not manager_id:
         return error_response('Unauthorized', 403)
+        
+    from app.services import visual_search as vs
+    return success_response({
+        'configured': vs.is_configured(),
+        'hf_token': vs._hf_token(),
+    })
 
-    if not vs.is_configured():
-        return error_response(
-            'Visual search not configured. Set HF_TOKEN, PINECONE_API_KEY, and PINECONE_INDEX in your environment.', 503
-        )
+
+@api_bp.route('/store/pos/products-to-index', methods=['GET'])
+def store_pos_products_to_index():
+    """Return a batch of products to index in the frontend."""
+    manager_id = _get_manager_from_request()
+    if not manager_id:
+        return error_response('Unauthorized', 403)
         
     offset = int(request.args.get('offset', 0))
-    limit = int(request.args.get('limit', 5))
+    limit = int(request.args.get('limit', 10))
+    
+    total = Product.query.filter_by(is_active=True).count()
+    products = Product.query.filter_by(is_active=True).order_by(Product.id.asc()).offset(offset).limit(limit).all()
+    
+    return success_response({
+        'total': total,
+        'products': [
+            {
+                'id': p.id,
+                'sku': p.sku or str(p.id),
+                'image': p.primary_image()
+            }
+            for p in products
+        ]
+    })
 
+
+@api_bp.route('/store/pos/upsert-embedding', methods=['POST'])
+def store_pos_upsert_embedding():
+    """Save an embedding calculated by the frontend into Pinecone."""
+    manager_id = _get_manager_from_request()
+    if not manager_id:
+        return error_response('Unauthorized', 403)
+        
+    data = request.json or {}
+    product_id = data.get('product_id')
+    sku = data.get('sku')
+    embedding = data.get('embedding')
+    
+    if not product_id or not embedding:
+        return error_response('Missing required fields', 400)
+        
+    from app.services import visual_search as vs
     try:
-        summary = vs.bulk_index_all_products(current_app._get_current_object(), offset=offset, limit=limit)
-        return success_response(summary)
+        vs.upsert_product(int(product_id), str(sku), embedding)
+        return success_response({})
     except Exception as exc:
         import logging
-        logging.getLogger(__name__).error('Bulk index error: %s', exc, exc_info=True)
-        return error_response(f'Indexing error: {exc}', 500)
+        logging.getLogger(__name__).error('Upsert embedding error: %s', exc, exc_info=True)
+        return error_response(f'Upsert error: {exc}', 500)
 
 
 def _pos_product_dict(p: Product) -> dict:
