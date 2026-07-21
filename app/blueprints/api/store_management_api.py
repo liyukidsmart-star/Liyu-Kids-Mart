@@ -798,6 +798,37 @@ def store_pos_upsert_embedding():
         return error_response(f'Upsert error: {exc}', 500)
 
 
+@api_bp.route('/store/pos/index-product', methods=['POST'])
+def store_pos_index_product():
+    """Fully server-side: fetch image, embed via HuggingFace, upsert to Pinecone."""
+    manager_id = _get_manager_from_request()
+    if not manager_id:
+        return error_response('Unauthorized', 403)
+
+    data = request.json or {}
+    product_id = data.get('product_id')
+    sku = data.get('sku')
+    image_url = data.get('image_url')
+
+    if not product_id or not image_url:
+        return error_response('Missing product_id or image_url', 400)
+
+    from app.services import visual_search as vs
+    import logging
+    log = logging.getLogger(__name__)
+
+    if not vs.is_configured():
+        return error_response('Visual search not configured (check HF_TOKEN, PINECONE_API_KEY, PINECONE_INDEX)', 503)
+
+    try:
+        embedding = vs.embed_image_url(image_url)
+        vs.upsert_product(int(product_id), str(sku or product_id), embedding)
+        return success_response({'indexed': True})
+    except Exception as exc:
+        log.error('index-product error for product %s: %s', product_id, exc, exc_info=True)
+        return error_response(str(exc), 500)
+
+
 def _pos_product_dict(p: Product) -> dict:
     return {
         'id': p.id,
