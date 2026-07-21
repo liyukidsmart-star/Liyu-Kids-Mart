@@ -56,6 +56,44 @@ def _log_activity(action, user_id=None, entity_type=None, entity_id=None, meta=N
             pass
 
 
+@api_bp.route('/fix-buttons', methods=['GET'])
+def fix_channel_buttons_api():
+    from app.models.marketing import TelegramChannelPost
+    from app.services.telegram_marketing import _product_reply_markup, _bot_token
+    import httpx
+    import asyncio
+    
+    token = _bot_token()
+    posts = TelegramChannelPost.query.filter(TelegramChannelPost.sent_message_id.isnot(None)).all()
+    count = 0
+    
+    async def run_fix():
+        nonlocal count
+        async with httpx.AsyncClient() as client:
+            for post in posts:
+                if post.post_type == 'product':
+                    if getattr(post, 'grouped_products', None) and post.grouped_products.count() > 0:
+                        products = post.grouped_products.all()
+                        if not products: continue
+                        reply_markup = _product_reply_markup(products[0], post_id=post.id)
+                    elif getattr(post, 'product', None):
+                        reply_markup = _product_reply_markup(post.product, post_id=post.id)
+                    else:
+                        continue
+                        
+                    url = f"https://api.telegram.org/bot{token}/editMessageReplyMarkup"
+                    payload = {
+                        'chat_id': post.channel_chat_id,
+                        'message_id': int(post.sent_message_id),
+                        'reply_markup': reply_markup
+                    }
+                    resp = await client.post(url, json=payload)
+                    if resp.status_code == 200:
+                        count += 1
+                        
+    asyncio.run(run_fix())
+    return success_response(f"Fixed {count} posts.")
+
 @api_bp.route('/shop/init', methods=['GET'])
 def shop_init():
     """Return Mini App bootstrap state including the launch gate. Also records a visit."""
