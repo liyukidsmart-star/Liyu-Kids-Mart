@@ -1170,19 +1170,35 @@ function getStartupIntent(){
   } else if(!query && raw.includes('__')){
     // Generic tab__query encoding (e.g. "ai__search term")
     const splitAt = raw.indexOf('__');
-    let qRaw = raw.slice(splitAt+2).replace(/\+/g,' ');
-    try {
-      let prev = "";
-      while(qRaw !== prev && qRaw.includes('%')){
-        prev = qRaw;
-        qRaw = decodeURIComponent(qRaw);
+    const tabPrefix = raw.slice(0, splitAt);
+    let qRaw = raw.slice(splitAt+2);
+    if (tabPrefix.endsWith('64')) {
+      let pad = qRaw.length % 4;
+      if (pad) qRaw += '='.repeat(4 - pad);
+      try {
+        const base64 = qRaw.replace(/-/g, '+').replace(/_/g, '/');
+        query = decodeURIComponent(atob(base64).split('').map(function(c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+      } catch(e) {
+        query = qRaw;
       }
-      query = qRaw;
-    } catch(e) {
-      try { query = decodeURIComponent(raw.slice(splitAt+2).replace(/\+/g,' ')); }
-      catch(e2) { query = raw.slice(splitAt+2).replace(/\+/g,' '); }
+      raw = tabPrefix.replace('64', '');
+    } else {
+      qRaw = qRaw.replace(/\+/g,' ');
+      try {
+        let prev = "";
+        while(qRaw !== prev && qRaw.includes('%')){
+          prev = qRaw;
+          qRaw = decodeURIComponent(qRaw);
+        }
+        query = qRaw;
+      } catch(e) {
+        try { query = decodeURIComponent(raw.slice(splitAt+2).replace(/\+/g,' ')); }
+        catch(e2) { query = raw.slice(splitAt+2).replace(/\+/g,' '); }
+      }
+      raw = tabPrefix;
     }
-    raw = raw.slice(0, splitAt);
   }
   // Also support ?startapp=product with ?query=<id>
   if(!productId && !postId && normalizedRaw === 'product' && query){

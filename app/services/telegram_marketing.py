@@ -5,6 +5,7 @@ import json
 from functools import lru_cache
 from typing import Iterable, Optional
 from urllib.parse import quote_plus, urlencode
+import base64
 
 import httpx
 from flask import current_app, has_app_context
@@ -130,7 +131,8 @@ def _encode_startapp(*, tab: str = '', query: str = '', startapp: str = '') -> s
     tab = (tab or '').strip()
     query = (query or '').strip()
     if tab and query:
-        return f'{tab}__{quote_plus(query)}'[:512]
+        b64_query = base64.urlsafe_b64encode(query.encode('utf-8')).decode('ascii').rstrip('=')
+        return f'{tab}64__{b64_query}'[:512]
     return (tab or 'home')[:512]
 
 
