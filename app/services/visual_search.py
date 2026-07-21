@@ -12,20 +12,21 @@ import json
 import logging
 import os
 import time
-import urllib.request
-import urllib.error
-import socket
-
-# --- PATCH FOR VERCEL/AWS LAMBDA PYTHON 3.12 EBUSY ERROR ---
-# Python 3.12 on Lambda sometimes throws [Errno 16] Device or resource busy 
-# during getaddrinfo for dual-stack (IPv6) domains. Forcing IPv4 prevents this.
-_orig_getaddrinfo = socket.getaddrinfo
-def _ipv4_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
-    return _orig_getaddrinfo(host, port, socket.AF_INET, type, proto, flags)
-socket.getaddrinfo = _ipv4_getaddrinfo
-# -----------------------------------------------------------
+import urllib3
 
 logger = logging.getLogger(__name__)
+
+# Global connection pool to prevent TIME_WAIT socket exhaustion in serverless
+_http_pool = None
+
+def _get_http_pool():
+    global _http_pool
+    if _http_pool is None:
+        _http_pool = urllib3.PoolManager(
+            maxsize=10, 
+            retries=urllib3.Retry(total=3, backoff_factor=0.5, status_forcelist=[500, 502, 503, 504])
+        )
+    return _http_pool
 
 # HuggingFace CLIP model for image embeddings (512-dim)
 HF_CLIP_MODEL = "openai/clip-vit-base-patch32"
@@ -80,13 +81,14 @@ def _get_pinecone_index():
 
 
 def _urllib_request(url: str, data: bytes = None, headers: dict = None, timeout: int = 30) -> tuple[int, bytes, dict]:
-    """Simple HTTP request using stdlib urllib — works reliably in Vercel serverless."""
-    req = urllib.request.Request(url, data=data, headers=headers or {})
+    """HTTP request using global urllib3 connection pool to prevent socket exhaustion."""
+    pool = _get_http_pool()
+    method = 'POST' if data else 'GET'
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            return resp.status, resp.read(), dict(resp.headers)
-    except urllib.error.HTTPError as e:
-        return e.code, e.read(), dict(e.headers)
+        resp = pool.request(method, url, body=data, headers=headers or {}, timeout=timeout)
+        return resp.status, resp.data, dict(resp.headers)
+    except urllib3.exceptions.HTTPError as e:
+        raise RuntimeError(f"HTTP request failed: {e}")
 
 
 def embed_image_bytes(image_bytes: bytes, content_type: str = "image/jpeg") -> list[float]:
@@ -141,17 +143,20 @@ def embed_image_bytes(image_bytes: bytes, content_type: str = "image/jpeg") -> l
 
 def embed_image_url(image_url: str) -> list[float]:
     """
-    Download an image from a URL and embed it.
+    Downloads the image from the given URL and returns the embedding.
+    Uses the global urllib3 pool to reuse connections.
     """
-    req = urllib.request.Request(image_url, headers={"User-Agent": "LiyuKidsMart/1.0"})
+    pool = _get_http_pool()
     try:
-        with urllib.request.urlopen(req, timeout=20) as resp:
-            image_bytes = resp.read()
-            content_type = resp.headers.get("Content-Type", "image/jpeg").split(";")[0].strip()
-    except urllib.error.HTTPError as e:
-        raise RuntimeError(f"Could not download image from {image_url}: HTTP {e.code}")
+        resp = pool.request('GET', image_url, headers={"User-Agent": "LiyuKidsMart/1.0"}, timeout=20)
+        if resp.status != 200:
+            raise RuntimeError(f"Could not download image from {image_url}: HTTP {resp.status}")
+        
+        image_bytes = resp.data
+        content_type = resp.headers.get("Content-Type", "image/jpeg").split(";")[0].strip()
     except Exception as e:
         raise RuntimeError(f"Could not download image from {image_url}: {e}")
+
     return embed_image_bytes(image_bytes, content_type or "image/jpeg")
 
 
