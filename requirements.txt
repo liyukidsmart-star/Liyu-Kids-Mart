@@ -21,3 +21,4 @@ google-genai
 MarkupSafe==2.1.5
 psycopg2-binary==2.9.10
 supabase
+pinecone

@@ -630,14 +630,9 @@ def store_pos_lookup():
 
 @api_bp.route('/store/pos/visual-search', methods=['POST'])
 def store_pos_visual_search():
-    """Visual-search a product from a camera capture.
+    """Visual-search a product from a camera capture (CLIP + Pinecone)."""
+    from app.services import visual_search as vs
 
-    Flow:
-      1. Receive an uploaded JPEG/PNG frame.
-      2. Try Pinecone + CLIP visual search (if credentials are configured).
-      3. Fallback: return the top SKU-matched product by name search.
-      4. Return the best-matching product with a confidence score.
-    """
     manager_id = _get_manager_from_request()
     if not manager_id:
         return error_response('Unauthorized', 403)
@@ -646,96 +641,86 @@ def store_pos_visual_search():
     if not image_file:
         return error_response('No image provided', 400)
 
-    pinecone_api_key = os.getenv('PINECONE_API_KEY', '').strip()
-    hf_token = os.getenv('HF_TOKEN', '').strip()
-    pinecone_index = os.getenv('PINECONE_INDEX', '').strip()
+    if not vs.is_configured():
+        # Graceful fallback so the POS screen never hard-crashes
+        p = Product.query.filter_by(is_active=True).order_by(Product.id.desc()).first()
+        if not p:
+            return error_response('Visual search not configured and no products found', 503)
+        return success_response({
+            'product': _pos_product_dict(p),
+            'confidence': None,
+            'method': 'fallback_latest',
+            'note': 'Visual search not yet configured. Add HF_TOKEN, PINECONE_API_KEY and PINECONE_INDEX to env vars.'
+        })
 
-    # ── Path A: Full Pinecone + CLIP pipeline ──────────────────────────────
-    if pinecone_api_key and hf_token and pinecone_index:
-        try:
-            import io
-            import httpx
+    try:
+        image_bytes = image_file.read()
+        content_type = image_file.content_type or 'image/jpeg'
 
-            image_bytes = image_file.read()
+        matches = vs.query_image_bytes(image_bytes, content_type, top_k=1)
+        if not matches:
+            return error_response('No visual match found in index', 404)
 
-            # 1. Generate CLIP embedding via Hugging Face Inference API
-            hf_url = 'https://api-inference.huggingface.co/models/openai/clip-vit-base-patch32'
-            hf_headers = {'Authorization': f'Bearer {hf_token}'}
-            hf_resp = httpx.post(
-                hf_url,
-                content=image_bytes,
-                headers={**hf_headers, 'Content-Type': image_file.content_type or 'image/jpeg'},
-                timeout=15
+        best = matches[0]
+        confidence = best['score']
+
+        if confidence < vs.CONFIDENCE_THRESHOLD:
+            return error_response(
+                f'Best match confidence {confidence:.0%} is below threshold — no reliable match found', 404
             )
-            if hf_resp.status_code != 200:
-                raise RuntimeError(f'HF embedding error: {hf_resp.text}')
 
-            embedding = hf_resp.json()  # list of floats
+        p = db.session.get(Product, best['product_id'])
+        if not p:
+            # Try by SKU as fallback
+            p = Product.query.filter_by(sku=best['sku']).first()
+        if not p or not p.is_active:
+            return error_response('Matched product not found in catalogue', 404)
 
-            # 2. Query Pinecone
-            from pinecone import Pinecone
-            pc = Pinecone(api_key=pinecone_api_key)
-            index = pc.Index(pinecone_index)
-            query_result = index.query(vector=embedding, top_k=1, include_metadata=True)
+        return success_response({
+            'product': _pos_product_dict(p),
+            'confidence': round(confidence, 4),
+            'method': 'clip_pinecone',
+        })
 
-            matches = query_result.get('matches', [])
-            if not matches:
-                return error_response('No visual match found', 404)
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).error('Visual search error: %s', exc, exc_info=True)
+        return error_response(f'Visual search error: {exc}', 500)
 
-            best = matches[0]
-            confidence = float(best.get('score', 0))
-            if confidence < 0.55:
-                return error_response('Visual match confidence too low', 404)
 
-            sku = best.get('metadata', {}).get('sku') or best.get('id', '')
-            p = Product.query.filter(
-                (Product.sku == sku) | (Product.id == (int(sku) if sku.isdigit() else -1))
-            ).first()
+@api_bp.route('/store/pos/index-products', methods=['POST'])
+def store_pos_index_products():
+    """Trigger bulk Pinecone indexing of all active products (manager only)."""
+    from flask import current_app
+    from app.services import visual_search as vs
 
-            if not p or not p.is_active:
-                return error_response('Matched SKU not found in catalogue', 404)
+    manager_id = _get_manager_from_request()
+    if not manager_id:
+        return error_response('Unauthorized', 403)
 
-            return success_response({
-                'product': {
-                    'id': p.id,
-                    'name': p.name,
-                    'sku': p.sku or f'P-{p.id}',
-                    'price': float(p.price),
-                    'stock_qty': p.stock_qty,
-                    'image': p.primary_image()
-                },
-                'confidence': confidence,
-                'method': 'clip_pinecone'
-            })
-
-        except Exception as exc:
-            import logging
-            logging.getLogger(__name__).warning('Visual search pipeline error: %s', exc)
-            # Fall through to the text-based fallback below
-
-    # ── Path B: Graceful fallback — return most recently added active product ──
-    # This keeps the endpoint functional while Pinecone/CLIP is not yet configured.
-    # The manager can at least confirm or dismiss visually.
-    p = Product.query.filter_by(is_active=True).order_by(Product.id.desc()).first()
-    if not p:
+    if not vs.is_configured():
         return error_response(
-            'Visual search is not configured yet. Add PINECONE_API_KEY, HF_TOKEN and PINECONE_INDEX to your environment variables to enable AI visual search.',
-            503
+            'Visual search not configured. Set HF_TOKEN, PINECONE_API_KEY, and PINECONE_INDEX in your environment.', 503
         )
 
-    return success_response({
-        'product': {
-            'id': p.id,
-            'name': p.name,
-            'sku': p.sku or f'P-{p.id}',
-            'price': float(p.price),
-            'stock_qty': p.stock_qty,
-            'image': p.primary_image()
-        },
-        'confidence': None,
-        'method': 'fallback_latest',
-        'note': 'Visual search not configured — showing latest product as suggestion. Configure PINECONE_API_KEY, HF_TOKEN, PINECONE_INDEX to enable full AI visual search.'
-    })
+    try:
+        summary = vs.bulk_index_all_products(current_app._get_current_object())
+        return success_response(summary)
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).error('Bulk index error: %s', exc, exc_info=True)
+        return error_response(f'Indexing error: {exc}', 500)
+
+
+def _pos_product_dict(p: Product) -> dict:
+    return {
+        'id': p.id,
+        'name': p.name,
+        'sku': p.sku or f'P-{p.id}',
+        'price': float(p.price),
+        'stock_qty': p.stock_qty,
+        'image': p.primary_image(),
+    }
 
 
 @api_bp.route('/store/pos/checkout', methods=['POST'])

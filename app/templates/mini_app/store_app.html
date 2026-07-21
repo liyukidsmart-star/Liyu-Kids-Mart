@@ -434,6 +434,26 @@
             </div>
             <div class="settings-meta" id="launchMeta">Set a future date to hide prices and block checkout until launch.</div>
         </div>
+
+        <!-- Visual Search Indexing Card -->
+        <div class="settings-card" style="margin-top:16px; border: 1.5px solid rgba(61,139,95,0.25); background: linear-gradient(135deg,#f0faf4,#fff);">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                <div style="width:36px;height:36px;background:linear-gradient(135deg,var(--g),var(--gp));border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.1rem;flex-shrink:0;">
+                    <i class="fas fa-robot"></i>
+                </div>
+                <div>
+                    <div class="settings-label" style="margin:0;font-size:0.9rem;">AI Visual Search Index</div>
+                    <div style="font-size:0.75rem;color:var(--ts);font-weight:500;">CLIP + Pinecone</div>
+                </div>
+            </div>
+            <div class="settings-meta" style="margin-bottom:14px;">
+                Scans all your product images and builds an AI visual index in Pinecone so the Smart Scanner can identify products by photo. Run this once, then again whenever you add new products.
+            </div>
+            <div id="indexStatusBox" style="display:none;background:var(--bg);border-radius:10px;padding:12px;margin-bottom:12px;font-size:0.82rem;font-weight:600;color:var(--tm);line-height:1.7;"></div>
+            <button class="btn btn-primary" id="indexBtn" style="width:100%;background:linear-gradient(135deg,var(--g),var(--gp));" onclick="runProductIndex()">
+                <i class="fas fa-sync-alt"></i> Index All Products
+            </button>
+        </div>
     </div>
 
     <div class="bottom-nav">
@@ -1386,6 +1406,42 @@ async function posCheckout() {
         btn.disabled = false;
         btn.textContent = 'Complete Sale';
     }
+}
+
+// ── Visual Search Indexing ─────────────────────────────────
+async function runProductIndex() {
+    const btn = document.getElementById('indexBtn');
+    const box = document.getElementById('indexStatusBox');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Indexing… (this may take a few minutes)';
+    box.style.display = 'block';
+    box.innerHTML = '⏳ Connecting to AI indexing pipeline…';
+
+    try {
+        const url = new URL('/api/v1/store/pos/index-products', window.location.origin);
+        url.searchParams.append('manager_id', managerId);
+        const res = await fetch(url, { method: 'POST' });
+        const data = await res.json();
+
+        if (data.success) {
+            const d = data.data;
+            const errorLines = (d.errors || []).map(e => `  • Product #${e.product_id}: ${e.error}`).join('\n');
+            box.innerHTML =
+                `✅ <strong>Indexing complete!</strong><br>` +
+                `📦 Indexed: ${d.indexed} products<br>` +
+                `⏭️ Skipped (no image): ${d.skipped}<br>` +
+                (d.errors.length ? `⚠️ Errors: ${d.errors.length}<br><pre style="font-size:0.7rem;white-space:pre-wrap;margin-top:6px">${errorLines}</pre>` : '');
+            if (window.Telegram && window.Telegram.WebApp) Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+            btn.innerHTML = '<i class="fas fa-check"></i> Index Complete — Run Again';
+        } else {
+            box.innerHTML = `❌ ${data.message || 'Indexing failed'}`;
+            btn.innerHTML = '<i class="fas fa-sync-alt"></i> Retry Index';
+        }
+    } catch (e) {
+        box.innerHTML = `❌ Network error: ${e.message}`;
+        btn.innerHTML = '<i class="fas fa-sync-alt"></i> Retry Index';
+    }
+    btn.disabled = false;
 }
 
 </script>
