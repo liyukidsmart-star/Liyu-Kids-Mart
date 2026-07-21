@@ -168,6 +168,8 @@ def bulk_index_all_products(app, batch_delay: float = 0.5) -> dict:
     Returns a summary dict.
     """
     from app.models.product import Product
+    import urllib.request
+    import urllib.error
 
     products = Product.query.filter_by(is_active=True).all()
     ok = 0
@@ -177,55 +179,67 @@ def bulk_index_all_products(app, batch_delay: float = 0.5) -> dict:
     try:
         index = _get_pinecone_index()
     except Exception as exc:
+        logger.exception("Pinecone init error")
         return {"indexed": 0, "skipped": 0, "errors": [{"product_id": 0, "error": f"Pinecone init error: {exc}"}], "total": len(products)}
 
     token = _hf_token()
     
-    with httpx.Client(timeout=30.0) as client:
-        for p in products:
-            img_url = p.primary_image()
-            if not img_url or "placeholder" in img_url:
-                skipped += 1
-                continue
-            
+    for p in products:
+        img_url = p.primary_image()
+        if not img_url or "placeholder" in img_url:
+            skipped += 1
+            continue
+        
+        try:
+            # Handle relative URLs (like /api/v1/image/...)
+            if img_url.startswith('/'):
+                from flask import request
+                img_url = request.host_url.rstrip('/') + img_url
+
+            # 1. Download image
+            req = urllib.request.Request(img_url, headers={'User-Agent': 'Mozilla/5.0'})
             try:
-                # 1. Download image
-                resp = client.get(img_url, follow_redirects=True)
-                if resp.status_code != 200:
-                    raise RuntimeError(f"Image download failed: {resp.status_code}")
-                
-                content_type = resp.headers.get("content-type", "image/jpeg").split(";")[0]
-                
-                # 2. Embed via Hugging Face
-                headers = {"Authorization": f"Bearer {token}", "Content-Type": content_type}
-                hf_resp = client.post(
-                    HF_FEATURE_EXTRACTION_URL,
-                    content=resp.content,
-                    headers=headers
-                )
-                if hf_resp.status_code != 200:
-                    raise RuntimeError(f"HF embedding failed ({hf_resp.status_code}): {hf_resp.text[:100]}")
-                
-                result = hf_resp.json()
-                if isinstance(result, list):
-                    embedding = result[0] if isinstance(result[0], list) else result
-                else:
-                    raise RuntimeError(f"Unexpected HF response shape: {type(result)}")
-                
-                embedding = [float(v) for v in embedding]
-                
-                # 3. Upsert to Pinecone
-                sku = p.sku or f"P-{p.id}"
-                index.upsert(vectors=[{
-                    "id": str(p.id),
-                    "values": embedding,
-                    "metadata": {"product_id": p.id, "sku": sku},
-                }])
-                
-                ok += 1
-                time.sleep(batch_delay)
-            except Exception as exc:
-                logger.error("Failed to index product %d: %s", p.id, exc)
-                errors.append({"product_id": p.id, "error": str(exc)})
+                with urllib.request.urlopen(req, timeout=20.0) as response:
+                    img_data = response.read()
+                    content_type = response.headers.get("Content-Type", "image/jpeg").split(";")[0]
+            except urllib.error.URLError as e:
+                raise RuntimeError(f"Image download failed: {e}")
+            
+            # 2. Embed via Hugging Face
+            headers = {"Authorization": f"Bearer {token}", "Content-Type": content_type}
+            hf_req = urllib.request.Request(
+                HF_FEATURE_EXTRACTION_URL,
+                data=img_data,
+                headers=headers
+            )
+            try:
+                with urllib.request.urlopen(hf_req, timeout=30.0) as hf_resp:
+                    result = json.loads(hf_resp.read().decode('utf-8'))
+            except urllib.error.HTTPError as e:
+                body = e.read().decode('utf-8')
+                raise RuntimeError(f"HF embedding failed ({e.code}): {body[:100]}")
+            except urllib.error.URLError as e:
+                raise RuntimeError(f"HF embedding request failed: {e}")
+            
+            if isinstance(result, list):
+                embedding = result[0] if isinstance(result[0], list) else result
+            else:
+                raise RuntimeError(f"Unexpected HF response shape: {type(result)}")
+            
+            embedding = [float(v) for v in embedding]
+            
+            # 3. Upsert to Pinecone
+            sku = p.sku or f"P-{p.id}"
+            index.upsert(vectors=[{
+                "id": str(p.id),
+                "values": embedding,
+                "metadata": {"product_id": p.id, "sku": sku},
+            }])
+            
+            ok += 1
+            time.sleep(batch_delay)
+        except Exception as exc:
+            logger.exception("Failed to index product %d", p.id)
+            errors.append({"product_id": p.id, "error": str(exc)})
 
     return {"indexed": ok, "skipped": skipped, "errors": errors, "total": len(products)}
