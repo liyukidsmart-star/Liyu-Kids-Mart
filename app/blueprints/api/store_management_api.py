@@ -663,7 +663,6 @@ def store_pos_visual_search():
             hf_headers = {'Authorization': f'Bearer {hf_token}'}
             hf_resp = httpx.post(
                 hf_url,
-                headers=hf_headers,
                 content=image_bytes,
                 headers={**hf_headers, 'Content-Type': image_file.content_type or 'image/jpeg'},
                 timeout=15
