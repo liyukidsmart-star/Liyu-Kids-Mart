@@ -174,17 +174,58 @@ def bulk_index_all_products(app, batch_delay: float = 0.5) -> dict:
     skipped = 0
     errors = []
 
-    for p in products:
-        img_url = p.primary_image()
-        if not img_url or "placeholder" in img_url:
-            skipped += 1
-            continue
-        try:
-            index_product_from_url(p.id, p.sku or f"P-{p.id}", img_url)
-            ok += 1
-            time.sleep(batch_delay)  # be polite to HF rate limits
-        except Exception as exc:
-            logger.error("Failed to index product %d: %s", p.id, exc)
-            errors.append({"product_id": p.id, "error": str(exc)})
+    try:
+        index = _get_pinecone_index()
+    except Exception as exc:
+        return {"indexed": 0, "skipped": 0, "errors": [{"product_id": 0, "error": f"Pinecone init error: {exc}"}], "total": len(products)}
+
+    token = _hf_token()
+    
+    with httpx.Client(timeout=30.0) as client:
+        for p in products:
+            img_url = p.primary_image()
+            if not img_url or "placeholder" in img_url:
+                skipped += 1
+                continue
+            
+            try:
+                # 1. Download image
+                resp = client.get(img_url, follow_redirects=True)
+                if resp.status_code != 200:
+                    raise RuntimeError(f"Image download failed: {resp.status_code}")
+                
+                content_type = resp.headers.get("content-type", "image/jpeg").split(";")[0]
+                
+                # 2. Embed via Hugging Face
+                headers = {"Authorization": f"Bearer {token}", "Content-Type": content_type}
+                hf_resp = client.post(
+                    HF_FEATURE_EXTRACTION_URL,
+                    content=resp.content,
+                    headers=headers
+                )
+                if hf_resp.status_code != 200:
+                    raise RuntimeError(f"HF embedding failed ({hf_resp.status_code}): {hf_resp.text[:100]}")
+                
+                result = hf_resp.json()
+                if isinstance(result, list):
+                    embedding = result[0] if isinstance(result[0], list) else result
+                else:
+                    raise RuntimeError(f"Unexpected HF response shape: {type(result)}")
+                
+                embedding = [float(v) for v in embedding]
+                
+                # 3. Upsert to Pinecone
+                sku = p.sku or f"P-{p.id}"
+                index.upsert(vectors=[{
+                    "id": str(p.id),
+                    "values": embedding,
+                    "metadata": {"product_id": p.id, "sku": sku},
+                }])
+                
+                ok += 1
+                time.sleep(batch_delay)
+            except Exception as exc:
+                logger.error("Failed to index product %d: %s", p.id, exc)
+                errors.append({"product_id": p.id, "error": str(exc)})
 
     return {"indexed": ok, "skipped": skipped, "errors": errors, "total": len(products)}
