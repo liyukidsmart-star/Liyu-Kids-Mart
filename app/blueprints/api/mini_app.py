@@ -223,13 +223,23 @@ def mini_app_sync_cart():
     Cart.query.filter_by(user_id=user.id).delete()
 
     # 2. Insert the current cart state
+    from app.models.product import Product
     for item in cart_items:
         product_id = item.get('id')
         qty = item.get('qty', 1)
         if product_id:
-            db.session.add(Cart(user_id=user.id, session_id=str(telegram_id), product_id=product_id, quantity=qty))
+            # Check if product still exists to prevent ForeignKeyViolation
+            product_exists = db.session.query(Product.id).filter_by(id=product_id).first()
+            if product_exists:
+                db.session.add(Cart(user_id=user.id, session_id=str(telegram_id), product_id=product_id, quantity=qty))
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        import logging
+        logging.getLogger(__name__).error('Cart sync error: %s', e, exc_info=True)
+        return error_response('Failed to sync cart', 500)
     return success_response({'synced': True})
 
 
