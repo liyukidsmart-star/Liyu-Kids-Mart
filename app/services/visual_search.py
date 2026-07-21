@@ -161,6 +161,9 @@ def index_product_from_url(product_id: int, sku: str, image_url: str) -> None:
     upsert_product(product_id, sku, embedding)
 
 
+class HFRateLimitError(Exception):
+    pass
+
 def bulk_index_all_products(app, offset: int = 0, limit: int = 5, batch_delay: float = 0.5) -> dict:
     """
     Index a batch of active products that have at least one image.
@@ -211,12 +214,12 @@ def bulk_index_all_products(app, offset: int = 0, limit: int = 5, batch_delay: f
                 except Exception as e:
                     if attempt == 2:
                         raise RuntimeError(f"Image download failed: {e}")
-                    time.sleep(2 ** attempt)
+                    time.sleep(1.0)
             
             # 2. Embed via Hugging Face with retries
             headers = {"Authorization": f"Bearer {token}", "Content-Type": content_type}
             result = None
-            for attempt in range(4):
+            for attempt in range(3):
                 try:
                     hf_req = urllib.request.Request(
                         HF_FEATURE_EXTRACTION_URL,
@@ -228,17 +231,16 @@ def bulk_index_all_products(app, offset: int = 0, limit: int = 5, batch_delay: f
                         break
                 except urllib.error.HTTPError as e:
                     body = e.read().decode('utf-8')
-                    if attempt == 3:
-                        raise RuntimeError(f"HF embedding failed ({e.code}): {body[:100]}")
                     if e.code == 503:
-                        logger.info("HF 503 Service Unavailable (Model Loading) - retrying in %ds", 5 * (attempt+1))
-                        time.sleep(5 * (attempt+1))
-                    else:
-                        time.sleep(2 ** attempt)
+                        logger.info("HF 503 Service Unavailable (Model Loading) - aborting batch")
+                        raise HFRateLimitError("AI is warming up.")
+                    if attempt == 2:
+                        raise RuntimeError(f"HF embedding failed ({e.code}): {body[:100]}")
+                    time.sleep(1.0)
                 except Exception as e:
-                    if attempt == 3:
+                    if attempt == 2:
                         raise RuntimeError(f"HF embedding request failed: {e}")
-                    time.sleep(2 ** attempt)
+                    time.sleep(1.0)
             
             if isinstance(result, list):
                 embedding = result[0] if isinstance(result[0], list) else result
@@ -260,10 +262,21 @@ def bulk_index_all_products(app, offset: int = 0, limit: int = 5, batch_delay: f
                 except Exception as e:
                     if attempt == 2:
                         raise e
-                    time.sleep(2 ** attempt)
+                    time.sleep(1.0)
             
             ok += 1
             time.sleep(batch_delay)
+        except HFRateLimitError as exc:
+            return {
+                "indexed": ok,
+                "skipped": skipped,
+                "errors": errors,
+                "total": total_products,
+                "done": False,
+                "next_offset": offset + ok + skipped,
+                "retry_after": 15,
+                "message": str(exc)
+            }
         except Exception as exc:
             logger.exception("Failed to index product %d", p.id)
             errors.append({"product_id": p.id, "error": str(exc)})

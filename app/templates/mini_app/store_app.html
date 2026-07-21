@@ -1437,8 +1437,8 @@ async function runProductIndex() {
 
             if (data.success) {
                 const d = data.data;
-                totalIndexed += d.indexed;
-                totalSkipped += d.skipped;
+                totalIndexed += d.indexed || 0;
+                totalSkipped += d.skipped || 0;
                 if (d.errors) allErrors = allErrors.concat(d.errors);
                 
                 if (d.done) {
@@ -1453,6 +1453,11 @@ async function runProductIndex() {
                     break;
                 } else {
                     offset = d.next_offset;
+                    const waitTime = d.retry_after ? d.retry_after * 1000 : 1500;
+                    if (d.retry_after) {
+                        box.innerHTML = `⏳ ${d.message || "AI is warming up, pausing for a moment..."}`;
+                    }
+                    await new Promise(r => setTimeout(r, waitTime));
                 }
             } else {
                 box.innerHTML = `❌ ${data.message || 'Indexing failed at offset ' + offset}`;
