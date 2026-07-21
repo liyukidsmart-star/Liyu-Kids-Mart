@@ -728,6 +728,51 @@ def store_pos_products_to_index():
     })
 
 
+@api_bp.route('/store/pos/proxy-image', methods=['GET'])
+def store_pos_proxy_image():
+    """Proxy image fetch to bypass CORS for the frontend."""
+    manager_id = _get_manager_from_request()
+    if not manager_id:
+        return error_response('Unauthorized', 403)
+        
+    url = request.args.get('url')
+    if not url:
+        return error_response('No URL provided', 400)
+        
+    import urllib.request
+    import io
+    from flask import send_file
+    import os
+    
+    # Resolve relative Telegram proxy URLs if necessary
+    if url.startswith('/media/'):
+        file_id = url.split('/media/')[1]
+        from app.blueprints.main.routes import _telegram_file_path
+        token = os.getenv('TELEGRAM_BOT_TOKEN', '')
+        file_path = _telegram_file_path(file_id)
+        if file_path:
+            url = f'https://api.telegram.org/file/bot{token}/{file_path}'
+        else:
+            return error_response('File not found on Telegram', 404)
+    elif url.startswith('/') and not url.startswith('//'):
+        url = request.host_url.rstrip('/') + url
+
+    try:
+        req = urllib.request.Request(url, headers={'User-Agent': 'LiyuKidsMart/1.0'})
+        with urllib.request.urlopen(req, timeout=10) as response:
+            content = response.read()
+            content_type = response.headers.get('Content-Type', 'image/jpeg')
+            
+        return send_file(
+            io.BytesIO(content),
+            mimetype=content_type
+        )
+    except Exception as e:
+        import logging
+        logging.error(f"Proxy fetch failed for {url}: {e}")
+        return error_response(f'Proxy fetch failed: {str(e)}', 500)
+
+
 @api_bp.route('/store/pos/upsert-embedding', methods=['POST'])
 def store_pos_upsert_embedding():
     """Save an embedding calculated by the frontend into Pinecone."""

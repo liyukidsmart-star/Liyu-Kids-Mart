@@ -1467,7 +1467,8 @@ async function runProductIndex() {
                     let imgUrl = p.image;
                     if (imgUrl.startsWith('/')) imgUrl = window.location.origin + imgUrl;
                     
-                    const imgRes = await fetch(imgUrl);
+                    const proxyUrl = `/api/v1/store/pos/proxy-image?manager_id=${window.managerId || ''}&url=${encodeURIComponent(imgUrl)}`;
+                    const imgRes = await fetch(proxyUrl);
                     if (!imgRes.ok) throw new Error('Image download failed: HTTP ' + imgRes.status);
                     const blob = await imgRes.blob();
                     
