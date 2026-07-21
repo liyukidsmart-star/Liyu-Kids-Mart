@@ -1032,7 +1032,10 @@ async function openStartParamTarget(intent=null){
     showTab(target);
     if(target==='tab-ai' && query){
       const inp=document.getElementById('aiInp');
-      if(inp) inp.focus();
+      if(inp) {
+        // Automatically send the query on their behalf
+        setTimeout(() => aiSend(), 300);
+      }
     }
   }
   return false;
