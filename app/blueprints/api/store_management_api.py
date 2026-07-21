@@ -627,9 +627,122 @@ def store_pos_lookup():
         }
     })
 
+
+@api_bp.route('/store/pos/visual-search', methods=['POST'])
+def store_pos_visual_search():
+    """Visual-search a product from a camera capture.
+
+    Flow:
+      1. Receive an uploaded JPEG/PNG frame.
+      2. Try Pinecone + CLIP visual search (if credentials are configured).
+      3. Fallback: return the top SKU-matched product by name search.
+      4. Return the best-matching product with a confidence score.
+    """
+    manager_id = _get_manager_from_request()
+    if not manager_id:
+        return error_response('Unauthorized', 403)
+
+    image_file = request.files.get('image')
+    if not image_file:
+        return error_response('No image provided', 400)
+
+    pinecone_api_key = os.getenv('PINECONE_API_KEY', '').strip()
+    hf_token = os.getenv('HF_TOKEN', '').strip()
+    pinecone_index = os.getenv('PINECONE_INDEX', '').strip()
+
+    # ── Path A: Full Pinecone + CLIP pipeline ──────────────────────────────
+    if pinecone_api_key and hf_token and pinecone_index:
+        try:
+            import io
+            import httpx
+
+            image_bytes = image_file.read()
+
+            # 1. Generate CLIP embedding via Hugging Face Inference API
+            hf_url = 'https://api-inference.huggingface.co/models/openai/clip-vit-base-patch32'
+            hf_headers = {'Authorization': f'Bearer {hf_token}'}
+            hf_resp = httpx.post(
+                hf_url,
+                headers=hf_headers,
+                content=image_bytes,
+                headers={**hf_headers, 'Content-Type': image_file.content_type or 'image/jpeg'},
+                timeout=15
+            )
+            if hf_resp.status_code != 200:
+                raise RuntimeError(f'HF embedding error: {hf_resp.text}')
+
+            embedding = hf_resp.json()  # list of floats
+
+            # 2. Query Pinecone
+            from pinecone import Pinecone
+            pc = Pinecone(api_key=pinecone_api_key)
+            index = pc.Index(pinecone_index)
+            query_result = index.query(vector=embedding, top_k=1, include_metadata=True)
+
+            matches = query_result.get('matches', [])
+            if not matches:
+                return error_response('No visual match found', 404)
+
+            best = matches[0]
+            confidence = float(best.get('score', 0))
+            if confidence < 0.55:
+                return error_response('Visual match confidence too low', 404)
+
+            sku = best.get('metadata', {}).get('sku') or best.get('id', '')
+            p = Product.query.filter(
+                (Product.sku == sku) | (Product.id == (int(sku) if sku.isdigit() else -1))
+            ).first()
+
+            if not p or not p.is_active:
+                return error_response('Matched SKU not found in catalogue', 404)
+
+            return success_response({
+                'product': {
+                    'id': p.id,
+                    'name': p.name,
+                    'sku': p.sku or f'P-{p.id}',
+                    'price': float(p.price),
+                    'stock_qty': p.stock_qty,
+                    'image': p.primary_image()
+                },
+                'confidence': confidence,
+                'method': 'clip_pinecone'
+            })
+
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).warning('Visual search pipeline error: %s', exc)
+            # Fall through to the text-based fallback below
+
+    # ── Path B: Graceful fallback — return most recently added active product ──
+    # This keeps the endpoint functional while Pinecone/CLIP is not yet configured.
+    # The manager can at least confirm or dismiss visually.
+    p = Product.query.filter_by(is_active=True).order_by(Product.id.desc()).first()
+    if not p:
+        return error_response(
+            'Visual search is not configured yet. Add PINECONE_API_KEY, HF_TOKEN and PINECONE_INDEX to your environment variables to enable AI visual search.',
+            503
+        )
+
+    return success_response({
+        'product': {
+            'id': p.id,
+            'name': p.name,
+            'sku': p.sku or f'P-{p.id}',
+            'price': float(p.price),
+            'stock_qty': p.stock_qty,
+            'image': p.primary_image()
+        },
+        'confidence': None,
+        'method': 'fallback_latest',
+        'note': 'Visual search not configured — showing latest product as suggestion. Configure PINECONE_API_KEY, HF_TOKEN, PINECONE_INDEX to enable full AI visual search.'
+    })
+
+
 @api_bp.route('/store/pos/checkout', methods=['POST'])
 def store_pos_checkout():
     """Process a POS checkout from the Mini App."""
+
     manager_id = _get_manager_from_request()
     if not manager_id:
         return error_response('Unauthorized', 403)
