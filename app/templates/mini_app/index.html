@@ -279,9 +279,11 @@ ul{list-style:none}
 .sh-qbtn{width:36px;height:36px;border-radius:50%;border:2px solid var(--br);background:var(--bg);font-size:1.1rem;font-weight:700;color:var(--tm);display:flex;align-items:center;justify-content:center}
 .sh-qbtn:active{border-color:var(--g);color:var(--g)}
 .sh-qval{font-size:1rem;font-weight:800;min-width:24px;text-align:center}
-.sh-add{width:100%;background:var(--g);color:#fff;border-radius:var(--rm);padding:15px;font-size:1rem;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 6px 20px rgba(45,106,79,.35)}
-.sh-add:active{transform:scale(.97)}
-.sh-add:disabled{background:var(--br);color:var(--ts);box-shadow:none}
+.sh-buy-now{width:100%;background:var(--g);color:#fff;border-radius:var(--rm);padding:15px;font-size:1rem;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 6px 20px rgba(45,106,79,.35);margin-bottom:8px}
+.sh-buy-now:active{transform:scale(.97)}
+.sh-add{width:100%;background:var(--bg);color:var(--g);border:2px solid var(--g);border-radius:var(--rm);padding:13px;font-size:1rem;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;transition: transform .2s var(--spr), background .15s}
+.sh-add:active{transform:scale(.97);background:var(--gp)}
+.sh-add:disabled{background:var(--br);color:var(--ts);border-color:var(--br)}
 
 /* CHECKOUT */
 .chkov{position:fixed;inset:0;background:var(--bg);z-index:300;display:none;flex-direction:column;animation:suu .3s var(--ease)}
@@ -664,11 +666,7 @@ ul{list-style:none}
       </div>
       <div class="age-bdg" id="shAge" style="margin-bottom:10px"></div>
       <div id="shPremiumBlock"></div>
-      <div class="sh-sec-title">Short Description</div>
-      <div class="sh-desc" id="shDesc"></div>
-      <div class="sh-sec-title" style="margin-top:12px">Full Description</div>
-      <div class="sh-full-desc" id="shFullDesc"></div>
-      <div class="sh-qrow">
+      <div class="sh-qrow" style="margin-top:8px">
         <span class="sh-qlbl">Quantity</span>
         <div class="sh-qctrl">
           <button class="sh-qbtn" onclick="shDelta(-1)">-</button>
@@ -676,7 +674,12 @@ ul{list-style:none}
           <button class="sh-qbtn" onclick="shDelta(1)">+</button>
         </div>
       </div>
-      <button class="sh-add" id="shAdd" onclick="shAddCart()"><i class="fas fa-shopping-bag"></i> Add to Cart</button>
+      <button class="sh-buy-now" id="shBuyNow" onclick="shBuyNow()"><i class="fas fa-bolt"></i> <span data-i18n="sh_buy_now">Buy Now</span></button>
+      <button class="sh-add" id="shAdd" onclick="shAddCart()"><i class="fas fa-shopping-bag"></i> <span data-i18n="sh_add_cart">Add to Cart</span></button>
+      <div class="sh-sec-title" style="margin-top:20px">Short Description</div>
+      <div class="sh-desc" id="shDesc"></div>
+      <div class="sh-sec-title" style="margin-top:12px">Full Description</div>
+      <div class="sh-full-desc" id="shFullDesc"></div>
     </div>
   </div>
 </div>
@@ -1167,7 +1170,18 @@ function getStartupIntent(){
   } else if(!query && raw.includes('__')){
     // Generic tab__query encoding (e.g. "ai__search term")
     const splitAt = raw.indexOf('__');
-    query = decodeURIComponent(raw.slice(splitAt+2).replace(/\+/g,' '));
+    let qRaw = raw.slice(splitAt+2).replace(/\+/g,' ');
+    try {
+      let prev = "";
+      while(qRaw !== prev && qRaw.includes('%')){
+        prev = qRaw;
+        qRaw = decodeURIComponent(qRaw);
+      }
+      query = qRaw;
+    } catch(e) {
+      try { query = decodeURIComponent(raw.slice(splitAt+2).replace(/\+/g,' ')); }
+      catch(e2) { query = raw.slice(splitAt+2).replace(/\+/g,' '); }
+    }
     raw = raw.slice(0, splitAt);
   }
   // Also support ?startapp=product with ?query=<id>
@@ -1399,6 +1413,13 @@ function openSheet(pJson){
 function closeSheet(){closeImageLightbox();document.getElementById('sov').classList.remove('on');shProd=null;}
 function shDelta(d){shQty=Math.max(1,shQty+d);document.getElementById('shQval').textContent=shQty;}
 function shAddCart(){if(!shProd)return;addCart(shProd.id,shProd.name,shProd.price,shProd.primary_image,shQty);closeSheet();}
+function shBuyNow(){
+  if(!shProd)return;
+  addCart(shProd.id,shProd.name,shProd.price,shProd.primary_image,shQty);
+  closeSheet();
+  showTab('tab-cart');
+  setTimeout(() => openCheckout(), 100);
+}
 
 /* -- Post Sheet --------------------------------- */
 let currentGroupedProducts = {};
@@ -1840,6 +1861,7 @@ const i18n = {
     p_ch: "Chapa", p_ch_s: "Credit/Debit via Chapa",
     plc_btn: "Place Order", plc_placing: "Placing order…",
     sh_add: "+ Add", sh_out: "Out of Stock", sh_qty: "Quantity",
+    sh_buy_now: "Buy Now", sh_add_cart: "Add to Cart",
     empty_p: "No products found", empty_o: "No orders yet",
     sl_pen: "⏳ Pending", sl_con: "✅ Confirmed", sl_pac: "📦 Packed", sl_out: "🚚 On the Way", sl_del: "🎉 Delivered", sl_can: "❌ Cancelled", sl_ret: "↩️ Returned",
     ai_q1: "Toy for 2yr old", ai_q2: "Under 500 ETB", ai_q3: "Montessori", ai_q4: "My cart", ai_q5: "Gift ideas",
@@ -1871,6 +1893,7 @@ const i18n = {
     p_ch: "ቻፓ", p_ch_s: "በካርድ ወይም በባንክ ይክፈሉ",
     plc_btn: "ትዕዛዝ ያስገቡ", plc_placing: "ትዕዛዝ እየተላከ ነው…",
     sh_add: "+ ጨምር", sh_out: "አልቋል", sh_qty: "ብዛት",
+    sh_buy_now: "አሁኑኑ ይግዙት", sh_add_cart: "ወደ ቅርጫት ያክሉ",
     empty_p: "ምንም እቃ አልተገኘም", empty_o: "ምንም ትዕዛዝ የለዎትም",
     sl_pen: "⏳ በመጠባበቅ ላይ", sl_con: "✅ ተረጋግጧል", sl_pac: "📦 ታሽጎል", sl_out: "🚚 በመንገድ ላይ", sl_del: "🎉 ደርሷል", sl_can: "❌ ተሰርዟል", sl_ret: "↩️ ተመልሷል",
     ai_q1: "ለ 2 ዓመት ልጅ መጫወቻ", ai_q2: "ከ 500 ብር በታች", ai_q3: "ሞንቴሶሪ", ai_q4: "ዘንቢሌ ውስጥ", ai_q5: "የስጦታ ሀሳቦች",
