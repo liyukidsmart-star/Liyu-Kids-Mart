@@ -161,17 +161,20 @@ def index_product_from_url(product_id: int, sku: str, image_url: str) -> None:
     upsert_product(product_id, sku, embedding)
 
 
-def bulk_index_all_products(app, batch_delay: float = 0.5) -> dict:
+def bulk_index_all_products(app, offset: int = 0, limit: int = 5, batch_delay: float = 0.5) -> dict:
     """
-    Index every active product that has at least one image.
+    Index a batch of active products that have at least one image.
     Call inside a Flask app context.
-    Returns a summary dict.
+    Returns a summary dict with pagination state.
     """
     from app.models.product import Product
     import urllib.request
     import urllib.error
+    import time
 
-    products = Product.query.filter_by(is_active=True).all()
+    total_products = Product.query.filter_by(is_active=True).count()
+    products = Product.query.filter_by(is_active=True).offset(offset).limit(limit).all()
+    
     ok = 0
     skipped = 0
     errors = []
@@ -180,7 +183,7 @@ def bulk_index_all_products(app, batch_delay: float = 0.5) -> dict:
         index = _get_pinecone_index()
     except Exception as exc:
         logger.exception("Pinecone init error")
-        return {"indexed": 0, "skipped": 0, "errors": [{"product_id": 0, "error": f"Pinecone init error: {exc}"}], "total": len(products)}
+        return {"indexed": 0, "skipped": 0, "errors": [{"product_id": 0, "error": f"Pinecone init error: {exc}"}], "total": total_products, "done": True, "next_offset": offset}
 
     token = _hf_token()
     
@@ -196,30 +199,46 @@ def bulk_index_all_products(app, batch_delay: float = 0.5) -> dict:
                 from flask import request
                 img_url = request.host_url.rstrip('/') + img_url
 
-            # 1. Download image
-            req = urllib.request.Request(img_url, headers={'User-Agent': 'Mozilla/5.0'})
-            try:
-                with urllib.request.urlopen(req, timeout=20.0) as response:
-                    img_data = response.read()
-                    content_type = response.headers.get("Content-Type", "image/jpeg").split(";")[0]
-            except urllib.error.URLError as e:
-                raise RuntimeError(f"Image download failed: {e}")
+            # 1. Download image with retries
+            img_data, content_type = None, None
+            for attempt in range(3):
+                try:
+                    req = urllib.request.Request(img_url, headers={'User-Agent': 'Mozilla/5.0'})
+                    with urllib.request.urlopen(req, timeout=15.0) as response:
+                        img_data = response.read()
+                        content_type = response.headers.get("Content-Type", "image/jpeg").split(";")[0]
+                        break
+                except Exception as e:
+                    if attempt == 2:
+                        raise RuntimeError(f"Image download failed: {e}")
+                    time.sleep(2 ** attempt)
             
-            # 2. Embed via Hugging Face
+            # 2. Embed via Hugging Face with retries
             headers = {"Authorization": f"Bearer {token}", "Content-Type": content_type}
-            hf_req = urllib.request.Request(
-                HF_FEATURE_EXTRACTION_URL,
-                data=img_data,
-                headers=headers
-            )
-            try:
-                with urllib.request.urlopen(hf_req, timeout=30.0) as hf_resp:
-                    result = json.loads(hf_resp.read().decode('utf-8'))
-            except urllib.error.HTTPError as e:
-                body = e.read().decode('utf-8')
-                raise RuntimeError(f"HF embedding failed ({e.code}): {body[:100]}")
-            except urllib.error.URLError as e:
-                raise RuntimeError(f"HF embedding request failed: {e}")
+            result = None
+            for attempt in range(4):
+                try:
+                    hf_req = urllib.request.Request(
+                        HF_FEATURE_EXTRACTION_URL,
+                        data=img_data,
+                        headers=headers
+                    )
+                    with urllib.request.urlopen(hf_req, timeout=20.0) as hf_resp:
+                        result = json.loads(hf_resp.read().decode('utf-8'))
+                        break
+                except urllib.error.HTTPError as e:
+                    body = e.read().decode('utf-8')
+                    if attempt == 3:
+                        raise RuntimeError(f"HF embedding failed ({e.code}): {body[:100]}")
+                    if e.code == 503:
+                        logger.info("HF 503 Service Unavailable (Model Loading) - retrying in %ds", 5 * (attempt+1))
+                        time.sleep(5 * (attempt+1))
+                    else:
+                        time.sleep(2 ** attempt)
+                except Exception as e:
+                    if attempt == 3:
+                        raise RuntimeError(f"HF embedding request failed: {e}")
+                    time.sleep(2 ** attempt)
             
             if isinstance(result, list):
                 embedding = result[0] if isinstance(result[0], list) else result
@@ -228,13 +247,20 @@ def bulk_index_all_products(app, batch_delay: float = 0.5) -> dict:
             
             embedding = [float(v) for v in embedding]
             
-            # 3. Upsert to Pinecone
+            # 3. Upsert to Pinecone with retries
             sku = p.sku or f"P-{p.id}"
-            index.upsert(vectors=[{
-                "id": str(p.id),
-                "values": embedding,
-                "metadata": {"product_id": p.id, "sku": sku},
-            }])
+            for attempt in range(3):
+                try:
+                    index.upsert(vectors=[{
+                        "id": str(p.id),
+                        "values": embedding,
+                        "metadata": {"product_id": p.id, "sku": sku},
+                    }])
+                    break
+                except Exception as e:
+                    if attempt == 2:
+                        raise e
+                    time.sleep(2 ** attempt)
             
             ok += 1
             time.sleep(batch_delay)
@@ -242,4 +268,12 @@ def bulk_index_all_products(app, batch_delay: float = 0.5) -> dict:
             logger.exception("Failed to index product %d", p.id)
             errors.append({"product_id": p.id, "error": str(exc)})
 
-    return {"indexed": ok, "skipped": skipped, "errors": errors, "total": len(products)}
+    is_done = (offset + limit) >= total_products
+    return {
+        "indexed": ok,
+        "skipped": skipped,
+        "errors": errors,
+        "total": total_products,
+        "done": is_done,
+        "next_offset": offset + limit
+    }

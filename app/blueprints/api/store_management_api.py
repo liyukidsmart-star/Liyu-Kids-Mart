@@ -702,9 +702,12 @@ def store_pos_index_products():
         return error_response(
             'Visual search not configured. Set HF_TOKEN, PINECONE_API_KEY, and PINECONE_INDEX in your environment.', 503
         )
+        
+    offset = int(request.args.get('offset', 0))
+    limit = int(request.args.get('limit', 5))
 
     try:
-        summary = vs.bulk_index_all_products(current_app._get_current_object())
+        summary = vs.bulk_index_all_products(current_app._get_current_object(), offset=offset, limit=limit)
         return success_response(summary)
     except Exception as exc:
         import logging

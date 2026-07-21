@@ -1413,33 +1413,56 @@ async function runProductIndex() {
     const btn = document.getElementById('indexBtn');
     const box = document.getElementById('indexStatusBox');
     btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Indexing… (this may take a few minutes)';
+    
+    let totalIndexed = 0;
+    let totalSkipped = 0;
+    let allErrors = [];
+    let offset = 0;
+    const limit = 5;
+
     box.style.display = 'block';
-    box.innerHTML = '⏳ Connecting to AI indexing pipeline…';
 
     try {
-        const url = new URL('/api/v1/store/pos/index-products', window.location.origin);
-        url.searchParams.append('manager_id', managerId);
-        const res = await fetch(url, { method: 'POST' });
-        const data = await res.json();
+        while (true) {
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Indexing… (${offset} processed)`;
+            box.innerHTML = `⏳ Processing… indexed ${totalIndexed} so far.`;
 
-        if (data.success) {
-            const d = data.data;
-            const errorLines = (d.errors || []).map(e => `  • Product #${e.product_id}: ${e.error}`).join('\n');
-            box.innerHTML =
-                `✅ <strong>Indexing complete!</strong><br>` +
-                `📦 Indexed: ${d.indexed} products<br>` +
-                `⏭️ Skipped (no image): ${d.skipped}<br>` +
-                (d.errors.length ? `⚠️ Errors: ${d.errors.length}<br><pre style="font-size:0.7rem;white-space:pre-wrap;margin-top:6px">${errorLines}</pre>` : '');
-            if (window.Telegram && window.Telegram.WebApp) Telegram.WebApp.HapticFeedback.notificationOccurred('success');
-            btn.innerHTML = '<i class="fas fa-check"></i> Index Complete — Run Again';
-        } else {
-            box.innerHTML = `❌ ${data.message || 'Indexing failed'}`;
-            btn.innerHTML = '<i class="fas fa-sync-alt"></i> Retry Index';
+            const url = new URL('/api/v1/store/pos/index-products', window.location.origin);
+            url.searchParams.append('manager_id', managerId);
+            url.searchParams.append('offset', offset);
+            url.searchParams.append('limit', limit);
+            
+            const res = await fetch(url, { method: 'POST' });
+            const data = await res.json();
+
+            if (data.success) {
+                const d = data.data;
+                totalIndexed += d.indexed;
+                totalSkipped += d.skipped;
+                if (d.errors) allErrors = allErrors.concat(d.errors);
+                
+                if (d.done) {
+                    const errorLines = allErrors.map(e => `  • Product #${e.product_id}: ${e.error}`).join('\n');
+                    box.innerHTML =
+                        `✅ <strong>Indexing complete!</strong><br>` +
+                        `📦 Indexed: ${totalIndexed} products<br>` +
+                        `⏭️ Skipped (no image): ${totalSkipped}<br>` +
+                        (allErrors.length ? `⚠️ Errors: ${allErrors.length}<br><pre style="font-size:0.7rem;white-space:pre-wrap;margin-top:6px">${errorLines}</pre>` : '');
+                    if (window.Telegram && window.Telegram.WebApp) Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+                    btn.innerHTML = '<i class="fas fa-check"></i> Index Complete — Run Again';
+                    break;
+                } else {
+                    offset = d.next_offset;
+                }
+            } else {
+                box.innerHTML = `❌ ${data.message || 'Indexing failed at offset ' + offset}`;
+                btn.innerHTML = '<i class="fas fa-sync-alt"></i> Resume Index';
+                break;
+            }
         }
     } catch (e) {
         box.innerHTML = `❌ Network error: ${e.message}`;
-        btn.innerHTML = '<i class="fas fa-sync-alt"></i> Retry Index';
+        btn.innerHTML = '<i class="fas fa-sync-alt"></i> Resume Index';
     }
     btn.disabled = false;
 }
