@@ -12,8 +12,8 @@ import json
 import logging
 import os
 import time
-
-import httpx
+import urllib.request
+import urllib.error
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +53,16 @@ def _get_pinecone_index():
     return _pinecone_client.Index(_pinecone_index_name())
 
 
+def _urllib_request(url: str, data: bytes = None, headers: dict = None, timeout: int = 30) -> tuple[int, bytes, dict]:
+    """Simple HTTP request using stdlib urllib — works reliably in Vercel serverless."""
+    req = urllib.request.Request(url, data=data, headers=headers or {})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return resp.status, resp.read(), dict(resp.headers)
+    except urllib.error.HTTPError as e:
+        return e.code, e.read(), dict(e.headers)
+
+
 def embed_image_bytes(image_bytes: bytes, content_type: str = "image/jpeg") -> list[float]:
     """
     Call HuggingFace feature-extraction API on raw image bytes.
@@ -68,28 +78,32 @@ def embed_image_bytes(image_bytes: bytes, content_type: str = "image/jpeg") -> l
         "Content-Type": content_type,
     }
 
+    result = None
     # HF cold-starts take up to 20 s — retry once after a brief wait
-    for attempt in range(2):
-        resp = httpx.post(
+    for attempt in range(3):
+        status, body, _ = _urllib_request(
             HF_FEATURE_EXTRACTION_URL,
-            content=image_bytes,
+            data=image_bytes,
             headers=headers,
-            timeout=30,
+            timeout=60,
         )
-        if resp.status_code == 503 and attempt == 0:
-            logger.info("HF model loading (503) — retrying in 10 s…")
-            time.sleep(10)
+        if status == 503 and attempt < 2:
+            logger.info("HF model loading (503) — retrying in 15 s… (attempt %d)", attempt + 1)
+            time.sleep(15)
             continue
-        if resp.status_code != 200:
+        if status != 200:
             raise RuntimeError(
-                f"HF embedding failed ({resp.status_code}): {resp.text[:300]}"
+                f"HF embedding failed ({status}): {body[:300].decode('utf-8', errors='replace')}"
             )
-        result = resp.json()
+        result = json.loads(body)
         break
+
+    if result is None:
+        raise RuntimeError("HF embedding failed after all retries")
 
     # The API returns either [[float, ...]] or [float, ...]
     if isinstance(result, list):
-        if isinstance(result[0], list):
+        if result and isinstance(result[0], list):
             embedding = result[0]
         else:
             embedding = result
@@ -103,11 +117,16 @@ def embed_image_url(image_url: str) -> list[float]:
     """
     Download an image from a URL and embed it.
     """
-    resp = httpx.get(image_url, follow_redirects=True, timeout=20)
-    if resp.status_code != 200:
-        raise RuntimeError(f"Could not download image from {image_url}: {resp.status_code}")
-    content_type = resp.headers.get("content-type", "image/jpeg").split(";")[0]
-    return embed_image_bytes(resp.content, content_type)
+    req = urllib.request.Request(image_url, headers={"User-Agent": "LiyuKidsMart/1.0"})
+    try:
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            image_bytes = resp.read()
+            content_type = resp.headers.get("Content-Type", "image/jpeg").split(";")[0].strip()
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(f"Could not download image from {image_url}: HTTP {e.code}")
+    except Exception as e:
+        raise RuntimeError(f"Could not download image from {image_url}: {e}")
+    return embed_image_bytes(image_bytes, content_type or "image/jpeg")
 
 
 def upsert_product(product_id: int, sku: str, embedding: list[float]) -> None:
