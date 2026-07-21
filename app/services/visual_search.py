@@ -161,8 +161,21 @@ def index_product_from_url(product_id: int, sku: str, image_url: str) -> None:
     upsert_product(product_id, sku, embedding)
 
 
+import httpx
+import json
+
 class HFRateLimitError(Exception):
     pass
+
+class RetryBatchError(Exception):
+    pass
+
+_http_client = None
+def _get_http_client():
+    global _http_client
+    if _http_client is None:
+        _http_client = httpx.Client(timeout=30.0, limits=httpx.Limits(max_keepalive_connections=5, max_connections=10))
+    return _http_client
 
 def bulk_index_all_products(app, offset: int = 0, limit: int = 5, batch_delay: float = 0.5) -> dict:
     """
@@ -171,8 +184,6 @@ def bulk_index_all_products(app, offset: int = 0, limit: int = 5, batch_delay: f
     Returns a summary dict with pagination state.
     """
     from app.models.product import Product
-    import urllib.request
-    import urllib.error
     import time
 
     total_products = Product.query.filter_by(is_active=True).count()
@@ -189,6 +200,7 @@ def bulk_index_all_products(app, offset: int = 0, limit: int = 5, batch_delay: f
         return {"indexed": 0, "skipped": 0, "errors": [{"product_id": 0, "error": f"Pinecone init error: {exc}"}], "total": total_products, "done": True, "next_offset": offset}
 
     token = _hf_token()
+    client = _get_http_client()
     
     for p in products:
         img_url = p.primary_image()
@@ -203,48 +215,45 @@ def bulk_index_all_products(app, offset: int = 0, limit: int = 5, batch_delay: f
                 img_url = request.host_url.rstrip('/') + img_url
 
             # 1. Download image with retries
-            img_data, content_type = None, None
+            resp = None
             for attempt in range(3):
                 try:
-                    req = urllib.request.Request(img_url, headers={'User-Agent': 'Mozilla/5.0'})
-                    with urllib.request.urlopen(req, timeout=15.0) as response:
-                        img_data = response.read()
-                        content_type = response.headers.get("Content-Type", "image/jpeg").split(";")[0]
+                    resp = client.get(img_url, follow_redirects=True)
+                    if resp.status_code == 200:
                         break
+                    raise RuntimeError(f"HTTP {resp.status_code}")
                 except Exception as e:
                     if attempt == 2:
-                        raise RuntimeError(f"Image download failed: {e}")
+                        raise RetryBatchError(f"Image download failed: {e}")
                     time.sleep(1.0)
             
+            content_type = resp.headers.get("content-type", "image/jpeg").split(";")[0]
+
             # 2. Embed via Hugging Face with retries
             headers = {"Authorization": f"Bearer {token}", "Content-Type": content_type}
             result = None
             for attempt in range(3):
                 try:
-                    hf_req = urllib.request.Request(
-                        HF_FEATURE_EXTRACTION_URL,
-                        data=img_data,
-                        headers=headers
-                    )
-                    with urllib.request.urlopen(hf_req, timeout=20.0) as hf_resp:
-                        result = json.loads(hf_resp.read().decode('utf-8'))
+                    hf_resp = client.post(HF_FEATURE_EXTRACTION_URL, content=resp.content, headers=headers)
+                    if hf_resp.status_code == 200:
+                        result = hf_resp.json()
                         break
-                except urllib.error.HTTPError as e:
-                    body = e.read().decode('utf-8')
-                    if e.code == 503:
+                    if hf_resp.status_code == 503:
                         logger.info("HF 503 Service Unavailable (Model Loading) - aborting batch")
                         raise HFRateLimitError("AI is warming up.")
-                    if attempt == 2:
-                        raise RuntimeError(f"HF embedding failed ({e.code}): {body[:100]}")
-                    time.sleep(1.0)
+                    
+                    raise RuntimeError(f"HTTP {hf_resp.status_code}: {hf_resp.text[:100]}")
+                except HFRateLimitError:
+                    raise
                 except Exception as e:
                     if attempt == 2:
-                        raise RuntimeError(f"HF embedding request failed: {e}")
+                        raise RetryBatchError(f"HF embedding request failed: {e}")
                     time.sleep(1.0)
             
             if isinstance(result, list):
                 embedding = result[0] if isinstance(result[0], list) else result
             else:
+                # If we get a weird shape, it's a code bug, just record error and skip product
                 raise RuntimeError(f"Unexpected HF response shape: {type(result)}")
             
             embedding = [float(v) for v in embedding]
@@ -261,11 +270,12 @@ def bulk_index_all_products(app, offset: int = 0, limit: int = 5, batch_delay: f
                     break
                 except Exception as e:
                     if attempt == 2:
-                        raise e
+                        raise RetryBatchError(f"Pinecone upsert failed: {e}")
                     time.sleep(1.0)
             
             ok += 1
             time.sleep(batch_delay)
+            
         except HFRateLimitError as exc:
             return {
                 "indexed": ok,
@@ -276,6 +286,17 @@ def bulk_index_all_products(app, offset: int = 0, limit: int = 5, batch_delay: f
                 "next_offset": offset + ok + skipped,
                 "retry_after": 15,
                 "message": str(exc)
+            }
+        except RetryBatchError as exc:
+            return {
+                "indexed": ok,
+                "skipped": skipped,
+                "errors": errors,
+                "total": total_products,
+                "done": False,
+                "next_offset": offset + ok + skipped,
+                "retry_after": 2,
+                "message": "Temporary network hiccup, resuming..."
             }
         except Exception as exc:
             logger.exception("Failed to index product %d", p.id)
