@@ -824,6 +824,9 @@ def store_pos_index_product():
         embedding = vs.embed_image_url(image_url)
         vs.upsert_product(int(product_id), str(sku or product_id), embedding)
         return success_response({'indexed': True})
+    except vs.HFEmbeddingUnavailableError as exc:
+        log.warning('index-product skipped for product %s: %s', product_id, exc)
+        return success_response({'indexed': False, 'skipped': True, 'reason': str(exc)})
     except Exception as exc:
         log.error('index-product error for product %s: %s', product_id, exc, exc_info=True)
         return error_response(str(exc), 500)

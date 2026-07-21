@@ -139,9 +139,12 @@ def embed_image_bytes(image_bytes: bytes, content_type: str = "image/jpeg") -> l
             time.sleep(15)
             continue
         if status != 200:
-            raise RuntimeError(
-                f"HF embedding failed ({status}): {body[:300].decode('utf-8', errors='replace')}"
-            )
+            payload = body[:300].decode('utf-8', errors='replace')
+            if 'Model not supported by provider' in payload or 'not supported by provider' in payload:
+                raise HFEmbeddingUnavailableError(
+                    "HF embedding provider does not support this model"
+                )
+            raise RuntimeError(f"HF embedding failed ({status}): {payload}")
         result = json.loads(body)
         break
 
@@ -238,6 +241,9 @@ import httpx
 import json
 
 class HFRateLimitError(Exception):
+    pass
+
+class HFEmbeddingUnavailableError(Exception):
     pass
 
 class RetryBatchError(Exception):
