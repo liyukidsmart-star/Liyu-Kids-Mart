@@ -16,7 +16,7 @@ def create_app(config_name='development'):
     migrate.init_app(app, db)
     jwt.init_app(app)
     mail.init_app(app)
-    cors.init_app(app, resources={r"/api/*": {"origins": "*"}})
+    cors.init_app(app, resources={r"/api/*": {"origins": "*"}, r"/media/*": {"origins": "*"}})
     login_manager.init_app(app)
 
     # Ensure upload folder exists (catch errors on read-only serverless filesystems)
