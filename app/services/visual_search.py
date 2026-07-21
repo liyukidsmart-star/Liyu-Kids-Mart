@@ -13,6 +13,25 @@ import logging
 import os
 import time
 import urllib3
+import socket
+
+# --- PATCH FOR VERCEL DNS RATE LIMITING ---
+# Vercel's DNS resolver returns [Errno -5] EAI_NODATA if we make too many lookups.
+# We cache the DNS resolution to prevent hitting this limit.
+_orig_getaddrinfo = socket.getaddrinfo
+_dns_cache = {}
+
+def _cached_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
+    cache_key = (host, port, family, type, proto, flags)
+    if cache_key in _dns_cache:
+        return _dns_cache[cache_key]
+    
+    res = _orig_getaddrinfo(host, port, family, type, proto, flags)
+    _dns_cache[cache_key] = res
+    return res
+
+socket.getaddrinfo = _cached_getaddrinfo
+# ------------------------------------------
 
 logger = logging.getLogger(__name__)
 
