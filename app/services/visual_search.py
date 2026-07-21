@@ -288,6 +288,7 @@ def bulk_index_all_products(app, offset: int = 0, limit: int = 5, batch_delay: f
                 "message": str(exc)
             }
         except RetryBatchError as exc:
+            logger.error(f"RetryBatchError: {exc}")
             return {
                 "indexed": ok,
                 "skipped": skipped,
@@ -296,7 +297,7 @@ def bulk_index_all_products(app, offset: int = 0, limit: int = 5, batch_delay: f
                 "done": False,
                 "next_offset": offset + ok + skipped,
                 "retry_after": 2,
-                "message": "Temporary network hiccup, resuming..."
+                "message": f"Temporary network hiccup ({str(exc)[:50]}), resuming..."
             }
         except Exception as exc:
             logger.exception("Failed to index product %d", p.id)
