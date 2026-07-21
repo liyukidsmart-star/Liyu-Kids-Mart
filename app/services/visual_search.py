@@ -42,11 +42,15 @@ def is_configured() -> bool:
     return bool(_hf_token() and _pinecone_api_key() and _pinecone_index_name())
 
 
+_pinecone_client = None
+
 def _get_pinecone_index():
-    """Return a Pinecone Index object."""
+    """Return a Pinecone Index object using a global client to prevent socket exhaustion."""
+    global _pinecone_client
     from pinecone import Pinecone  # lazy import so missing package doesn't crash startup
-    pc = Pinecone(api_key=_pinecone_api_key())
-    return pc.Index(_pinecone_index_name())
+    if _pinecone_client is None:
+        _pinecone_client = Pinecone(api_key=_pinecone_api_key())
+    return _pinecone_client.Index(_pinecone_index_name())
 
 
 def embed_image_bytes(image_bytes: bytes, content_type: str = "image/jpeg") -> list[float]:
