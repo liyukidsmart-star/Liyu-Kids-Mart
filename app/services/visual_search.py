@@ -50,7 +50,7 @@ def _get_http_pool():
 # HuggingFace CLIP model for image embeddings (512-dim)
 HF_CLIP_MODEL = "openai/clip-vit-base-patch32"
 HF_FEATURE_EXTRACTION_URL = (
-    f"https://api-inference.huggingface.co/models/{HF_CLIP_MODEL}"
+    f"https://router.huggingface.co/hf-inference/models/{HF_CLIP_MODEL}"
 )
 CONFIDENCE_THRESHOLD = 0.50  # minimum cosine similarity to accept a match
 
