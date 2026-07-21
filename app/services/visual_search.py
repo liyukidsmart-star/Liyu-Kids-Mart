@@ -43,14 +43,17 @@ def is_configured() -> bool:
 
 
 _pinecone_client = None
+_pinecone_index = None
 
 def _get_pinecone_index():
-    """Return a Pinecone Index object using a global client to prevent socket exhaustion."""
-    global _pinecone_client
+    """Return a Pinecone Index object using a globally cached client and index to prevent socket exhaustion."""
+    global _pinecone_client, _pinecone_index
     from pinecone import Pinecone  # lazy import so missing package doesn't crash startup
     if _pinecone_client is None:
         _pinecone_client = Pinecone(api_key=_pinecone_api_key())
-    return _pinecone_client.Index(_pinecone_index_name())
+    if _pinecone_index is None:
+        _pinecone_index = _pinecone_client.Index(_pinecone_index_name())
+    return _pinecone_index
 
 
 def _urllib_request(url: str, data: bytes = None, headers: dict = None, timeout: int = 30) -> tuple[int, bytes, dict]:
