@@ -2730,7 +2730,7 @@ periodBtns.forEach(btn => {
     currentPeriod = btn.dataset.period;
     loadKPIs(currentPeriod);
     // If on a dynamic tab, reload its data
-    const tab = '{{ tab }}';
+    const tab = '';
     if (tab === 'sales') loadSalesData(currentPeriod);
     if (tab === 'funnel') loadFunnelData(currentPeriod);
     if (tab === 'products') loadProductsData(currentPeriod);
@@ -2784,7 +2784,7 @@ new Chart(document.getElementById('pieChart'), {
   data: {
     labels: ['New Users', 'Returning'],
     datasets: [{
-      data: [{{ new_users_30 }}, {{ returning_users_30 }}],
+      data: [0, 0],
       backgroundColor: ['#3d8b5f', '#8b5cf6'],
       borderWidth: 0,
       hoverOffset: 8,
@@ -2798,10 +2798,10 @@ new Chart(document.getElementById('pieChart'), {
   }
 });
 
-const visitLabels = {{ daily_visits | map(attribute='date') | list | tojson }};
-const visitVisitors = {{ daily_visits | map(attribute='visitors') | list | tojson }};
-const visitTotal = {{ daily_visits | map(attribute='visits') | list | tojson }};
-const visitReturning = {{ daily_visits | map(attribute='returning') | list | tojson }};
+const visitLabels = [];
+const visitVisitors = [];
+const visitTotal = [];
+const visitReturning = [];
 new Chart(document.getElementById('visitsChart'), {
   type: 'line',
   data: {
@@ -2819,8 +2819,8 @@ new Chart(document.getElementById('visitsChart'), {
   }
 });
 
-const signupLabels = {{ weekly_signups | map(attribute='week') | list | tojson }};
-const signupData   = {{ weekly_signups | map(attribute='count') | list | tojson }};
+const signupLabels = [];
+const signupData   = [];
 new Chart(document.getElementById('signupsChart'), {
   type: 'bar',
   data: {
@@ -2840,7 +2840,7 @@ if (currentCITab === "engagement") {
 const activityFeed = document.querySelector('.activity-feed');
 if (activityFeed) {
   setInterval(() => {
-    fetch('{{ url_for("admin.customers_live_activity") }}' + (('{{ url_for("admin.customers_live_activity") }}'.indexOf('?') !== -1) ? '&' : '?') + 'manager_id=' + managerId)
+    fetch('' + ((''.indexOf('?') !== -1) ? '&' : '?') + 'manager_id=' + managerId)
       .then(res => res.text())
       .then(html => { if (html && html.trim().length > 0) activityFeed.innerHTML = html; })
       .catch(err => console.error('Live feed error:', err));
@@ -2849,11 +2849,11 @@ if (activityFeed) {
 const evtData = {
   labels: ['Mini App Visits', 'Cart Adds', 'Buy Now Clicks', 'AI Suggestions', 'Product Views'],
   datasets: [{ data: [
-    {{ recent_activity | selectattr('action', 'equalto', 'mini_app_visit') | list | length }},
-    {{ recent_activity | selectattr('action', 'equalto', 'add_to_cart') | list | length }},
-    {{ recent_activity | selectattr('action', 'equalto', 'telegram_buy_now_click') | list | length }},
-    {{ recent_activity | selectattr('action', 'equalto', 'ai_suggested_product') | list | length }},
-    {{ recent_activity | selectattr('action', 'equalto', 'view_product') | list | length }},
+    0,
+    0,
+    0,
+    0,
+    0,
   ], backgroundColor: ['#14b8a6','#3d8b5f','#f59e0b','#8b5cf6','#64748b'], borderWidth: 0 }]
 };
 new Chart(document.getElementById('eventPieChart'), {
@@ -2864,7 +2864,7 @@ new Chart(document.getElementById('eventPieChart'), {
 
 // ── Weekly report tab ────────────────────────────────────────────────
 if (currentCITab === "weekly") {
-fetch('{{ url_for("admin.customers_weekly_report") }}' + (('{{ url_for("admin.customers_weekly_report") }}'.indexOf('?') !== -1) ? '&' : '?') + 'manager_id=' + managerId)
+fetch('' + ((''.indexOf('?') !== -1) ? '&' : '?') + 'manager_id=' + managerId)
   .then(r => r.json())
   .then(data => {
     const weeks = data.weeks;
@@ -3206,7 +3206,7 @@ fetch('/api/v1/store/analytics/insights' + (('/api/v1/store/analytics/insights'.
   });
 }
 if (currentCITab === "overview") {
-const activeCartsData = {{ active_carts | tojson | safe }};
+const activeCartsData = [];
 function showCartModal(idx) {
   const c = activeCartsData[idx];
   if(!c) return;
