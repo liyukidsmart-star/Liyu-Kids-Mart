@@ -32,7 +32,7 @@ def _get_ai_user():
     return None
 
 
-def _get_conversation_history(session_id, limit=10):
+def _get_conversation_history(session_id, limit=20):
     msgs = (
         AIConversation.query.filter_by(session_id=session_id)
         .filter(AIConversation.role.in_(['user', 'assistant']))
@@ -626,12 +626,15 @@ Critical rules:
 # ---------------------------------------------------------------------------
 
 def _build_gemini_prompt(user_message, history, cart_items, candidates,
-                         named_products=None, age_info=None, min_price=None, max_price=None):
+                         named_products=None, age_info=None, min_price=None, max_price=None,
+                         conversation_context=None):
     parts = [SYSTEM_PROMPT]
 
-    if history:
+    if conversation_context:
+        parts.append('Full conversation history:\n' + conversation_context)
+    elif history:
         history_lines = []
-        for item in history[-6:]:
+        for item in history:
             label = 'User' if item.role == 'user' else 'Assistant'
             history_lines.append(f'{label}: {item.content}')
         parts.append('Conversation history:\n' + '\n'.join(history_lines))
@@ -739,7 +742,11 @@ def ai_chat():
     user_id = user.id if user else None
 
     history = _get_conversation_history(session_id)
-    recent_history_text = ' '.join(h.content for h in history[-6:])
+    recent_history_text = ' '.join(h.content for h in history)
+    conversation_context = '\n'.join(
+        f"{('User' if item.role == 'user' else 'Assistant')}: {item.content}"
+        for item in history
+    )
 
     from app.blueprints.api.cart import _resolve_user, _cart_query
     cart_user, cart_session_id = _resolve_user()
@@ -751,8 +758,8 @@ def ai_chat():
     age_info = _detect_age_from_text(combined_text)
     min_price, max_price = _detect_price_constraints(combined_text)
 
-    # Check if customer explicitly named a product
-    named_products = _find_product_by_name_in_message(user_message)
+    # Check if the customer explicitly named a product, including references from recent conversation history
+    named_products = _find_product_by_name_in_message(combined_text)
 
     # Fetch age/price/context-filtered candidates
     candidates = _get_all_candidate_products(
@@ -765,7 +772,8 @@ def ai_chat():
         candidates = named_products + [p for p in candidates if p.id not in named_ids]
         candidates = candidates[:9]
 
-    is_product_req = _is_product_request(user_message)
+    # Context awareness: treat follow-up questions as product requests when recent history contains product references
+    is_product_req = _is_product_request(combined_text)
     is_non_product = _is_non_product_message(user_message)
 
     # Build and send prompt to Gemini
@@ -775,6 +783,7 @@ def ai_chat():
         age_info=age_info,
         min_price=min_price,
         max_price=max_price,
+        conversation_context=conversation_context,
     )
     try:
         assistant_reply = _call_gemini(prompt)
