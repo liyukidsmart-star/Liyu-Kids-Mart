@@ -1981,9 +1981,9 @@ function aiAppend(role,text,products=[]){
     pcHTML=`<div class="ai-pcards">${products.map(p=>{
       const n = amharicChat && (p.name_am || p.short_description_am) ? (p.name_am || p.name || 'Product') : (p.name || p.name_am || 'Product');
       const desc = amharicChat ? (p.short_description_am || p.short_description || '') : (p.short_description || p.short_description_am || '');
-      const addLabel = amharicChat ? '????' : tr("sh_add");
-      const tellLiyu = amharicChat ? '??? ???' : 'Tell Liyu';
-      const tellMsg = amharicChat ? `\u12ed\u1205\u1295 ${esc(n)} \u1260\u12dd\u1295\u1262\u120c \u12cd\u1235\u1325 \u1328\u121d\u122d\u1201` : `I added ${esc(n)} to my cart.`;
+      const addLabel = amharicChat ? 'ጨምር' : tr("sh_add");
+      const tellLiyu = amharicChat ? 'ሊዩን ይንገሩ' : 'Tell Liyu';
+      const tellMsg = amharicChat ? `እኔ ${esc(n)} ወደ ካርቶኬ አክልኩ` : `I added ${esc(n)} to my cart.`;
       return `
       <div class="ai-pc" onclick="openSheet(this.dataset.p)" data-p="${esc(JSON.stringify(p))}">
         <img src="${p.primary_image}" alt="${n}" loading="lazy" decoding="async" onerror="this.src='/static/images/placeholder.png'"/>
@@ -2001,8 +2001,8 @@ function aiAppend(role,text,products=[]){
       </div>`;
     }).join('')}</div>
     <div class="ai-cta">
-      <p>${amharicChat ? `?????? ??? ${cart.reduce((s,i)=>s+i.qty,0)} ??(??) ??? ?? ??? ???? ??????` : `Your cart has ${cart.reduce((s,i)=>s+i.qty,0)} item(s). Ready to checkout?`}</p>
-      <button class="ai-cta-btn" onclick="openCheckout()">${curLang==='am'?'?? ???':'Checkout'}</button>
+      <p>${amharicChat ? `ካርቶክ ውስጥ ${cart.reduce((s,i)=>s+i.qty,0)} እቃዎች አሉ። ዝግጁ ነህ እንዴ?` : `Your cart has ${cart.reduce((s,i)=>s+i.qty,0)} item(s). Ready to checkout?`}</p>
+      <button class="ai-cta-btn" onclick="openCheckout()">${curLang==='am'?'ወደ መድረሻ':'Checkout'}</button>
     </div>`;
   }
   div.innerHTML=`<div class="ai-mav">${init}</div>
@@ -2022,7 +2022,7 @@ function aiHideTyping(){document.getElementById('aiTyp')?.remove();}
 function aiWelcome(){
   if(aiDone)return; aiDone=true;
   const nm=TGU?.first_name?', '+TGU.first_name:'';
-  aiAppend('assistant',`?? Hi${nm}! I'm **Liyu**, your personal shopping guide at Liyu Kids Mart.\n\nI can help you find the perfect educational toy. Try asking:\n_"I need a toy for my 3 year old"_ or _"Show Montessori materials"_\n\n???? ????? ???? ?????! (I also speak Amharic!)`);
+  aiAppend('assistant',`👋 Hi${nm}! I'm **Liyu**, your personal shopping guide at Liyu Kids Mart.\n\nI can help you find the perfect educational toy. Try asking:\n_"I need a toy for my 3 year old"_ or _"Show Montessori materials"_\n\nሰላም! እኔ አማርኛን እናገኛለሁ።`);
 }
 
 async function aiSend(text){
@@ -2717,7 +2717,7 @@ function ckLocateMe(){
     pos=>{
       const lat=pos.coords.latitude, lng=pos.coords.longitude;
       ckLocating=false;
-      if(btn){btn.innerHTML='<i class="fas fa-crosshairs"></i> '+(curLang==='am'?'??? ???':'Locate Me');btn.style.opacity='1';}
+      if(btn){btn.innerHTML='<i class="fas fa-crosshairs"></i> '+(curLang==='am'?'ቦታን ማግኘት':'Locate Me');btn.style.opacity='1';}
       
       const ll=L.latLng(lat,lng);
       ckMap.setView(ll,15,{animate:true});
@@ -2725,7 +2725,7 @@ function ckLocateMe(){
     },
     ()=>{
       ckLocating=false;
-      if(btn){btn.innerHTML='<i class="fas fa-crosshairs"></i> '+(curLang==='am'?'??? ???':'Locate Me');btn.style.opacity='1';}
+      if(btn){btn.innerHTML='<i class="fas fa-crosshairs"></i> '+(curLang==='am'?'ቦታን ማግኘት':'Locate Me');btn.style.opacity='1';}
       toast('Could not get precise location. Tap the map.','err');
     },{timeout:10000,enableHighAccuracy:true}
   );

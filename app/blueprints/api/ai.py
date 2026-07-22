@@ -232,6 +232,29 @@ def _extract_context_keywords(text):
     return list(extra_keywords)
 
 
+def _normalize_query_words(text):
+    return re.findall(r'[\w\u1200-\u137f]+', text.lower())
+
+
+def _product_name_match_score(product, text_lower):
+    for name in (product.name, product.name_am):
+        if not name:
+            continue
+        name_lower = name.lower().strip()
+        if len(name_lower) > 8 and name_lower in text_lower:
+            return 100
+
+        words = [w for w in re.findall(r'[\w\u1200-\u137f]+', name_lower) if len(w) > 2]
+        if not words:
+            continue
+
+        hit_count = sum(1 for w in words if w in text_lower)
+        if hit_count >= max(1, len(words) - 1):
+            return 50 + hit_count
+
+    return 0
+
+
 # ---------------------------------------------------------------------------
 # Product name lookup in message
 # ---------------------------------------------------------------------------
@@ -240,24 +263,14 @@ def _find_product_by_name_in_message(text):
     """
     If the customer explicitly mentions a product name that exists in our catalog,
     return those products (up to 3), ordered by match quality.
-    Requires at least 2 significant words to match to avoid false positives.
     """
     text_lower = text.lower()
     all_products = Product.query.filter_by(is_active=True).all()
     matches = []
     for p in all_products:
-        name_lower = p.name.lower()
-        # Full substring match
-        if name_lower in text_lower and len(name_lower) > 8:
-            matches.append((20, p))
-            continue
-        # Significant word overlap (need at least 2 words of 4+ chars)
-        words = [w for w in name_lower.split() if len(w) > 3]
-        if len(words) < 2:
-            continue
-        hit_count = sum(1 for w in words if w in text_lower)
-        if hit_count >= max(2, len(words) - 1):
-            matches.append((hit_count, p))
+        score = _product_name_match_score(p, text_lower)
+        if score:
+            matches.append((score, p))
 
     matches.sort(key=lambda x: -x[0])
     return [p for _, p in matches[:3]]
@@ -383,10 +396,17 @@ def _get_all_candidate_products(query_text, history_text='', exclude_ids=None):
         )
         age_filter_applied = True
 
-    # --- Keyword search within age/price-filtered space ---
-    search_space = combined
     results = []
     seen = set()
+
+    # --- Explicit product name matches from the full text ---
+    for p in _find_product_by_name_in_message(combined_original):
+        if p.id not in seen and p.id not in exclude_ids:
+            results.append(p)
+            seen.add(p.id)
+
+    # --- Keyword search within age/price-filtered space ---
+    search_space = combined
 
     for kw in all_keywords:
         if kw in search_space:
@@ -460,23 +480,33 @@ def _extract_mentioned_products(reply_text, candidates):
     seen_ids = set()
 
     for p in candidates:
-        name_lower = p.name.lower()
+        matched = False
+        for name in (p.name, p.name_am):
+            if not name:
+                continue
+            name_lower = name.lower().strip()
 
-        # Strategy 1: exact substring
-        if name_lower in reply_lower:
-            mentioned.append((10, p))
-            seen_ids.add(p.id)
-            continue
+            # Strategy 1: exact substring
+            if len(name_lower) > 4 and name_lower in reply_lower:
+                mentioned.append((10, p))
+                seen_ids.add(p.id)
+                matched = True
+                break
 
-        # Strategy 2: high word overlap (≥ 2/3 of significant words)
-        words = [w for w in name_lower.split() if len(w) > 3]
-        if len(words) < 2:
+            # Strategy 2: high word overlap (≥ 2/3 of significant words)
+            words = [w for w in re.findall(r'[\w\u1200-\u137f]+', name_lower) if len(w) > 2]
+            if len(words) < 2:
+                continue
+            hit_count = sum(1 for w in words if w in reply_lower)
+            threshold = max(2, (len(words) * 2 + 2) // 3)
+            if hit_count >= threshold and p.id not in seen_ids:
+                mentioned.append((hit_count, p))
+                seen_ids.add(p.id)
+                matched = True
+                break
+
+        if matched:
             continue
-        hit_count = sum(1 for w in words if w in reply_lower)
-        threshold = max(2, (len(words) * 2 + 2) // 3)
-        if hit_count >= threshold and p.id not in seen_ids:
-            mentioned.append((hit_count, p))
-            seen_ids.add(p.id)
 
     mentioned.sort(key=lambda x: -x[0])
     return [p for _, p in mentioned[:3]]
@@ -486,7 +516,7 @@ def _extract_mentioned_products(reply_text, candidates):
 # Build full product catalogue context for prompt
 # ---------------------------------------------------------------------------
 
-def _build_product_context_for_prompt(candidates, age_info, min_price, max_price):
+def _build_product_context_for_prompt(candidates, age_info, min_price, max_price, use_amharic_names=False):
     """
     Build the product list section of the prompt.
     Includes a note if candidates list is empty (no age match).
@@ -504,11 +534,12 @@ def _build_product_context_for_prompt(candidates, age_info, min_price, max_price
 
     lines = []
     for p in candidates:
+        display_name = p.name_am if use_amharic_names and p.name_am else p.name
+        short_desc = (p.short_description_am if use_amharic_names and p.short_description_am else p.short_description or p.description or '')[:100].strip()
         stock_note = f'In stock' if p.stock_qty > 0 else 'Out of stock'
-        short_desc = (p.short_description or p.description or '')[:100].strip()
         category = p.category.name if p.category else ''
         line = (
-            f'- {p.name}'
+            f'- {display_name}'
             f' | ETB {float(p.current_price()):,.0f}'
             f' | Age: {p.age_label()}'
             f' | Category: {category}'
@@ -615,12 +646,14 @@ def _build_gemini_prompt(user_message, history, cart_items, candidates,
         parts.append('SYSTEM CONTEXT - CART: Cart is EMPTY. Do NOT mention any cart items.')
 
     if named_products:
+        use_amharic_names = _is_amharic_text(user_message)
         named_lines = []
         for p in named_products:
+            display_name = p.name_am if use_amharic_names and p.name_am else p.name
+            desc = (p.short_description_am if use_amharic_names and p.short_description_am else p.short_description or p.description or '')[:150]
             stock_note = 'In stock' if p.stock_qty > 0 else 'Out of stock'
-            desc = (p.short_description or p.description or '')[:150]
             named_lines.append(
-                f'- {p.name} | ETB {float(p.current_price()):,.0f} | Age: {p.age_label()} | {stock_note} | {desc}'
+                f'- {display_name} | ETB {float(p.current_price()):,.0f} | Age: {p.age_label()} | {stock_note} | {desc}'
             )
         parts.append(
             'SYSTEM CONTEXT - CUSTOMER ASKED ABOUT THESE PRODUCTS (describe them warmly, include age and benefit):\n'
@@ -628,7 +661,11 @@ def _build_gemini_prompt(user_message, history, cart_items, candidates,
         )
 
     age_info = age_info or {'active': False, 'min': None, 'max': None}
-    product_context = _build_product_context_for_prompt(candidates, age_info, min_price, max_price)
+    use_amharic_names = _is_amharic_text(user_message)
+    product_context = _build_product_context_for_prompt(
+        candidates, age_info, min_price, max_price,
+        use_amharic_names=use_amharic_names,
+    )
     parts.append(product_context)
 
     parts.append('User message:\n' + user_message)
