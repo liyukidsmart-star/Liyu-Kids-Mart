@@ -49,7 +49,10 @@ def _get_http_pool():
 
 # HuggingFace CLIP model for image embeddings (512-dim)
 HF_CLIP_MODEL = "openai/clip-vit-base-patch32"
-HF_HF_API_URL = "https://api-inference.huggingface.co/models"
+HF_DEFAULT_INFERENCE_API_URL = "https://api-inference.huggingface.co/models"
+HF_DEFAULT_FALLBACK_INFERENCE_API_URLS = [
+    "https://router.huggingface.co/hf-inference/models",
+]
 CONFIDENCE_THRESHOLD = 0.50  # minimum cosine similarity to accept a match
 
 
@@ -61,9 +64,28 @@ def _hf_model() -> str:
     return os.environ.get("HF_CLIP_MODEL", HF_CLIP_MODEL).strip()
 
 
+def _hf_inference_urls() -> list[str]:
+    primary = os.environ.get("HF_INFERENCE_API_URL", HF_DEFAULT_INFERENCE_API_URL).rstrip("/")
+    fallback_urls = os.environ.get("HF_INFERENCE_FALLBACK_URLS", "").split(",")
+    fallback_urls = [url.strip().rstrip("/") for url in fallback_urls if url.strip()]
+    if not fallback_urls:
+        fallback_urls = HF_DEFAULT_FALLBACK_INFERENCE_API_URLS
+    return [primary] + fallback_urls
+
+
 def _hf_inference_url() -> str:
-    base_url = os.environ.get("HF_INFERENCE_API_URL", HF_HF_API_URL).rstrip("/")
-    return f"{base_url}/{_hf_model()}"
+    return f"{_hf_inference_urls()[0]}/{_hf_model()}"
+
+
+def _is_dns_failure(exc: Exception) -> bool:
+    msg = str(exc).lower()
+    if "failed to resolve" in msg or "name resolution" in msg or "gaierror" in msg:
+        return True
+
+    if hasattr(exc, '__cause__') and isinstance(exc.__cause__, socket.gaierror):
+        return True
+
+    return False
 
 
 def _pinecone_api_key() -> str:
@@ -133,29 +155,50 @@ def embed_image_bytes(image_bytes: bytes, content_type: str = "image/jpeg") -> l
     }
 
     result = None
+    last_error = None
     # HF cold-starts take up to 20 s — retry once after a brief wait
-    for attempt in range(3):
-        status, body, _ = _urllib_request(
-            _hf_inference_url(),
-            data=image_bytes,
-            headers=headers,
-            timeout=60,
-        )
-        if status == 503 and attempt < 2:
-            logger.info("HF model loading (503) — retrying in 15 s… (attempt %d)", attempt + 1)
-            time.sleep(15)
-            continue
-        if status != 200:
-            payload = body[:300].decode('utf-8', errors='replace')
-            if 'Model not supported by provider' in payload or 'not supported by provider' in payload:
-                raise HFEmbeddingUnavailableError(
-                    "HF embedding provider does not support this model"
+    for base_url in _hf_inference_urls():
+        url = f"{base_url}/{_hf_model()}"
+        for attempt in range(3):
+            try:
+                status, body, _ = _urllib_request(
+                    url,
+                    data=image_bytes,
+                    headers=headers,
+                    timeout=60,
                 )
-            raise RuntimeError(f"HF embedding failed ({status}): {payload}")
-        result = json.loads(body)
-        break
+                if status == 503 and attempt < 2:
+                    logger.info("HF model loading (503) — retrying in 15 s… (attempt %d)", attempt + 1)
+                    time.sleep(15)
+                    continue
+                if status != 200:
+                    payload = body[:300].decode('utf-8', errors='replace')
+                    if 'Model not supported by provider' in payload or 'not supported by provider' in payload:
+                        raise HFEmbeddingUnavailableError(
+                            "HF embedding provider does not support this model"
+                        )
+                    raise RuntimeError(f"HF embedding failed ({status}): {payload}")
+                result = json.loads(body)
+                break
+            except HFEmbeddingUnavailableError:
+                raise
+            except Exception as exc:
+                last_error = exc
+                if _is_dns_failure(exc):
+                    logger.warning("HF DNS resolution failed for %s: %s", url, exc)
+                    break
+                if attempt == 2:
+                    raise RuntimeError(f"HF embedding request failed: {exc}") from exc
+                time.sleep(15)
+
+        if result is not None:
+            break
 
     if result is None:
+        if last_error is not None and _is_dns_failure(last_error):
+            raise RuntimeError(
+                f"HF embedding failed due to DNS resolution errors; tried {', '.join(_hf_inference_urls())}"
+            ) from last_error
         raise RuntimeError("HF embedding failed after all retries")
 
     # The API returns either [[float, ...]] or [float, ...]
