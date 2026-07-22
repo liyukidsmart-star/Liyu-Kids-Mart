@@ -38,11 +38,71 @@ class VisualSearchTests(unittest.TestCase):
         )
 
     def test_hf_inference_urls_use_fallback_list(self):
+        original_vercel = os.environ.get("VERCEL")
+        original_now_region = os.environ.get("NOW_REGION")
+        os.environ.pop("VERCEL", None)
+        os.environ.pop("NOW_REGION", None)
         os.environ.pop("HF_INFERENCE_API_URL", None)
         os.environ["HF_INFERENCE_FALLBACK_URLS"] = "https://alt1.example/models, https://alt2.example/models "
+
         urls = vs._hf_inference_urls()
         self.assertEqual(urls[0], "https://api-inference.huggingface.co/models")
         self.assertEqual(urls[1:], ["https://alt1.example/models", "https://alt2.example/models"])
+
+        if original_vercel is None:
+            os.environ.pop("VERCEL", None)
+        else:
+            os.environ["VERCEL"] = original_vercel
+        if original_now_region is None:
+            os.environ.pop("NOW_REGION", None)
+        else:
+            os.environ["NOW_REGION"] = original_now_region
+
+    def test_hf_inference_urls_prefers_router_on_vercel(self):
+        original_vercel = os.environ.get("VERCEL")
+        original_hf_api = os.environ.get("HF_INFERENCE_API_URL")
+        original_fallback = os.environ.get("HF_INFERENCE_FALLBACK_URLS")
+
+        os.environ["VERCEL"] = "1"
+        os.environ.pop("HF_INFERENCE_API_URL", None)
+        os.environ.pop("HF_INFERENCE_FALLBACK_URLS", None)
+
+        urls = vs._hf_inference_urls()
+        self.assertEqual(urls[0], "https://router.huggingface.co/hf-inference/models")
+        self.assertEqual(urls[1], "https://api-inference.huggingface.co/models")
+
+        if original_vercel is None:
+            os.environ.pop("VERCEL", None)
+        else:
+            os.environ["VERCEL"] = original_vercel
+        if original_hf_api is None:
+            os.environ.pop("HF_INFERENCE_API_URL", None)
+        else:
+            os.environ["HF_INFERENCE_API_URL"] = original_hf_api
+        if original_fallback is None:
+            os.environ.pop("HF_INFERENCE_FALLBACK_URLS", None)
+        else:
+            os.environ["HF_INFERENCE_FALLBACK_URLS"] = original_fallback
+
+    def test_hf_inference_urls_with_custom_router_primary_appends_default_fallback(self):
+        original_hf_api = os.environ.get("HF_INFERENCE_API_URL")
+        original_fallback = os.environ.get("HF_INFERENCE_FALLBACK_URLS")
+
+        os.environ["HF_INFERENCE_API_URL"] = "https://router.huggingface.co/hf-inference/models"
+        os.environ.pop("HF_INFERENCE_FALLBACK_URLS", None)
+
+        urls = vs._hf_inference_urls()
+        self.assertEqual(urls[0], "https://router.huggingface.co/hf-inference/models")
+        self.assertIn("https://api-inference.huggingface.co/models", urls)
+
+        if original_hf_api is None:
+            os.environ.pop("HF_INFERENCE_API_URL", None)
+        else:
+            os.environ["HF_INFERENCE_API_URL"] = original_hf_api
+        if original_fallback is None:
+            os.environ.pop("HF_INFERENCE_FALLBACK_URLS", None)
+        else:
+            os.environ["HF_INFERENCE_FALLBACK_URLS"] = original_fallback
 
     def test_prepare_image_url_for_fetch_rewrites_media_urls(self):
         os.environ.pop("APP_URL", None)

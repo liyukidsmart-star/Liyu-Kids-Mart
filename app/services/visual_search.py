@@ -65,12 +65,28 @@ def _hf_model() -> str:
 
 
 def _hf_inference_urls() -> list[str]:
-    primary = os.environ.get("HF_INFERENCE_API_URL", HF_DEFAULT_INFERENCE_API_URL).rstrip("/")
+    primary = os.environ.get("HF_INFERENCE_API_URL", "").strip().rstrip("/")
     fallback_urls = os.environ.get("HF_INFERENCE_FALLBACK_URLS", "").split(",")
     fallback_urls = [url.strip().rstrip("/") for url in fallback_urls if url.strip()]
-    if not fallback_urls:
-        fallback_urls = HF_DEFAULT_FALLBACK_INFERENCE_API_URLS
-    return [primary] + fallback_urls
+
+    if primary:
+        urls = [primary]
+    elif os.environ.get("VERCEL") or os.environ.get("NOW_REGION"):
+        urls = [
+            "https://router.huggingface.co/hf-inference/models",
+            HF_DEFAULT_INFERENCE_API_URL,
+        ]
+    else:
+        urls = [HF_DEFAULT_INFERENCE_API_URL]
+
+    if not fallback_urls and primary == "https://router.huggingface.co/hf-inference/models":
+        fallback_urls = [HF_DEFAULT_INFERENCE_API_URL]
+
+    for url in fallback_urls:
+        if url not in urls:
+            urls.append(url)
+
+    return urls
 
 
 def _hf_inference_url() -> str:
@@ -209,6 +225,7 @@ def embed_image_bytes(image_bytes: bytes, content_type: str = "image/jpeg") -> l
 
     result = None
     last_error = None
+    provider_error = None
     for base_url in _hf_inference_urls():
         url = f"{base_url}/{_hf_model()}"
         backoff = 1.0
@@ -230,14 +247,13 @@ def embed_image_bytes(image_bytes: bytes, content_type: str = "image/jpeg") -> l
                 if status != 200:
                     payload = body[:300].decode('utf-8', errors='replace')
                     if 'Model not supported by provider' in payload or 'not supported by provider' in payload:
-                        raise HFEmbeddingUnavailableError(
+                        provider_error = HFEmbeddingUnavailableError(
                             "HF embedding provider does not support this model"
                         )
+                        break
                     raise RuntimeError(f"HF embedding failed ({status}): {payload}")
                 result = json.loads(body)
                 break
-            except HFEmbeddingUnavailableError:
-                raise
             except Exception as exc:
                 last_error = exc
                 if _is_dns_failure(exc):
@@ -250,8 +266,12 @@ def embed_image_bytes(image_bytes: bytes, content_type: str = "image/jpeg") -> l
 
         if result is not None:
             break
+        if provider_error is not None:
+            continue
 
     if result is None:
+        if provider_error is not None:
+            raise provider_error
         if last_error is not None and _is_dns_failure(last_error):
             raise RuntimeError(
                 f"HF embedding failed due to DNS resolution errors; tried {', '.join(_hf_inference_urls())}"
