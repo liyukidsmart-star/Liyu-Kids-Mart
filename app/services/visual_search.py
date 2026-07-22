@@ -81,16 +81,32 @@ def _prepare_image_url_for_fetch(image_url: str) -> str:
     """
     Rewrite media URLs for server-side fetching.
     Prefer the local app media proxy instead of an external CDN/worker URL.
+    Resolve relative URLs to APP_URL when needed.
     """
     image_url = (image_url or '').strip()
     if not image_url:
         return image_url
 
+    rewritten = image_url
     try:
         from app.services.image_delivery import rewrite_media_url
-        return rewrite_media_url(image_url, prefer_cdn=False)
+        rewritten = rewrite_media_url(image_url, prefer_cdn=False)
     except Exception:
-        return image_url
+        rewritten = image_url
+
+    if rewritten.startswith('/') and not rewritten.startswith('//'):
+        try:
+            from flask import has_request_context, request
+            if has_request_context():
+                return request.host_url.rstrip('/') + rewritten
+        except Exception:
+            pass
+
+        app_url = os.environ.get('APP_URL', '').strip().rstrip('/')
+        if app_url:
+            return app_url + rewritten
+
+    return rewritten
 
 
 def _is_dns_failure(exc: Exception) -> bool:
@@ -155,6 +171,27 @@ def _urllib_request(url: str, data: bytes = None, headers: dict = None, timeout:
         raise RuntimeError(f"HTTP request failed: {e}")
 
 
+def _download_image_bytes(image_url: str) -> tuple[bytes, str]:
+    image_url = _prepare_image_url_for_fetch(image_url)
+    pool = _get_http_pool()
+
+    last_error = None
+    for attempt in range(3):
+        try:
+            resp = pool.request('GET', image_url, headers={"User-Agent": "LiyuKidsMart/1.0"}, timeout=20)
+            if resp.status == 200:
+                content_type = resp.headers.get("Content-Type", "image/jpeg").split(";")[0].strip()
+                return resp.data, content_type or "image/jpeg"
+            raise RuntimeError(f"Could not download image from {image_url}: HTTP {resp.status}")
+        except Exception as exc:
+            last_error = exc
+            if attempt == 2:
+                raise RuntimeError(f"Could not download image from {image_url}: {exc}") from exc
+            time.sleep(1.0)
+
+    raise RuntimeError(f"Could not download image from {image_url}: {last_error}")
+
+
 def embed_image_bytes(image_bytes: bytes, content_type: str = "image/jpeg") -> list[float]:
     """
     Call HuggingFace feature-extraction API on raw image bytes.
@@ -172,10 +209,10 @@ def embed_image_bytes(image_bytes: bytes, content_type: str = "image/jpeg") -> l
 
     result = None
     last_error = None
-    # HF cold-starts take up to 20 s — retry once after a brief wait
     for base_url in _hf_inference_urls():
         url = f"{base_url}/{_hf_model()}"
-        for attempt in range(3):
+        backoff = 1.0
+        for attempt in range(4):
             try:
                 status, body, _ = _urllib_request(
                     url,
@@ -183,10 +220,13 @@ def embed_image_bytes(image_bytes: bytes, content_type: str = "image/jpeg") -> l
                     headers=headers,
                     timeout=60,
                 )
-                if status == 503 and attempt < 2:
-                    logger.info("HF model loading (503) — retrying in 15 s… (attempt %d)", attempt + 1)
-                    time.sleep(15)
-                    continue
+                if status == 503:
+                    if attempt < 3:
+                        logger.info("HF model loading (503) — retrying in 15 s… (attempt %d)", attempt + 1)
+                        time.sleep(15)
+                        continue
+                    payload = body[:300].decode('utf-8', errors='replace')
+                    raise RuntimeError(f"HF embedding failed ({status}): {payload}")
                 if status != 200:
                     payload = body[:300].decode('utf-8', errors='replace')
                     if 'Model not supported by provider' in payload or 'not supported by provider' in payload:
@@ -203,9 +243,10 @@ def embed_image_bytes(image_bytes: bytes, content_type: str = "image/jpeg") -> l
                 if _is_dns_failure(exc):
                     logger.warning("HF DNS resolution failed for %s: %s", url, exc)
                     break
-                if attempt == 2:
+                if attempt == 3:
                     raise RuntimeError(f"HF embedding request failed: {exc}") from exc
-                time.sleep(15)
+                time.sleep(backoff)
+                backoff = min(backoff * 2, 8.0)
 
         if result is not None:
             break
@@ -234,36 +275,8 @@ def embed_image_url(image_url: str) -> list[float]:
     Downloads the image from the given URL and returns the embedding.
     Uses the global urllib3 pool to reuse connections.
     """
-    image_url = _prepare_image_url_for_fetch(image_url)
-
-    if image_url.startswith('/'):
-        try:
-            from flask import has_request_context, request
-            if has_request_context():
-                image_url = request.host_url.rstrip('/') + image_url
-        except Exception:
-            app_url = os.environ.get('APP_URL', '').strip().rstrip('/')
-            if app_url:
-                image_url = app_url + image_url
-
-    pool = _get_http_pool()
-
-    last_error = None
-    for attempt in range(3):
-        try:
-            resp = pool.request('GET', image_url, headers={"User-Agent": "LiyuKidsMart/1.0"}, timeout=20)
-            if resp.status == 200:
-                image_bytes = resp.data
-                content_type = resp.headers.get("Content-Type", "image/jpeg").split(";")[0].strip()
-                return embed_image_bytes(image_bytes, content_type or "image/jpeg")
-            raise RuntimeError(f"Could not download image from {image_url}: HTTP {resp.status}")
-        except Exception as e:
-            last_error = e
-            if attempt == 2:
-                raise RuntimeError(f"Could not download image from {image_url}: {e}") from e
-            time.sleep(1.0)
-
-    raise RuntimeError(f"Could not download image from {image_url}: {last_error}")
+    image_bytes, content_type = _download_image_bytes(image_url)
+    return embed_image_bytes(image_bytes, content_type)
 
 
 def upsert_product(product_id: int, sku: str, embedding: list[float]) -> None:
@@ -362,9 +375,6 @@ def bulk_index_all_products(app, offset: int = 0, limit: int = 5, batch_delay: f
         logger.exception("Pinecone init error")
         return {"indexed": 0, "skipped": 0, "errors": [{"product_id": 0, "error": f"Pinecone init error: {exc}"}], "total": total_products, "done": True, "next_offset": offset}
 
-    token = _hf_token()
-    client = _get_http_client()
-    
     for p in products:
         img_url = p.primary_image()
         if not img_url or "placeholder" in img_url:
@@ -372,26 +382,9 @@ def bulk_index_all_products(app, offset: int = 0, limit: int = 5, batch_delay: f
             continue
         
         try:
-            img_url = _prepare_image_url_for_fetch(img_url)
+            image_bytes, content_type = _download_image_bytes(img_url)
+            embedding = embed_image_bytes(image_bytes, content_type or "image/jpeg")
 
-            # 1. Download image with retries
-            resp = None
-            for attempt in range(3):
-                try:
-                    resp = client.get(img_url, follow_redirects=True)
-                    if resp.status_code == 200:
-                        break
-                    raise RuntimeError(f"HTTP {resp.status_code}")
-                except Exception as e:
-                    if attempt == 2:
-                        raise RetryBatchError(f"Image download failed: {e}")
-                    time.sleep(1.0)
-            
-            content_type = resp.headers.get("content-type", "image/jpeg").split(";")[0]
-
-            # 2. Embed via Hugging Face using shared retry/fallback logic
-            embedding = embed_image_bytes(resp.content, content_type or "image/jpeg")
-            
             # 3. Upsert to Pinecone with retries
             sku = p.sku or f"P-{p.id}"
             for attempt in range(3):
