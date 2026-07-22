@@ -37,6 +37,19 @@ class VisualSearchTests(unittest.TestCase):
             "https://custom-hf.example/models/laion/CLIP-ViT-B-32"
         )
 
+    def test_hf_inference_urls_use_fallback_list(self):
+        os.environ.pop("HF_INFERENCE_API_URL", None)
+        os.environ["HF_INFERENCE_FALLBACK_URLS"] = "https://alt1.example/models, https://alt2.example/models "
+        urls = vs._hf_inference_urls()
+        self.assertEqual(urls[0], "https://api-inference.huggingface.co/models")
+        self.assertEqual(urls[1:], ["https://alt1.example/models", "https://alt2.example/models"])
+
+    def test_prepare_image_url_for_fetch_rewrites_media_urls(self):
+        os.environ.pop("APP_URL", None)
+        os.environ.pop("IMAGE_CDN_BASE_URL", None)
+        rewritten = vs._prepare_image_url_for_fetch("https://liyu-kids-mart.liyukidsmart.workers.dev/media/abc123")
+        self.assertEqual(rewritten, "/media/abc123")
+
 
 if __name__ == "__main__":
     unittest.main()

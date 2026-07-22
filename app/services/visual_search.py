@@ -77,6 +77,22 @@ def _hf_inference_url() -> str:
     return f"{_hf_inference_urls()[0]}/{_hf_model()}"
 
 
+def _prepare_image_url_for_fetch(image_url: str) -> str:
+    """
+    Rewrite media URLs for server-side fetching.
+    Prefer the local app media proxy instead of an external CDN/worker URL.
+    """
+    image_url = (image_url or '').strip()
+    if not image_url:
+        return image_url
+
+    try:
+        from app.services.image_delivery import rewrite_media_url
+        return rewrite_media_url(image_url, prefer_cdn=False)
+    except Exception:
+        return image_url
+
+
 def _is_dns_failure(exc: Exception) -> bool:
     msg = str(exc).lower()
     if "failed to resolve" in msg or "name resolution" in msg or "gaierror" in msg:
@@ -218,18 +234,36 @@ def embed_image_url(image_url: str) -> list[float]:
     Downloads the image from the given URL and returns the embedding.
     Uses the global urllib3 pool to reuse connections.
     """
-    pool = _get_http_pool()
-    try:
-        resp = pool.request('GET', image_url, headers={"User-Agent": "LiyuKidsMart/1.0"}, timeout=20)
-        if resp.status != 200:
-            raise RuntimeError(f"Could not download image from {image_url}: HTTP {resp.status}")
-        
-        image_bytes = resp.data
-        content_type = resp.headers.get("Content-Type", "image/jpeg").split(";")[0].strip()
-    except Exception as e:
-        raise RuntimeError(f"Could not download image from {image_url}: {e}")
+    image_url = _prepare_image_url_for_fetch(image_url)
 
-    return embed_image_bytes(image_bytes, content_type or "image/jpeg")
+    if image_url.startswith('/'):
+        try:
+            from flask import has_request_context, request
+            if has_request_context():
+                image_url = request.host_url.rstrip('/') + image_url
+        except Exception:
+            app_url = os.environ.get('APP_URL', '').strip().rstrip('/')
+            if app_url:
+                image_url = app_url + image_url
+
+    pool = _get_http_pool()
+
+    last_error = None
+    for attempt in range(3):
+        try:
+            resp = pool.request('GET', image_url, headers={"User-Agent": "LiyuKidsMart/1.0"}, timeout=20)
+            if resp.status == 200:
+                image_bytes = resp.data
+                content_type = resp.headers.get("Content-Type", "image/jpeg").split(";")[0].strip()
+                return embed_image_bytes(image_bytes, content_type or "image/jpeg")
+            raise RuntimeError(f"Could not download image from {image_url}: HTTP {resp.status}")
+        except Exception as e:
+            last_error = e
+            if attempt == 2:
+                raise RuntimeError(f"Could not download image from {image_url}: {e}") from e
+            time.sleep(1.0)
+
+    raise RuntimeError(f"Could not download image from {image_url}: {last_error}")
 
 
 def upsert_product(product_id: int, sku: str, embedding: list[float]) -> None:
@@ -338,10 +372,7 @@ def bulk_index_all_products(app, offset: int = 0, limit: int = 5, batch_delay: f
             continue
         
         try:
-            # Handle relative URLs (like /api/v1/image/...)
-            if img_url.startswith('/'):
-                from flask import request
-                img_url = request.host_url.rstrip('/') + img_url
+            img_url = _prepare_image_url_for_fetch(img_url)
 
             # 1. Download image with retries
             resp = None
@@ -358,34 +389,8 @@ def bulk_index_all_products(app, offset: int = 0, limit: int = 5, batch_delay: f
             
             content_type = resp.headers.get("content-type", "image/jpeg").split(";")[0]
 
-            # 2. Embed via Hugging Face with retries
-            headers = {"Authorization": f"Bearer {token}", "Content-Type": content_type}
-            result = None
-            for attempt in range(3):
-                try:
-                    hf_resp = client.post(_hf_inference_url(), content=resp.content, headers=headers)
-                    if hf_resp.status_code == 200:
-                        result = hf_resp.json()
-                        break
-                    if hf_resp.status_code == 503:
-                        logger.info("HF 503 Service Unavailable (Model Loading) - aborting batch")
-                        raise HFRateLimitError("AI is warming up.")
-                    
-                    raise RuntimeError(f"HTTP {hf_resp.status_code}: {hf_resp.text[:100]}")
-                except HFRateLimitError:
-                    raise
-                except Exception as e:
-                    if attempt == 2:
-                        raise RetryBatchError(f"HF embedding request failed: {e}")
-                    time.sleep(1.0)
-            
-            if isinstance(result, list):
-                embedding = result[0] if isinstance(result[0], list) else result
-            else:
-                # If we get a weird shape, it's a code bug, just record error and skip product
-                raise RuntimeError(f"Unexpected HF response shape: {type(result)}")
-            
-            embedding = [float(v) for v in embedding]
+            # 2. Embed via Hugging Face using shared retry/fallback logic
+            embedding = embed_image_bytes(resp.content, content_type or "image/jpeg")
             
             # 3. Upsert to Pinecone with retries
             sku = p.sku or f"P-{p.id}"
