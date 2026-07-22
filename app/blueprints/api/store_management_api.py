@@ -503,6 +503,32 @@ def store_products():
     })
 
 
+
+@api_bp.route('/store/products/<int:product_id>/price', methods=['POST'])
+def store_update_product_price(product_id):
+    manager_id = _get_manager_from_request()
+    if not manager_id:
+        return error_response('Unauthorized', 403)
+        
+    product = Product.query.get_or_404(product_id)
+    data = request.json or {}
+    new_price = data.get('price')
+    
+    if new_price is None:
+        return error_response('Price is required', 400)
+        
+    try:
+        new_price = float(new_price)
+        if new_price < 0:
+            return error_response('Price cannot be negative', 400)
+    except ValueError:
+        return error_response('Invalid price format', 400)
+        
+    product.price = new_price
+    db.session.commit()
+    
+    return success_response({'message': 'Price updated successfully', 'price': float(product.price)})
+
 @api_bp.route('/store/products/<int:product_id>/stock', methods=['POST'])
 def store_update_stock(product_id):
     """Quick stock update for a product."""
