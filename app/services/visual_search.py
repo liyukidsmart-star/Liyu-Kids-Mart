@@ -49,14 +49,21 @@ def _get_http_pool():
 
 # HuggingFace CLIP model for image embeddings (512-dim)
 HF_CLIP_MODEL = "openai/clip-vit-base-patch32"
-HF_FEATURE_EXTRACTION_URL = (
-    f"https://router.huggingface.co/hf-inference/models/{HF_CLIP_MODEL}"
-)
+HF_HF_API_URL = "https://api-inference.huggingface.co/models"
 CONFIDENCE_THRESHOLD = 0.50  # minimum cosine similarity to accept a match
 
 
 def _hf_token() -> str:
     return os.environ.get("HF_TOKEN", "").strip()
+
+
+def _hf_model() -> str:
+    return os.environ.get("HF_CLIP_MODEL", HF_CLIP_MODEL).strip()
+
+
+def _hf_inference_url() -> str:
+    base_url = os.environ.get("HF_INFERENCE_API_URL", HF_HF_API_URL).rstrip("/")
+    return f"{base_url}/{_hf_model()}"
 
 
 def _pinecone_api_key() -> str:
@@ -129,7 +136,7 @@ def embed_image_bytes(image_bytes: bytes, content_type: str = "image/jpeg") -> l
     # HF cold-starts take up to 20 s — retry once after a brief wait
     for attempt in range(3):
         status, body, _ = _urllib_request(
-            HF_FEATURE_EXTRACTION_URL,
+            _hf_inference_url(),
             data=image_bytes,
             headers=headers,
             timeout=60,
@@ -313,7 +320,7 @@ def bulk_index_all_products(app, offset: int = 0, limit: int = 5, batch_delay: f
             result = None
             for attempt in range(3):
                 try:
-                    hf_resp = client.post(HF_FEATURE_EXTRACTION_URL, content=resp.content, headers=headers)
+                    hf_resp = client.post(_hf_inference_url(), content=resp.content, headers=headers)
                     if hf_resp.status_code == 200:
                         result = hf_resp.json()
                         break

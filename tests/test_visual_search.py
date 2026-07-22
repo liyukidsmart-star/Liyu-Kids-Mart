@@ -21,6 +21,22 @@ class VisualSearchTests(unittest.TestCase):
             with self.assertRaises(vs.HFEmbeddingUnavailableError):
                 vs.embed_image_bytes(b"fake-image", "image/jpeg")
 
+    def test_hf_inference_url_defaults_to_api_inference(self):
+        os.environ.pop("HF_INFERENCE_API_URL", None)
+        os.environ.pop("HF_CLIP_MODEL", None)
+        self.assertEqual(
+            vs._hf_inference_url(),
+            "https://api-inference.huggingface.co/models/openai/clip-vit-base-patch32"
+        )
+
+    def test_hf_inference_url_can_be_overridden(self):
+        os.environ["HF_INFERENCE_API_URL"] = "https://custom-hf.example/models"
+        os.environ["HF_CLIP_MODEL"] = "laion/CLIP-ViT-B-32"
+        self.assertEqual(
+            vs._hf_inference_url(),
+            "https://custom-hf.example/models/laion/CLIP-ViT-B-32"
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
