@@ -494,7 +494,7 @@ def _get_all_candidate_products(query_text, history_text='', exclude_ids=None):
 # Extract products mentioned in AI reply (only these become cards)
 # ---------------------------------------------------------------------------
 
-def _extract_mentioned_products(reply_text, candidates):
+def _extract_mentioned_products(reply_text, candidates, all_products=None):
     """
     Find which candidates the AI actually named in its reply.
     Multi-strategy: exact substring > word-overlap.
@@ -504,7 +504,11 @@ def _extract_mentioned_products(reply_text, candidates):
     mentioned = []
     seen_ids = set()
 
-    for p in candidates:
+    search_products = candidates
+    if all_products is not None:
+        search_products = all_products
+
+    for p in search_products:
         matched = False
         for name in (p.name, p.name_am):
             if not name:
@@ -535,6 +539,34 @@ def _extract_mentioned_products(reply_text, candidates):
 
     mentioned.sort(key=lambda x: -x[0])
     return [p for _, p in mentioned[:3]]
+
+
+def _get_all_active_products():
+    return Product.query.filter_by(is_active=True).order_by(Product.sales_count.desc()).all()
+
+
+def _build_full_product_catalog_context(products, use_amharic_names=False):
+    if not products:
+        return 'SYSTEM CONTEXT - FULL PRODUCT CATALOG: No active products available in the store right now.'
+
+    lines = []
+    for p in products:
+        display_name = p.name_am if use_amharic_names and p.name_am else p.name
+        secondary_name = ''
+        if p.name_am and display_name != p.name_am:
+            secondary_name = f' / {p.name_am}'
+        short_desc = (p.short_description or p.description or '')[:80].strip()
+        stock_note = 'In stock' if p.stock_qty > 0 else 'Out of stock'
+        category = p.category.name if p.category else 'Uncategorized'
+        line = (
+            f'- {display_name}{secondary_name} | ETB {float(p.current_price()):,.0f} | '
+            f'Age: {p.age_label()} | Category: {category} | {stock_note}'
+        )
+        if short_desc:
+            line += f' | {short_desc}'
+        lines.append(line)
+
+    return 'SYSTEM CONTEXT - FULL PRODUCT CATALOG: All active products available in the store. Use this list for any product question or request.\n' + '\n'.join(lines)
 
 
 # ---------------------------------------------------------------------------
@@ -653,7 +685,7 @@ Critical rules:
 
 def _build_gemini_prompt(user_message, history, cart_items, candidates,
                          named_products=None, age_info=None, min_price=None, max_price=None,
-                         conversation_context=None):
+                         conversation_context=None, full_catalog=None):
     parts = [SYSTEM_PROMPT]
 
     if conversation_context:
@@ -688,6 +720,10 @@ def _build_gemini_prompt(user_message, history, cart_items, candidates,
             'SYSTEM CONTEXT - CUSTOMER ASKED ABOUT THESE PRODUCTS (describe them warmly, include age and benefit):\n'
             + '\n'.join(named_lines)
         )
+
+    if full_catalog is not None:
+        use_amharic_names = _is_amharic_text(user_message)
+        parts.append(_build_full_product_catalog_context(full_catalog, use_amharic_names=use_amharic_names))
 
     age_info = age_info or {'active': False, 'min': None, 'max': None}
     use_amharic_names = _is_amharic_text(user_message)
@@ -789,6 +825,9 @@ def ai_chat():
     # Check if the customer explicitly named a product, including references from recent conversation history
     named_products = _find_product_by_name_in_message(combined_text)
 
+    # Fetch the full active catalog so Gemini can answer from every product in the store.
+    all_products = _get_all_active_products()
+
     # Fetch age/price/context-filtered candidates
     candidates = _get_all_candidate_products(
         user_message, recent_history_text, exclude_ids=exclude_ids
@@ -812,6 +851,7 @@ def ai_chat():
         min_price=min_price,
         max_price=max_price,
         conversation_context=conversation_context,
+        full_catalog=all_products,
     )
     try:
         assistant_reply = _call_gemini(prompt)
@@ -824,7 +864,7 @@ def ai_chat():
     if is_non_product and not named_products and not is_product_req:
         final_products = []
     else:
-        mentioned = _extract_mentioned_products(assistant_reply, candidates)
+        mentioned = _extract_mentioned_products(assistant_reply, candidates, all_products=all_products)
         if mentioned:
             final_products = mentioned[:3]
         elif named_products:
