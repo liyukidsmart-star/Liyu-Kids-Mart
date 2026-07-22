@@ -207,7 +207,314 @@
         .scan-capture-btn.primary { background: var(--g); border-color: var(--g); box-shadow: 0 4px 16px rgba(61,139,95,0.4); }
         .confidence-badge { display: inline-flex; align-items: center; gap: 5px; background: rgba(255,255,255,0.15); border-radius: 100px; padding: 2px 10px; font-size: 0.75rem; font-weight: 800; }
 
-    </style>
+    
+/* CUSTOMER INTELLIGENCE CSS */
+
+/* ── Customer Intelligence Hub ─────────────────────────── */
+.ci-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.ci-kpi {
+  background: var(--white);
+  border-radius: var(--radius);
+  padding: 20px 18px 16px;
+  box-shadow: var(--shadow);
+  border-top: 3px solid transparent;
+  transition: transform .18s, box-shadow .18s;
+  position: relative;
+  overflow: hidden;
+}
+.ci-kpi::before {
+  content: '';
+  position: absolute; inset: 0;
+  opacity: .04;
+  background: radial-gradient(circle at top right, currentColor 0%, transparent 70%);
+  pointer-events: none;
+}
+.ci-kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.ci-kpi.green  { border-top-color: #3d8b5f; color: #3d8b5f; }
+.ci-kpi.blue   { border-top-color: #3b82f6; color: #3b82f6; }
+.ci-kpi.purple { border-top-color: #8b5cf6; color: #8b5cf6; }
+.ci-kpi.orange { border-top-color: #f59e0b; color: #f59e0b; }
+.ci-kpi.pink   { border-top-color: #ec4899; color: #ec4899; }
+.ci-kpi.teal   { border-top-color: #14b8a6; color: #14b8a6; }
+.ci-kpi.red    { border-top-color: #ef4444; color: #ef4444; }
+.ci-kpi-icon { font-size: 1.6rem; margin-bottom: 8px; }
+.ci-kpi-val  { font-size: 1.9rem; font-weight: 800; line-height: 1; margin-bottom: 4px; color: var(--text); }
+.ci-kpi-label { font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.ci-kpi-sub  { font-size: .7rem; color: var(--muted); margin-top: 4px; }
+.ci-kpi-change { font-size: .72rem; font-weight: 700; margin-top: 4px; display: flex; align-items: center; gap: 3px; }
+.ci-kpi-change.up   { color: #059669; }
+.ci-kpi-change.down { color: #dc2626; }
+.ci-kpi-change.neu  { color: var(--muted); }
+
+/* Period selector bar */
+.period-bar {
+  display: flex; gap: 6px; flex-wrap: wrap;
+  background: var(--white);
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  margin-bottom: 20px;
+  align-items: center;
+}
+.period-bar label { font-size: .8rem; font-weight: 700; color: var(--muted); margin-right: 4px; }
+.period-btn {
+  padding: 5px 13px;
+  border-radius: 8px;
+  font-size: .79rem;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  transition: all .15s;
+}
+.period-btn:hover, .period-btn.active { background: var(--green); color: white; border-color: var(--green); }
+
+/* Tab bar */
+.ci-tabs {
+  display: flex; gap: 4px;
+  background: var(--white);
+  padding: 6px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.ci-tab {
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-size: .83rem;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all .18s;
+  border: none;
+  background: none;
+  white-space: nowrap;
+  text-decoration: none;
+  display: flex; align-items: center; gap: 6px;
+}
+.ci-tab:hover { background: var(--green-light); color: var(--green); }
+.ci-tab.active { background: var(--green); color: white; }
+
+/* Charts layout */
+.chart-card {
+  background: var(--white);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 0;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+.chart-card-header {
+  padding: 16px 20px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.chart-card-header h6 {
+  font-size: .92rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+  display: flex; align-items: center; gap: 8px;
+}
+.chart-body { padding: 16px 20px 20px; position: relative; }
+
+/* Activity feed */
+.activity-feed { list-style: none; padding: 0; margin: 0; }
+.activity-item {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border);
+  transition: background .15s;
+}
+.activity-item:last-child { border-bottom: none; }
+.activity-item:hover { background: #f8faff; }
+.act-dot {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .8rem;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.act-dot.visit   { background: #e0f2fe; color: #0284c7; }
+.act-dot.cart    { background: #d1fae5; color: #059669; }
+.act-dot.buy     { background: #fef3c7; color: #d97706; }
+.act-dot.ai      { background: #ede9fe; color: #7c3aed; }
+.act-dot.view    { background: #f1f5f9; color: #475569; }
+.act-dot.other   { background: #f3f4f6; color: #6b7280; }
+.act-body { flex: 1; min-width: 0; }
+.act-title { font-size: .82rem; font-weight: 600; color: var(--text); }
+.act-meta  { font-size: .72rem; color: var(--muted); margin-top: 1px; }
+.act-time  { font-size: .7rem; color: var(--muted); white-space: nowrap; }
+
+/* Table enhancements */
+.tbl-name-cell { max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tbl-badge-tg { background: #e0f4ff; color: #0369a1; padding: 2px 7px; border-radius: 20px; font-size: .7rem; font-weight: 600; }
+.tbl-badge-new { background: #d1fae5; color: #065f46; padding: 2px 7px; border-radius: 20px; font-size: .7rem; font-weight: 600; }
+.tbl-badge-ret { background: #ede9fe; color: #5b21b6; padding: 2px 7px; border-radius: 20px; font-size: .7rem; font-weight: 600; }
+
+/* Mini bar */
+.mini-bar-wrap { display: flex; align-items: center; gap: 8px; }
+.mini-bar {
+  flex: 1;
+  height: 6px;
+  background: var(--border);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.mini-bar-fill {
+  height: 100%;
+  border-radius: 99px;
+  background: var(--green);
+  transition: width .5s ease;
+}
+
+/* Weekly report table */
+.report-tbl th { background: #f8faff; font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.report-tbl td { font-size: .84rem; vertical-align: middle; }
+
+/* AI session cards */
+.ai-session-card {
+  background: #fafbff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+.ai-session-head {
+  padding: 10px 14px;
+  background: var(--green-light);
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: .8rem; font-weight: 600; color: var(--green-dark);
+}
+
+/* Search bar */
+.ci-search {
+  display: flex; gap: 8px;
+  margin-bottom: 16px;
+}
+.ci-search input {
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 9px 14px;
+  font-size: .87rem;
+  font-family: var(--font);
+  outline: none;
+  transition: border .18s;
+}
+.ci-search input:focus { border-color: var(--green); }
+
+/* ── NEW: Funnel ─────────────────────────────────────────── */
+.funnel-wrap { padding: 24px 20px; }
+.funnel-stage {
+  display: flex; align-items: center; gap: 16px;
+  margin-bottom: 8px;
+}
+.funnel-bar-outer {
+  flex: 1;
+  background: #f0f4f8;
+  border-radius: 8px;
+  overflow: hidden;
+  height: 44px;
+  position: relative;
+}
+.funnel-bar-inner {
+  height: 100%;
+  border-radius: 8px;
+  display: flex; align-items: center;
+  padding: 0 16px;
+  font-weight: 700;
+  font-size: .88rem;
+  color: white;
+  transition: width .6s cubic-bezier(.4,0,.2,1);
+  position: relative;
+}
+.funnel-label { min-width: 140px; font-size: .83rem; font-weight: 600; color: var(--text); }
+.funnel-meta { min-width: 80px; text-align: right; font-size: .78rem; color: var(--muted); }
+.funnel-drop { font-size: .7rem; color: #ef4444; font-weight: 600; margin-top: 2px; }
+.funnel-connector { height: 20px; margin-left: 156px; display: flex; align-items: center; }
+.funnel-connector-line { width: 2px; height: 100%; background: var(--border); margin-left: 10px; }
+
+/* ── NEW: Segment badges ─────────────────────────────────── */
+.seg-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: .75rem;
+  font-weight: 700;
+}
+.seg-vip      { background: #fef3c7; color: #92400e; }
+.seg-high     { background: #ede9fe; color: #5b21b6; }
+.seg-freq     { background: #d1fae5; color: #065f46; }
+.seg-ret      { background: #e0f2fe; color: #075985; }
+.seg-first    { background: #dbeafe; color: #1e40af; }
+.seg-window   { background: #f1f5f9; color: #475569; }
+.seg-inactive { background: #fee2e2; color: #991b1b; }
+.seg-lost     { background: #fce7f3; color: #9d174d; }
+
+/* ── NEW: Cohort heatmap ─────────────────────────────────── */
+.cohort-table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+.cohort-table th { background: #f8faff; padding: 8px 12px; text-align: center; font-weight: 700; font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.cohort-table td { padding: 7px 12px; text-align: center; border: 1px solid var(--border); }
+.cohort-cell { border-radius: 6px; padding: 4px 8px; font-weight: 700; display: inline-block; min-width: 44px; }
+
+/* ── NEW: Insights panel ─────────────────────────────────── */
+.insight-card {
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  margin-bottom: 10px;
+  display: flex; gap: 12px; align-items: flex-start;
+  font-size: .84rem;
+  line-height: 1.5;
+}
+.insight-card.info   { background: #eff6ff; border-left: 3px solid #3b82f6; }
+.insight-card.warn   { background: #fff7ed; border-left: 3px solid #f59e0b; }
+.insight-card.rec    { background: #f0fdf4; border-left: 3px solid #22c55e; }
+.insight-icon { font-size: 1.2rem; flex-shrink: 0; margin-top: 1px; }
+
+/* ── NEW: KPI loading skeleton ──────────────────────────── */
+.kpi-loading {
+  display: flex; flex-direction: column; gap: 6px;
+}
+.skel {
+  background: linear-gradient(90deg, #f0f4f8 25%, #e8ecf0 50%, #f0f4f8 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: 4px;
+}
+@keyframes shimmer { to { background-position: -200% 0; } }
+
+/* Geo table */
+.geo-bar {
+  width: 100%;
+  height: 8px;
+  background: var(--border);
+  border-radius: 99px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+.geo-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3d8b5f, #14b8a6);
+  border-radius: 99px;
+}
+
+/* Product analytics table */
+.prod-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+.prod-stat { text-align: center; }
+.prod-stat .val { font-size: .95rem; font-weight: 800; color: var(--text); }
+.prod-stat .lbl { font-size: .64rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+
+</style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
@@ -283,14 +590,853 @@
 
     <!-- INVENTORY VIEW -->
     <div id="view-inventory" class="view">
-        <div style="display: flex; gap: 10px; margin-bottom: 16px;">
+        <div style="display: flex; gap: 10px; margin-bottom: 10px;">
             <input type="text" id="searchInv" placeholder="Search products..." style="flex: 1; padding: 10px 14px; border: 1px solid var(--br); border-radius: 12px; outline: none; font-size: 0.9rem;" oninput="debounce(loadInventory, 500)()">
             <button class="btn btn-outline" onclick="toggleLowStock()"><i class="fas fa-filter"></i></button>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
+            <input type="number" id="priceAdjustValue" placeholder="10" style="flex:1;padding:10px 12px;border:1px solid var(--br);border-radius:10px;min-width:110px;">
+            <select id="priceAdjustMode" style="padding:10px 12px;border:1px solid var(--br);border-radius:10px;background:#fff;">
+                <option value="percentage">% change</option>
+                <option value="fixed">ETB change</option>
+                <option value="set">Set price</option>
+            </select>
+            <button class="btn btn-primary" onclick="applyUniversalPriceAdjustment()">Apply to all active</button>
         </div>
         <div id="inventoryList"></div>
     </div>
 
-    <!-- DRIVERS VIEW -->
+    
+    <!-- INTELLIGENCE VIEW -->
+    <div id="view-intelligence" class="view">
+        <h2 style="font-size: 1.1rem; font-weight: 800; margin-bottom: 16px;">Customer Intelligence</h2>
+        
+
+<!-- ── Period Selector ──────────────────────────────────────── -->
+<div class="period-bar">
+  <label><i class="fas fa-calendar-alt me-1"></i>Period:</label>
+  <button class="period-btn active" data-period="today">Today</button>
+  <button class="period-btn" data-period="yesterday">Yesterday</button>
+  <button class="period-btn" data-period="7d">7 Days</button>
+  <button class="period-btn" data-period="30d">30 Days</button>
+  <button class="period-btn" data-period="90d">90 Days</button>
+  <button class="period-btn" data-period="1y">1 Year</button>
+</div>
+
+<!-- ── Dynamic KPI Strip ──────────────────────────────────────── -->
+<div class="ci-kpi-grid" id="kpiGrid">
+  <!-- Static base KPIs always shown (server-side) -->
+  <div class="ci-kpi green">
+    <div class="ci-kpi-icon">👥</div>
+    <div class="ci-kpi-val" id="kpi-total-customers">0</div>
+    <div class="ci-kpi-label">Total Customers</div>
+    <div class="ci-kpi-sub">+0 this month</div>
+  </div>
+  <div class="ci-kpi teal">
+    <div class="ci-kpi-icon">📱</div>
+    <div class="ci-kpi-val" id="kpi-visits">0</div>
+    <div class="ci-kpi-label">Visits</div>
+    <div class="ci-kpi-sub" id="kpi-visits-sub">0 this week</div>
+  </div>
+  <div class="ci-kpi blue">
+    <div class="ci-kpi-icon">🌟</div>
+    <div class="ci-kpi-val" id="kpi-new">0</div>
+    <div class="ci-kpi-label">New Customers</div>
+    <div class="ci-kpi-change neu" id="kpi-new-change"></div>
+  </div>
+  <div class="ci-kpi purple">
+    <div class="ci-kpi-icon">🔁</div>
+    <div class="ci-kpi-val" id="kpi-returning">—</div>
+    <div class="ci-kpi-label">Returning Customers</div>
+    <div class="ci-kpi-sub" id="kpi-ret-rate"></div>
+  </div>
+  <div class="ci-kpi green">
+    <div class="ci-kpi-icon">💰</div>
+    <div class="ci-kpi-val" id="kpi-revenue">—</div>
+    <div class="ci-kpi-label">Revenue (ETB)</div>
+    <div class="ci-kpi-change neu" id="kpi-revenue-change"></div>
+  </div>
+  <div class="ci-kpi orange">
+    <div class="ci-kpi-icon">📦</div>
+    <div class="ci-kpi-val" id="kpi-orders">—</div>
+    <div class="ci-kpi-label">Orders</div>
+    <div class="ci-kpi-change neu" id="kpi-orders-change"></div>
+  </div>
+  <div class="ci-kpi blue">
+    <div class="ci-kpi-icon">🧾</div>
+    <div class="ci-kpi-val" id="kpi-aov">—</div>
+    <div class="ci-kpi-label">Avg Order Value</div>
+    <div class="ci-kpi-change neu" id="kpi-aov-change"></div>
+  </div>
+  <div class="ci-kpi pink">
+    <div class="ci-kpi-icon">💎</div>
+    <div class="ci-kpi-val" id="kpi-clv">—</div>
+    <div class="ci-kpi-label">Customer Lifetime Value</div>
+  </div>
+  <div class="ci-kpi orange">
+    <div class="ci-kpi-icon">🛒</div>
+    <div class="ci-kpi-val" id="kpi-cart-adds">0</div>
+    <div class="ci-kpi-label">Cart Additions</div>
+  </div>
+  <div class="ci-kpi red">
+    <div class="ci-kpi-icon">⚠️</div>
+    <div class="ci-kpi-val" id="kpi-abandon">—</div>
+    <div class="ci-kpi-label">Cart Abandonment</div>
+  </div>
+  <div class="ci-kpi teal">
+    <div class="ci-kpi-icon">🔄</div>
+    <div class="ci-kpi-val" id="kpi-repeat">—</div>
+    <div class="ci-kpi-label">Repeat Purchase Rate</div>
+  </div>
+  <div class="ci-kpi purple">
+    <div class="ci-kpi-icon">🤖</div>
+    <div class="ci-kpi-val">0</div>
+    <div class="ci-kpi-label">AI Sessions (7d)</div>
+  </div>
+</div>
+
+<!-- ── Tab Bar ──────────────────────────────────────────────── -->
+<div class="ci-tabs">
+  <a href="javascript:void(0)" class="ci-tab" data-citab="overview" onclick="switchCITab(\'overview\')">
+    <i class="fas fa-chart-pie"></i> Overview
+  </a>
+  <a href="javascript:void(0)" class="ci-tab" data-citab="sales" onclick="switchCITab(\'sales\')">
+    <i class="fas fa-chart-line"></i> Sales
+  </a>
+  <a href="javascript:void(0)" class="ci-tab" data-citab="funnel" onclick="switchCITab(\'funnel\')">
+    <i class="fas fa-filter"></i> Funnel
+  </a>
+  <a href="javascript:void(0)" class="ci-tab" data-citab="products" onclick="switchCITab(\'products\')">
+    <i class="fas fa-box-open"></i> Products
+  </a>
+  <a href="javascript:void(0)" class="ci-tab" data-citab="segments" onclick="switchCITab(\'segments\')">
+    <i class="fas fa-layer-group"></i> Segments
+  </a>
+  <a href="javascript:void(0)" class="ci-tab" data-citab="cohort" onclick="switchCITab(\'cohort\')">
+    <i class="fas fa-th"></i> Cohort
+  </a>
+  <a href="javascript:void(0)" class="ci-tab" data-citab="geo" onclick="switchCITab(\'geo\')">
+    <i class="fas fa-map-marker-alt"></i> Geographic
+  </a>
+  <a href="javascript:void(0)" class="ci-tab" data-citab="insights" onclick="switchCITab(\'insights\')">
+    <i class="fas fa-lightbulb"></i> Insights
+  </a>
+  <a href="javascript:void(0)" class="ci-tab" data-citab="engagement" onclick="switchCITab(\'engagement\')">
+    <i class="fas fa-fire"></i> Engagement
+  </a>
+  <a href="javascript:void(0)" class="ci-tab" data-citab="ai" onclick="switchCITab(\'ai\')">
+    <i class="fas fa-robot"></i> AI Conversations
+  </a>
+  <a href="javascript:void(0)" class="ci-tab" data-citab="weekly" onclick="switchCITab(\'weekly\')">
+    <i class="fas fa-calendar-week"></i> Weekly Report
+  </a>
+  <a href="javascript:void(0)" class="ci-tab" data-citab="customers" onclick="switchCITab(\'customers\')">
+    <i class="fas fa-users"></i> Customer List
+  </a>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- TAB: OVERVIEW                                                       -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<div id="citab-overview" class="ci-tab-content" style="display: none;">
+<div class="row g-4">
+
+  <!-- New vs Returning Donut -->
+  <div class="col-lg-4">
+    <div class="chart-card h-100">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-chart-pie" style="color:#3d8b5f"></i> New vs Returning (30d)</h6>
+      </div>
+      <div class="chart-body" style="display:flex;align-items:center;justify-content:center;height:220px">
+        <canvas id="pieChart" width="220" height="220"></canvas>
+      </div>
+      <div class="px-4 pb-3 d-flex justify-content-around">
+        <div class="text-center">
+          <div class="fw-700" style="color:#3d8b5f;font-size:1.2rem">0</div>
+          <div style="font-size:.72rem;color:var(--muted)">New Users</div>
+        </div>
+        <div class="text-center">
+          <div class="fw-700" style="color:#8b5cf6;font-size:1.2rem">0</div>
+          <div style="font-size:.72rem;color:var(--muted)">Returning</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Active & Abandoned Carts (MOVED TO TOP) -->
+  <div class="col-lg-8">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-shopping-cart" style="color:#059669"></i> Active &amp; Abandoned Carts</h6>
+      </div>
+      <div class="chart-body" style="padding: 0;">
+        {% if active_carts %}
+        <div style="max-height: 400px; overflow-y: auto;">
+          <table class="table admin-table mb-0" style="border-collapse: separate; border-spacing: 0;">
+            <thead style="position: sticky; top: 0; background: white; z-index: 10;">
+              <tr><th>User</th><th>Items</th><th>Cart Value</th><th>Last Active</th></tr>
+            </thead>
+          <tbody>
+            {% for c in active_carts %}
+            <tr style="cursor: pointer;" onclick="showCartModal(0)">
+              <td>
+                <div class="fw-600 tbl-name-cell">0</div>
+                <div style="font-size:.72rem;color:var(--muted)">0</div>
+                {% if c.telegram_username %}
+                  <a href="https://t.me/0" target="_blank" class="btn btn-sm btn-outline-primary" style="padding: 2px 8px; font-size: 0.7rem; margin-top: 4px;" onclick="event.stopPropagation()">
+                    <i class="fab fa-telegram"></i> Contact User
+                  </a>
+                {% elif c.telegram_id %}
+                  <a href="tg://user?id=0" class="btn btn-sm btn-outline-primary" style="padding: 2px 8px; font-size: 0.7rem; margin-top: 4px;" onclick="event.stopPropagation()">
+                    <i class="fab fa-telegram"></i> Contact User
+                  </a>
+                {% elif c.phone %}
+                  <div style="font-size:0.7rem; color:var(--muted); margin-top: 2px;"><i class="fas fa-phone"></i> 0</div>
+                </div>
+              </td>
+              <td>
+                <div>
+                  {% if c.status == 'Live' %}
+                    <span class="badge" style="background:#059669;color:white;font-size:.7rem">Live</span>
+                  {% else %}
+                    <span class="badge bg-secondary" style="font-size:.7rem">Abandoned</span>
+                  </div>
+                  <span class="badge bg-light text-dark border" style="font-size:.7rem; margin-left:4px">0 Items</span>
+                </div>
+                <div style="font-size:.7rem; color:var(--muted); max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 4px;" title="0">
+                  0
+                </div>
+              </td>
+              <td class="fw-600">ETB 0</td>
+              <td style="font-size:.75rem;color:var(--muted)">0</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-4" style="font-size:.85rem">No active carts found.<br><small>Customers checking out cleanly!</small></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Daily Visits Line Chart -->
+  <div class="col-lg-12">
+    <div class="chart-card h-100">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-chart-line" style="color:#3b82f6"></i> Daily Mini App Visits (14 days)</h6>
+      </div>
+      <div class="chart-body" style="height:260px">
+        <canvas id="visitsChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Weekly Signups Bar Chart -->
+  <div class="col-lg-6">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-user-plus" style="color:#f59e0b"></i> Weekly New Customers (8 weeks)</h6>
+      </div>
+      <div class="chart-body" style="height:230px">
+        <canvas id="signupsChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Buy Now Clicks (Telegram Channel) -->
+  <div class="col-lg-6">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fab fa-telegram" style="color:#0ea5e9"></i> Telegram "Buy Now" Clicks (30d)</h6>
+      </div>
+      <div class="chart-body">
+        {% if top_buy_now %}
+        <table class="table admin-table mb-0">
+          <thead><tr><th>#</th><th>Product</th><th>Clicks</th></tr></thead>
+          <tbody>
+            {% for p in top_buy_now %}
+            <tr>
+              <td class="text-muted fw-600">0</td>
+              <td style="font-size:.82rem">0</td>
+              <td><span class="badge" style="background:#0ea5e9;color:white;font-size:.75rem">0</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="text-center text-muted py-4" style="font-size:.85rem">No Buy Now click data yet.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI Top Suggested Products -->
+  <div class="col-lg-6">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-robot" style="color:#8b5cf6"></i> AI Most-Suggested Products (30d)</h6>
+      </div>
+      <div class="chart-body">
+        {% if ai_suggestions %}
+        <table class="table admin-table mb-0">
+          <thead><tr><th>#</th><th>Product</th><th>Times Suggested</th></tr></thead>
+          <tbody>
+            {% for p in ai_suggestions %}
+            <tr>
+              <td class="text-muted fw-600">0</td>
+              <td style="font-size:.82rem">0</td>
+              <td><span class="badge" style="background:#8b5cf6;color:white;font-size:.75rem">0</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="text-center text-muted py-4" style="font-size:.85rem">No AI suggestion data yet.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- TAB: SALES ANALYTICS                                               -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<div id="citab-sales" class="ci-tab-content" style="display: none;">
+<div class="row g-4">
+  <div class="col-12">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-chart-area" style="color:#3d8b5f"></i> Revenue Over Time</h6>
+        <span style="font-size:.75rem;color:var(--muted)" id="salesPeriodLabel">Loading…</span>
+      </div>
+      <div class="chart-body" style="height:300px">
+        <canvas id="revenueChart"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-chart-pie" style="color:#f59e0b"></i> Revenue by Category</h6>
+      </div>
+      <div class="chart-body" style="height:280px">
+        <canvas id="catRevChart"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-trophy" style="color:#8b5cf6"></i> Top Products by Revenue</h6>
+      </div>
+      <div class="chart-body" style="height:280px">
+        <canvas id="prodRevChart"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-12">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-table" style="color:var(--muted)"></i> Daily Breakdown</h6>
+      </div>
+      <div class="table-responsive">
+        <table class="table admin-table mb-0 report-tbl">
+          <thead><tr><th>Date</th><th>Revenue (ETB)</th><th>Orders</th></tr></thead>
+          <tbody id="salesTableBody"><tr><td colspan="3" class="text-center py-3"><i class="fas fa-spinner fa-spin me-2"></i>Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- TAB: SALES FUNNEL                                                  -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<div id="citab-funnel" class="ci-tab-content" style="display: none;">
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-filter" style="color:#3d8b5f"></i> Conversion Funnel</h6>
+        <span style="font-size:.75rem;color:var(--muted)">End-to-end customer journey</span>
+      </div>
+      <div class="funnel-wrap" id="funnelWrap">
+        <div class="text-center py-4 text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Loading funnel…</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-chart-bar" style="color:#8b5cf6"></i> Stage Comparison</h6>
+      </div>
+      <div class="chart-body" style="height:320px">
+        <canvas id="funnelChart"></canvas>
+      </div>
+    </div>
+    <div class="chart-card mt-0">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-info-circle" style="color:var(--muted)"></i> What This Means</h6>
+      </div>
+      <div class="chart-body" style="font-size:.82rem;color:var(--muted);line-height:1.7">
+        <p class="mb-1">Each stage shows how many users proceeded from the previous step.</p>
+        <p class="mb-1"><span style="color:#ef4444;font-weight:700">Drop-off %</span> = users lost between stages.</p>
+        <p class="mb-0">High drop-off at "Added to Cart → Checkout" often means delivery fee surprise or payment friction.</p>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- TAB: PRODUCT ANALYTICS                                             -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<div id="citab-products" class="ci-tab-content" style="display: none;">
+<div class="chart-card">
+  <div class="chart-card-header">
+    <h6><i class="fas fa-box-open" style="color:#3d8b5f"></i> Product Performance</h6>
+    <span style="font-size:.75rem;color:var(--muted)">Sorted by revenue</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table admin-table mb-0" id="productsTable">
+      <thead>
+        <tr>
+          <th>Product</th>
+          <th>Stock</th>
+          <th>Views</th>
+          <th>Cart Adds</th>
+          <th>Orders</th>
+          <th>Qty Sold</th>
+          <th>Revenue (ETB)</th>
+          <th>Conversion</th>
+          <th>Wishlist</th>
+        </tr>
+      </thead>
+      <tbody id="productsBody">
+        <tr><td colspan="9" class="text-center py-4"><i class="fas fa-spinner fa-spin me-2"></i>Loading product data…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Charts row -->
+<div class="row g-4 mt-0">
+  <div class="col-lg-6">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-eye" style="color:#3b82f6"></i> Most Viewed Products</h6>
+      </div>
+      <div class="chart-body" style="height:260px">
+        <canvas id="viewsChart"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-shopping-bag" style="color:#f59e0b"></i> Top Selling Products</h6>
+      </div>
+      <div class="chart-body" style="height:260px">
+        <canvas id="topSalesChart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- TAB: CUSTOMER SEGMENTS                                             -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<div id="citab-segments" class="ci-tab-content" style="display: none;">
+<div class="row g-4">
+  <div class="col-lg-5">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-chart-pie" style="color:#8b5cf6"></i> Segment Distribution</h6>
+      </div>
+      <div class="chart-body" style="height:300px">
+        <canvas id="segmentPieChart"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-7">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-layer-group" style="color:#3d8b5f"></i> Segment Details</h6>
+      </div>
+      <div class="table-responsive">
+        <table class="table admin-table mb-0">
+          <thead><tr><th>Segment</th><th>Customers</th><th>Revenue (ETB)</th><th>Avg Spend</th></tr></thead>
+          <tbody id="segmentBody">
+            <tr><td colspan="4" class="text-center py-4"><i class="fas fa-spinner fa-spin me-2"></i>Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-12">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-chart-bar" style="color:#f59e0b"></i> Revenue by Segment</h6>
+      </div>
+      <div class="chart-body" style="height:240px">
+        <canvas id="segmentRevChart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- TAB: COHORT ANALYSIS                                               -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<div id="citab-cohort" class="ci-tab-content" style="display: none;">
+<div class="chart-card">
+  <div class="chart-card-header">
+    <h6><i class="fas fa-th" style="color:#14b8a6"></i> Monthly Cohort Retention</h6>
+    <span style="font-size:.75rem;color:var(--muted)">% who purchased again each subsequent month</span>
+  </div>
+  <div class="chart-body" id="cohortWrap">
+    <div class="text-center py-4 text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Building cohort data…</div>
+  </div>
+</div>
+<div class="chart-card">
+  <div class="chart-card-header">
+    <h6><i class="fas fa-info-circle" style="color:var(--muted)"></i> Reading the Cohort Table</h6>
+  </div>
+  <div class="chart-body" style="font-size:.82rem;color:var(--muted);line-height:1.7">
+    <p class="mb-1">Each row = a group of customers who joined in a given month.</p>
+    <p class="mb-1">Each column = % of that cohort who made a purchase in that month (M+0, M+1, M+2…).</p>
+    <p class="mb-0"><span style="background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:4px;font-weight:700">Green</span> = high retention. <span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:4px;font-weight:700">Red</span> = low retention.</p>
+  </div>
+</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- TAB: GEOGRAPHIC ANALYTICS                                          -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<div id="citab-geo" class="ci-tab-content" style="display: none;">
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-city" style="color:#3d8b5f"></i> Orders by City</h6>
+      </div>
+      <div class="chart-body" id="geoTableWrap">
+        <div class="text-center py-4 text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Loading geographic data…</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-map-marked-alt" style="color:#8b5cf6"></i> Top Cities by Orders</h6>
+      </div>
+      <div class="chart-body" style="height:300px">
+        <canvas id="geoCityChart"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-12">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-map" style="color:#14b8a6"></i> Revenue by Region</h6>
+      </div>
+      <div class="chart-body" style="height:240px">
+        <canvas id="geoRegionChart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- TAB: AI INSIGHTS                                                   -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<div id="citab-insights" class="ci-tab-content" style="display: none;">
+<div class="row g-4">
+  <div class="col-lg-4">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-lightbulb" style="color:#f59e0b"></i> Key Insights</h6>
+      </div>
+      <div class="chart-body" id="insightsPanel">
+        <div class="text-center py-4 text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Generating insights…</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-exclamation-triangle" style="color:#ef4444"></i> Warnings</h6>
+      </div>
+      <div class="chart-body" id="warningsPanel">
+        <div class="text-center py-4 text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Checking for issues…</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-star" style="color:#22c55e"></i> Recommendations</h6>
+      </div>
+      <div class="chart-body" id="recommendationsPanel">
+        <div class="text-center py-4 text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Building recommendations…</div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- TAB: ENGAGEMENT (Activity Feed)                                    -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<div id="citab-engagement" class="ci-tab-content" style="display: none;">
+<div class="row g-4">
+  <div class="col-lg-8">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-bolt" style="color:#f59e0b"></i> Live Activity Feed</h6>
+        <span style="font-size:.75rem;color:var(--muted)">Last 20 events</span>
+      </div>
+      <ul class="activity-feed">
+        {% for act in recent_activity %}
+        {% set action = act.action %}
+        <li class="activity-item">
+          <div class="act-dot {% if action == 'mini_app_visit' %}visit{% elif action == 'add_to_cart' %}cart{% elif action == 'telegram_buy_now_click' %}buy{% elif action == 'ai_suggested_product' %}ai{% elif action == 'view_product' %}view{% else %}other</div>">
+            {% if action == 'mini_app_visit' %}<i class="fas fa-mobile-alt"></i>
+            {% elif action == 'add_to_cart' %}<i class="fas fa-shopping-cart"></i>
+            {% elif action == 'telegram_buy_now_click' %}<i class="fab fa-telegram"></i>
+            {% elif action == 'ai_suggested_product' %}<i class="fas fa-robot"></i>
+            {% elif action == 'view_product' %}<i class="fas fa-eye"></i>
+            {% else %}<i class="fas fa-circle"></i></div>
+          </div>
+          <div class="act-body">
+            <div class="act-title">
+              {% if action == 'mini_app_visit' %}Mini App Visited
+              {% elif action == 'add_to_cart' %}Added to Cart{% if act.entity_id %} — Product #0</div>
+              {% elif action == 'telegram_buy_now_click' %}Telegram Buy Now Click{% if act.entity_id %} — Product #0</div>
+              {% elif action == 'ai_suggested_product' %}AI Suggested Product #0
+              {% elif action == 'view_product' %}Viewed Product #0
+              {% else %}0</div>
+            </div>
+            <div class="act-meta">
+              {% if act.user_id %}User #0{% else %}Anonymous</div>
+              {% if act.ip_address %} · 0</div>
+            </div>
+          </div>
+          <div class="act-time">0</div>
+        </li>
+        {% else %}
+        <li class="activity-item"><div class="text-center text-muted py-4 w-100">No activity recorded yet. Activity tracking is now live!</div></li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="chart-card mb-4">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-chart-bar" style="color:#3d8b5f"></i> Event Breakdown</h6>
+      </div>
+      <div class="chart-body" style="height:220px">
+        <canvas id="eventPieChart"></canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-info-circle" style="color:var(--muted)"></i> Tracking Guide</h6>
+      </div>
+      <div class="chart-body">
+        <div style="font-size:.8rem;color:var(--muted);line-height:1.6">
+          <div class="mb-2"><span class="act-dot visit d-inline-flex" style="width:22px;height:22px;font-size:.65rem;margin-right:6px"><i class="fas fa-mobile-alt"></i></span>Mini App opens</div>
+          <div class="mb-2"><span class="act-dot cart d-inline-flex" style="width:22px;height:22px;font-size:.65rem;margin-right:6px"><i class="fas fa-shopping-cart"></i></span>Add to cart events</div>
+          <div class="mb-2"><span class="act-dot buy d-inline-flex" style="width:22px;height:22px;font-size:.65rem;margin-right:6px"><i class="fab fa-telegram"></i></span>Telegram Buy Now clicks</div>
+          <div class="mb-2"><span class="act-dot ai d-inline-flex" style="width:22px;height:22px;font-size:.65rem;margin-right:6px"><i class="fas fa-robot"></i></span>AI product suggestions</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- TAB: AI CONVERSATIONS                                              -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<div id="citab-ai" class="ci-tab-content" style="display: none;">
+<div class="chart-card">
+  <div class="chart-card-header">
+    <h6><i class="fas fa-robot" style="color:#8b5cf6"></i> Recent AI Conversations</h6>
+    <span style="font-size:.75rem;color:var(--muted)">Latest 15 sessions</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table admin-table mb-0">
+      <thead>
+        <tr>
+          <th>Session ID</th>
+          <th>Customer</th>
+          <th>Messages</th>
+          <th>Last Activity</th>
+          <th>Channel</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for sess in recent_ai %}
+        <tr>
+          <td style="font-size:.75rem;font-family:monospace;color:var(--muted)">0…</td>
+          <td>
+            {% if sess.user_id %}
+            <a href="0" style="font-size:.82rem;color:var(--green);font-weight:600">User #0</a>
+            {% else %}
+            <span style="font-size:.82rem;color:var(--muted)">Anonymous</span>
+            </div>
+          </td>
+          <td><span class="badge" style="background:#ede9fe;color:#5b21b6;font-weight:700">0</span></td>
+          <td style="font-size:.78rem;color:var(--muted)">0</td>
+          <td><span class="badge bg-secondary">mini_app</span></td>
+          <td>
+            <a href="0?session=0" class="btn btn-sm" style="background:var(--green-light);color:var(--green);font-weight:600;font-size:.74rem;padding:4px 10px">View</a>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="text-center text-muted py-4">No AI conversation data yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- TAB: WEEKLY REPORT                                                 -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<div id="citab-weekly" class="ci-tab-content" style="display: none;">
+<div class="row g-4">
+  <div class="col-12">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-calendar-week" style="color:#14b8a6"></i> 8-Week Performance Report</h6>
+        <a href="0" target="_blank" class="btn btn-sm" style="background:var(--green-light);color:var(--green);font-weight:600;font-size:.75rem;padding:4px 12px"><i class="fas fa-download me-1"></i>Export JSON</a>
+      </div>
+      <div class="chart-body" style="height:260px">
+        <canvas id="weeklyChart"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-12">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h6><i class="fas fa-table" style="color:var(--muted)"></i> Weekly Breakdown Table</h6>
+      </div>
+      <div class="table-responsive">
+        <table class="table report-tbl admin-table mb-0">
+          <thead>
+            <tr>
+              <th>Week</th>
+              <th>New Users</th>
+              <th>Mini App Visits</th>
+              <th>Orders</th>
+              <th>Revenue (ETB)</th>
+            </tr>
+          </thead>
+          <tbody id="weeklyReportBody">
+            <tr><td colspan="5" class="text-center text-muted py-3"><i class="fas fa-spinner fa-spin me-2"></i>Loading weekly data…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- TAB: CUSTOMER LIST                                                 -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<div id="citab-customers" class="ci-tab-content" style="display: none;">
+<div class="chart-card">
+  <div class="chart-card-header">
+    <h6><i class="fas fa-users" style="color:#3d8b5f"></i> All Customers</h6>
+    <span style="font-size:.78rem;color:var(--muted)">0 total</span>
+  </div>
+  <div class="chart-body pb-1">
+    <form method="GET" class="ci-search">
+      <input type="hidden" name="tab" value="customers"/>
+      <input type="text" name="q" value="0" placeholder="Search by name, email, phone, Telegram username…" />
+      <button class="btn admin-btn-outline" type="submit">Search</button>
+      {% if q %}<a href="?tab=customers" class="btn admin-btn-outline">Clear</a></div>
+    </form>
+  </div>
+  <div class="table-responsive">
+    <table class="table admin-table mb-0">
+      <thead>
+        <tr>
+          <th>Customer</th>
+          <th>Contact</th>
+          <th>Telegram</th>
+          <th>Orders</th>
+          <th>Spent (ETB)</th>
+          <th>Status</th>
+          <th>Joined</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in customers %}
+        <tr>
+          <td>
+            <div class="fw-600 tbl-name-cell">0</div>
+            <div style="font-size:.72rem;color:var(--muted)">ID #0</div>
+          </td>
+          <td>
+            <div style="font-size:.8rem">0</div>
+            <div style="font-size:.76rem;color:var(--muted)">0</div>
+          </td>
+          <td>
+            {% if c.telegram_id %}
+            <span class="tbl-badge-tg">@0</span>
+            {% else %}—</div>
+          </td>
+          <td><span class="fw-600">0</span></td>
+          <td style="font-size:.82rem">0</td>
+          <td>
+            {% if c.created_at and (now|default(none)) %}
+            <span class="{% if c.orders.count() == 0 %}tbl-badge-new{% else %}tbl-badge-ret</div>">
+              {% if c.orders.count() == 0 %}New{% else %}Customer</div>
+            </span>
+            </div>
+          </td>
+          <td style="font-size:.76rem;color:var(--muted)">0</td>
+          <td>
+            <a href="0" class="btn btn-sm" style="background:var(--green-light);color:var(--green);font-size:.74rem;font-weight:600;padding:4px 10px">Profile</a>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" class="text-center text-muted py-4">No customers found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if pagination.pages > 1 %}
+  <div class="chart-body pt-1">
+    <nav><ul class="pagination justify-content-center mb-0">
+      {% if pagination.has_prev %}<li class="page-item"><a class="page-link" href="?tab=customers&page=0&q=0">‹</a></li></div>
+      {% for p in pagination.iter_pages() %}{% if p %}<li class="page-item {% if p == pagination.page %}active</div>"><a class="page-link" href="?tab=customers&page=0&q=0">0</a></li></div>{% endfor %}
+      {% if pagination.has_next %}<li class="page-item"><a class="page-link" href="?tab=customers&page=0&q=0">›</a></li></div>
+    </ul></nav>
+  </div>
+  </div>
+</div>
+</div>
+
+
+    </div>
+
+<!-- DRIVERS VIEW -->
     <div id="view-drivers" class="view">
         <h2 style="font-size: 1.1rem; font-weight: 800; margin-bottom: 16px;">Driver Tracking</h2>
         <p style="font-size:0.85rem;color:var(--ts);margin-bottom:14px;line-height:1.5">Live driver positions and delivery activity.</p>
@@ -474,7 +1620,12 @@
             <i class="fas fa-motorcycle"></i>
             <span>Drivers</span>
         </div>
-                <div class="nav-item" data-tab="history" onclick="switchTab('history')">
+                
+        <div class="nav-item" data-tab="intelligence" onclick="switchTab('intelligence')">
+            <i class="fas fa-brain"></i>
+            <span>Insights</span>
+        </div>
+<div class="nav-item" data-tab="history" onclick="switchTab('history')">
             <i class="fas fa-history"></i>
             <span>History</span>
         </div>
@@ -732,6 +1883,31 @@
         function toggleLowStock() {
             showLowStockOnly = !showLowStockOnly;
             loadInventory();
+        }
+
+        async function applyUniversalPriceAdjustment() {
+            const valueInput = document.getElementById('priceAdjustValue');
+            const modeInput = document.getElementById('priceAdjustMode');
+            if(!valueInput || !modeInput) return;
+
+            const rawValue = valueInput.value;
+            if(rawValue === '' || Number.isNaN(Number(rawValue))) {
+                tg.showAlert('Enter a valid number first');
+                return;
+            }
+
+            const data = await fetchAPI('/store/products/price-adjustment', {
+                method: 'POST',
+                body: JSON.stringify({
+                    mode: modeInput.value,
+                    value: Number(rawValue),
+                })
+            });
+
+            if(data) {
+                tg.showAlert(data.updated_count ? `Updated ${data.updated_count} active products` : 'No active products were updated');
+                await loadInventory();
+            }
         }
 
         async function updateStock(id, newStock) {
@@ -1488,6 +2664,34 @@ async function runProductIndex() {
     }
     btn.disabled = false;
 }
+
+
+        // --- CUSTOMER INTELLIGENCE ---
+        let currentCITab = 'overview';
+        function switchCITab(tab) {
+            currentCITab = tab;
+            document.querySelectorAll('.ci-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.ci-tab-content').forEach(c => c.style.display = 'none');
+            
+            let btn = document.querySelector(`.ci-tab[data-citab="${tab}"]`);
+            if(btn) btn.classList.add('active');
+            let content = document.getElementById('citab-' + tab);
+            if(content) content.style.display = 'block';
+            
+            // Trigger load if exists
+            if (typeof loadCIData === 'function') loadCIData();
+        }
+        
+        
+        
+        // Initial setup for CI tabs when Intelligence view is shown
+        const originalSwitchTab = switchTab;
+        switchTab = function(tabId) {
+            originalSwitchTab(tabId);
+            if (tabId === 'intelligence') {
+                switchCITab('overview');
+            }
+        };
 
 </script>
 </body>
