@@ -770,35 +770,35 @@
         <h6><i class="fas fa-shopping-cart" style="color:#059669"></i> Active &amp; Abandoned Carts</h6>
       </div>
       <div class="chart-body" style="padding: 0;">
-        {% if active_carts %}
+        
         <div style="max-height: 400px; overflow-y: auto;">
           <table class="table admin-table mb-0" style="border-collapse: separate; border-spacing: 0;">
             <thead style="position: sticky; top: 0; background: white; z-index: 10;">
               <tr><th>User</th><th>Items</th><th>Cart Value</th><th>Last Active</th></tr>
             </thead>
           <tbody>
-            {% for c in active_carts %}
+            
             <tr style="cursor: pointer;" onclick="showCartModal(0)">
               <td>
                 <div class="fw-600 tbl-name-cell">0</div>
                 <div style="font-size:.72rem;color:var(--muted)">0</div>
-                {% if c.telegram_username %}
+                
                   <a href="https://t.me/0" target="_blank" class="btn btn-sm btn-outline-primary" style="padding: 2px 8px; font-size: 0.7rem; margin-top: 4px;" onclick="event.stopPropagation()">
                     <i class="fab fa-telegram"></i> Contact User
                   </a>
-                {% elif c.telegram_id %}
+                
                   <a href="tg://user?id=0" class="btn btn-sm btn-outline-primary" style="padding: 2px 8px; font-size: 0.7rem; margin-top: 4px;" onclick="event.stopPropagation()">
                     <i class="fab fa-telegram"></i> Contact User
                   </a>
-                {% elif c.phone %}
+                
                   <div style="font-size:0.7rem; color:var(--muted); margin-top: 2px;"><i class="fas fa-phone"></i> 0</div>
                 </div>
               </td>
               <td>
                 <div>
-                  {% if c.status == 'Live' %}
+                  
                     <span class="badge" style="background:#059669;color:white;font-size:.7rem">Live</span>
-                  {% else %}
+                  
                     <span class="badge bg-secondary" style="font-size:.7rem">Abandoned</span>
                   </div>
                   <span class="badge bg-light text-dark border" style="font-size:.7rem; margin-left:4px">0 Items</span>
@@ -810,11 +810,11 @@
               <td class="fw-600">ETB 0</td>
               <td style="font-size:.75rem;color:var(--muted)">0</td>
             </tr>
-            {% endfor %}
+            
           </tbody>
         </table>
         </div>
-        {% else %}
+        
         <div class="text-center text-muted py-4" style="font-size:.85rem">No active carts found.<br><small>Customers checking out cleanly!</small></div>
         </div>
       </div>
@@ -852,20 +852,20 @@
         <h6><i class="fab fa-telegram" style="color:#0ea5e9"></i> Telegram "Buy Now" Clicks (30d)</h6>
       </div>
       <div class="chart-body">
-        {% if top_buy_now %}
+        
         <table class="table admin-table mb-0">
           <thead><tr><th>#</th><th>Product</th><th>Clicks</th></tr></thead>
           <tbody>
-            {% for p in top_buy_now %}
+            
             <tr>
               <td class="text-muted fw-600">0</td>
               <td style="font-size:.82rem">0</td>
               <td><span class="badge" style="background:#0ea5e9;color:white;font-size:.75rem">0</span></td>
             </tr>
-            {% endfor %}
+            
           </tbody>
         </table>
-        {% else %}
+        
         <div class="text-center text-muted py-4" style="font-size:.85rem">No Buy Now click data yet.</div>
         </div>
       </div>
@@ -879,20 +879,20 @@
         <h6><i class="fas fa-robot" style="color:#8b5cf6"></i> AI Most-Suggested Products (30d)</h6>
       </div>
       <div class="chart-body">
-        {% if ai_suggestions %}
+        
         <table class="table admin-table mb-0">
           <thead><tr><th>#</th><th>Product</th><th>Times Suggested</th></tr></thead>
           <tbody>
-            {% for p in ai_suggestions %}
+            
             <tr>
               <td class="text-muted fw-600">0</td>
               <td style="font-size:.82rem">0</td>
               <td><span class="badge" style="background:#8b5cf6;color:white;font-size:.75rem">0</span></td>
             </tr>
-            {% endfor %}
+            
           </tbody>
         </table>
-        {% else %}
+        
         <div class="text-center text-muted py-4" style="font-size:.85rem">No AI suggestion data yet.</div>
         </div>
       </div>
@@ -1205,36 +1205,36 @@
         <span style="font-size:.75rem;color:var(--muted)">Last 20 events</span>
       </div>
       <ul class="activity-feed">
-        {% for act in recent_activity %}
-        {% set action = act.action %}
+        
+        
         <li class="activity-item">
-          <div class="act-dot {% if action == 'mini_app_visit' %}visit{% elif action == 'add_to_cart' %}cart{% elif action == 'telegram_buy_now_click' %}buy{% elif action == 'ai_suggested_product' %}ai{% elif action == 'view_product' %}view{% else %}other</div>">
-            {% if action == 'mini_app_visit' %}<i class="fas fa-mobile-alt"></i>
-            {% elif action == 'add_to_cart' %}<i class="fas fa-shopping-cart"></i>
-            {% elif action == 'telegram_buy_now_click' %}<i class="fab fa-telegram"></i>
-            {% elif action == 'ai_suggested_product' %}<i class="fas fa-robot"></i>
-            {% elif action == 'view_product' %}<i class="fas fa-eye"></i>
-            {% else %}<i class="fas fa-circle"></i></div>
+          <div class="act-dot visitcartbuyaiviewother</div>">
+            <i class="fas fa-mobile-alt"></i>
+            <i class="fas fa-shopping-cart"></i>
+            <i class="fab fa-telegram"></i>
+            <i class="fas fa-robot"></i>
+            <i class="fas fa-eye"></i>
+            <i class="fas fa-circle"></i></div>
           </div>
           <div class="act-body">
             <div class="act-title">
-              {% if action == 'mini_app_visit' %}Mini App Visited
-              {% elif action == 'add_to_cart' %}Added to Cart{% if act.entity_id %} — Product #0</div>
-              {% elif action == 'telegram_buy_now_click' %}Telegram Buy Now Click{% if act.entity_id %} — Product #0</div>
-              {% elif action == 'ai_suggested_product' %}AI Suggested Product #0
-              {% elif action == 'view_product' %}Viewed Product #0
-              {% else %}0</div>
+              Mini App Visited
+              Added to Cart — Product #0</div>
+              Telegram Buy Now Click — Product #0</div>
+              AI Suggested Product #0
+              Viewed Product #0
+              0</div>
             </div>
             <div class="act-meta">
-              {% if act.user_id %}User #0{% else %}Anonymous</div>
-              {% if act.ip_address %} · 0</div>
+              User #0Anonymous</div>
+               · 0</div>
             </div>
           </div>
           <div class="act-time">0</div>
         </li>
-        {% else %}
+        
         <li class="activity-item"><div class="text-center text-muted py-4 w-100">No activity recorded yet. Activity tracking is now live!</div></li>
-        {% endfor %}
+        
       </ul>
     </div>
   </div>
@@ -1286,13 +1286,13 @@
         </tr>
       </thead>
       <tbody>
-        {% for sess in recent_ai %}
+        
         <tr>
           <td style="font-size:.75rem;font-family:monospace;color:var(--muted)">0…</td>
           <td>
-            {% if sess.user_id %}
+            
             <a href="0" style="font-size:.82rem;color:var(--green);font-weight:600">User #0</a>
-            {% else %}
+            
             <span style="font-size:.82rem;color:var(--muted)">Anonymous</span>
             </div>
           </td>
@@ -1303,9 +1303,9 @@
             <a href="0?session=0" class="btn btn-sm" style="background:var(--green-light);color:var(--green);font-weight:600;font-size:.74rem;padding:4px 10px">View</a>
           </td>
         </tr>
-        {% else %}
+        
         <tr><td colspan="6" class="text-center text-muted py-4">No AI conversation data yet.</td></tr>
-        {% endfor %}
+        
       </tbody>
     </table>
   </div>
@@ -1368,7 +1368,7 @@
       <input type="hidden" name="tab" value="customers"/>
       <input type="text" name="q" value="0" placeholder="Search by name, email, phone, Telegram username…" />
       <button class="btn admin-btn-outline" type="submit">Search</button>
-      {% if q %}<a href="?tab=customers" class="btn admin-btn-outline">Clear</a></div>
+      <a href="?tab=customers" class="btn admin-btn-outline">Clear</a></div>
     </form>
   </div>
   <div class="table-responsive">
@@ -1386,7 +1386,7 @@
         </tr>
       </thead>
       <tbody>
-        {% for c in customers %}
+        
         <tr>
           <td>
             <div class="fw-600 tbl-name-cell">0</div>
@@ -1397,16 +1397,16 @@
             <div style="font-size:.76rem;color:var(--muted)">0</div>
           </td>
           <td>
-            {% if c.telegram_id %}
+            
             <span class="tbl-badge-tg">@0</span>
-            {% else %}—</div>
+            —</div>
           </td>
           <td><span class="fw-600">0</span></td>
           <td style="font-size:.82rem">0</td>
           <td>
-            {% if c.created_at and (now|default(none)) %}
-            <span class="{% if c.orders.count() == 0 %}tbl-badge-new{% else %}tbl-badge-ret</div>">
-              {% if c.orders.count() == 0 %}New{% else %}Customer</div>
+            
+            <span class="tbl-badge-newtbl-badge-ret</div>">
+              NewCustomer</div>
             </span>
             </div>
           </td>
@@ -1415,18 +1415,18 @@
             <a href="0" class="btn btn-sm" style="background:var(--green-light);color:var(--green);font-size:.74rem;font-weight:600;padding:4px 10px">Profile</a>
           </td>
         </tr>
-        {% else %}
+        
         <tr><td colspan="8" class="text-center text-muted py-4">No customers found.</td></tr>
-        {% endfor %}
+        
       </tbody>
     </table>
   </div>
-  {% if pagination.pages > 1 %}
+  
   <div class="chart-body pt-1">
     <nav><ul class="pagination justify-content-center mb-0">
-      {% if pagination.has_prev %}<li class="page-item"><a class="page-link" href="?tab=customers&page=0&q=0">‹</a></li></div>
-      {% for p in pagination.iter_pages() %}{% if p %}<li class="page-item {% if p == pagination.page %}active</div>"><a class="page-link" href="?tab=customers&page=0&q=0">0</a></li></div>{% endfor %}
-      {% if pagination.has_next %}<li class="page-item"><a class="page-link" href="?tab=customers&page=0&q=0">›</a></li></div>
+      <li class="page-item"><a class="page-link" href="?tab=customers&page=0&q=0">‹</a></li></div>
+      <li class="page-item active</div>"><a class="page-link" href="?tab=customers&page=0&q=0">0</a></li></div>
+      <li class="page-item"><a class="page-link" href="?tab=customers&page=0&q=0">›</a></li></div>
     </ul></nav>
   </div>
   </div>
