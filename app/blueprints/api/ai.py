@@ -237,7 +237,7 @@ def _normalize_query_words(text):
 
 
 def _product_name_match_score(product, text_lower):
-    for name in (product.name, product.name_am):
+    for name in (product.name, product.name_am, product.slug):
         if not name:
             continue
         name_lower = name.lower().strip()
@@ -253,6 +253,31 @@ def _product_name_match_score(product, text_lower):
             return 50 + hit_count
 
     return 0
+
+
+def _product_name_in_text(name, text_lower):
+    if not name:
+        return False
+    name_lower = name.lower().strip()
+    if not name_lower:
+        return False
+
+    if re.match(r'^[a-z0-9 ]+$', name_lower):
+        return bool(re.search(r'\b' + re.escape(name_lower) + r'\b', text_lower))
+    return name_lower in text_lower
+
+
+def _extract_shown_product_ids(history_text):
+    if not history_text:
+        return set()
+    shown_ids = set()
+    text_lower = history_text.lower()
+    for p in Product.query.filter_by(is_active=True).all():
+        for name in (p.name, p.name_am, p.slug):
+            if _product_name_in_text(name, text_lower):
+                shown_ids.add(p.id)
+                break
+    return shown_ids
 
 
 # ---------------------------------------------------------------------------
@@ -594,6 +619,7 @@ CRITICAL PRODUCT RECOMMENDATION RULES:
 6. If a customer asks about a specific product by name, find it in [SYSTEM CONTEXT - PRODUCTS], confirm it warmly, describe it with its age range and main benefit.
 7. NEVER recommend a product not in [SYSTEM CONTEXT - PRODUCTS]. NEVER invent product names.
 8. If [SYSTEM CONTEXT - PRODUCTS] says there are no matching products, tell the customer honestly and warmly.
+9. Avoid repeating products already shown during this conversation unless the customer explicitly asks about the same item again.
 
 AGE RULES (very important):
 - ONLY recommend products whose age range includes the age the customer mentioned.
@@ -752,6 +778,8 @@ def ai_chat():
     cart_user, cart_session_id = _resolve_user()
     cart_items = _cart_query(cart_user, cart_session_id).all()
     cart_product_ids = [item.product_id for item in cart_items]
+    shown_product_ids = _extract_shown_product_ids(recent_history_text)
+    exclude_ids = set(cart_product_ids) | shown_product_ids
 
     # Parse age and price from full context
     combined_text = f'{user_message} {recent_history_text}'
@@ -763,7 +791,7 @@ def ai_chat():
 
     # Fetch age/price/context-filtered candidates
     candidates = _get_all_candidate_products(
-        user_message, recent_history_text, exclude_ids=cart_product_ids
+        user_message, recent_history_text, exclude_ids=exclude_ids
     )
 
     # Merge named products into candidates (front of list, no duplicates)
