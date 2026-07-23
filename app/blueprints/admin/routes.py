@@ -1487,7 +1487,7 @@ def analytics_revenue():
     # Revenue by category
     cat_rev = db.session.query(
         Category.name,
-        func.sum(OrderItem.price * OrderItem.quantity).label('rev')
+        func.sum(OrderItem.unit_price * OrderItem.quantity).label('rev')
     ).select_from(OrderItem
     ).join(Product, OrderItem.product_id == Product.id
     ).join(Category, Product.category_id == Category.id
@@ -1495,12 +1495,12 @@ def analytics_revenue():
     ).filter(
         Order.created_at >= start, Order.created_at < end,
         Order.status.notin_([OrderStatus.cancelled, OrderStatus.returned])
-    ).group_by(Category.name).order_by(func.sum(OrderItem.price * OrderItem.quantity).desc()).limit(8).all()
+    ).group_by(Category.name).order_by(func.sum(OrderItem.unit_price * OrderItem.quantity).desc()).limit(8).all()
 
     # Revenue by product
     prod_rev = db.session.query(
         Product.name,
-        func.sum(OrderItem.price * OrderItem.quantity).label('rev'),
+        func.sum(OrderItem.unit_price * OrderItem.quantity).label('rev'),
         func.sum(OrderItem.quantity).label('qty')
     ).select_from(OrderItem
     ).join(Product, OrderItem.product_id == Product.id
@@ -1508,7 +1508,7 @@ def analytics_revenue():
     ).filter(
         Order.created_at >= start, Order.created_at < end,
         Order.status.notin_([OrderStatus.cancelled, OrderStatus.returned])
-    ).group_by(Product.name).order_by(func.sum(OrderItem.price * OrderItem.quantity).desc()).limit(10).all()
+    ).group_by(Product.name).order_by(func.sum(OrderItem.unit_price * OrderItem.quantity).desc()).limit(10).all()
 
     return jsonify({
         'daily': days,
@@ -1532,7 +1532,7 @@ def analytics_products():
         Product.view_count,
         Product.sales_count,
         func.sum(OrderItem.quantity).label('period_qty'),
-        func.sum(OrderItem.price * OrderItem.quantity).label('period_rev'),
+        func.sum(OrderItem.unit_price * OrderItem.quantity).label('period_rev'),
         func.count(distinct(OrderItem.order_id)).label('period_orders'),
     ).outerjoin(
         OrderItem, and_(
@@ -1547,7 +1547,7 @@ def analytics_products():
     ).filter(Product.is_active == True
     ).group_by(Product.id, Product.name, Product.stock_qty, Product.price,
                Product.view_count, Product.sales_count
-    ).order_by(func.sum(OrderItem.price * OrderItem.quantity).desc().nullslast()
+    ).order_by(func.sum(OrderItem.unit_price * OrderItem.quantity).desc().nullslast()
     ).limit(50).all()
 
     # Cart adds per product

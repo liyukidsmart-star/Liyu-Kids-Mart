@@ -1,4 +1,6 @@
-<!DOCTYPE html>
+import os
+
+store_app_html = '''<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -1863,9 +1865,7 @@
                 
                 const data = await res.json();
                 if (data.success) {
-                    alert(`Sale Completed Successfully!
-Total: ETB ${data.data.total}
-Items: ${data.data.items_count}`);
+                    alert(`Sale Completed Successfully!\nTotal: ETB ${data.data.total}\nItems: ${data.data.items_count}`);
                     posCart = [];
                     setPosDiscount(0, document.querySelector('.pos-discount-btn'));
                     renderPosCart();
@@ -2300,3 +2300,10 @@ Items: ${data.data.items_count}`);
     </script>
 </body>
 </html>
+'''
+
+target_path = r'c:\Users\dawit\Desktop\Liyu Kids Mart\app\templates\mini_app\store_app.html'
+with open(target_path, 'w', encoding='utf-8') as f:
+    f.write(store_app_html)
+
+print("Successfully written updated store_app.html!")
