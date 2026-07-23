@@ -26,13 +26,45 @@
 
   /* ── Floating Hint ─────────── */
   .map-hint {
-    position: absolute; top: 16px; left: 50%; transform: translateX(-50%); z-index: 500;
-    background: rgba(255,255,255,.9); color: #222; backdrop-filter: blur(8px);
-    border: 1px solid rgba(0,0,0,.08); box-shadow: 0 4px 16px rgba(0,0,0,.06);
-    border-radius: 100px; padding: 8px 20px; font-size: .78rem; font-weight: 700;
+    position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%); z-index: 500;
+    background: rgba(255,255,255,.95); color: #2D6A4F; backdrop-filter: blur(8px);
+    border: 1px solid rgba(45,106,79,.15); box-shadow: 0 4px 16px rgba(0,0,0,.08);
+    border-radius: 100px; padding: 10px 24px; font-size: .85rem; font-weight: 700;
     white-space: nowrap; pointer-events: none; transition: opacity .4s, transform .4s;
   }
-  .map-hint.hidden { opacity: 0; transform: translate(-50%, -10px); }
+  .map-hint.hidden { opacity: 0; transform: translate(-50%, 10px); }
+
+  /* ── Custom Search Bar ───────────────── */
+  .map-search-wrap {
+    position: absolute; top: 16px; left: 16px; right: 140px; z-index: 500;
+    background: #fff; border-radius: 12px;
+    box-shadow: 0 6px 20px rgba(0,0,0,.12);
+    display: flex; align-items: center; padding: 0 16px;
+    border: 1px solid rgba(0,0,0,.08); transition: all 0.3s;
+  }
+  .map-search-wrap i.fa-search { color: #2D6A4F; font-size: 1.1rem; }
+  .map-search-wrap input {
+    border: none; outline: none; padding: 14px 12px; width: 100%;
+    font-size: 0.95rem; font-weight: 600; color: #222; background: transparent;
+  }
+  .map-search-wrap input::placeholder { color: #888; font-weight: 500; }
+  .map-search-wrap:focus-within { box-shadow: 0 8px 25px rgba(45,106,79,.2); border-color: #2D6A4F; }
+  .map-search-results {
+    position: absolute; top: 100%; left: 0; right: 0; background: #fff;
+    border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,.15);
+    margin-top: 8px; overflow: hidden; display: none; flex-direction: column;
+    max-height: 250px; overflow-y: auto;
+  }
+  .map-search-results.active { display: flex; }
+  .map-search-item {
+    padding: 12px 16px; cursor: pointer; border-bottom: 1px solid #f0f0f0;
+    display: flex; align-items: center; gap: 12px; font-size: 0.9rem; color: #333; text-align: left;
+  }
+  .map-search-item:last-child { border-bottom: none; }
+  .map-search-item:hover { background: #f0f7f4; }
+  .map-search-item i { color: #2D6A4F; font-size: 1.2rem; width: 20px; text-align: center; }
+  .msi-main { font-weight: 700; color: #222; }
+  .msi-sub { font-size: 0.75rem; color: #666; margin-top: 2px; }
 
   /* ── Floating Price Card (Inside Map Bottom) ──── */
   .floating-price-card {
@@ -112,6 +144,13 @@
           <h5 class="checkout-section-title px-1"><i class="fas fa-map-pin me-2"></i>2. Pin Your Delivery Location</h5>
           <div class="map-wrap">
             <div id="deliveryMap"></div>
+            
+            <div class="map-search-wrap">
+              <i class="fas fa-search"></i>
+              <input type="text" id="mapSearchInput" placeholder="Search area, building, or landmark..." autocomplete="off">
+              <div class="map-search-results" id="mapSearchResults"></div>
+            </div>
+
             <div class="map-hint" id="mapHint">👆 Tap the map to set your exact location</div>
             <button type="button" class="map-locate-btn" id="locateBtn" onclick="locateMe()">
               <i class="fas fa-crosshairs"></i> Locate Me
@@ -208,11 +247,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
   /* ── Map ─────────────────────────────────────────────── */
   const map = L.map('deliveryMap', { zoomControl: false }).setView([9.02, 38.76], 12);
-  L.control.zoom({ position: 'topleft' }).addTo(map);
+  L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-  // Premium Light Tile: CartoDB Positron
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-    attribution: '© OpenStreetMap © CARTO', subdomains: 'abcd', maxZoom: 20
+  // High-Detail OpenStreetMap Tile
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors', maxZoom: 19
   }).addTo(map);
 
   /* ── Store marker ──────────────────────── */
@@ -365,7 +404,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const dist = getDistanceFromStore(lat, lng);
         
         const ll = L.latLng(lat, lng);
-        map.setView(ll, 15, { animate: true });
+        map.setView(ll, 16, { animate: true });
         setPin(ll);
       },
       () => {
@@ -377,6 +416,67 @@ document.addEventListener('DOMContentLoaded', function() {
       { timeout: 10000, enableHighAccuracy: true }
     );
   };
+
+  /* ── Custom Search Geocoding ────────────────────────── */
+  const mapSearchInput = document.getElementById('mapSearchInput');
+  const mapSearchResults = document.getElementById('mapSearchResults');
+  let searchTimeout;
+
+  mapSearchInput.addEventListener('input', function() {
+    clearTimeout(searchTimeout);
+    const q = this.value.trim();
+    if(q.length < 3) {
+      mapSearchResults.classList.remove('active');
+      return;
+    }
+    searchTimeout = setTimeout(async () => {
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&countrycodes=et&limit=5`);
+        const data = await res.json();
+        if(data && data.length > 0) {
+          mapSearchResults.innerHTML = data.map(item => {
+            const nameParts = item.display_name.split(',');
+            const mainName = nameParts[0];
+            const subName = nameParts.slice(1).join(',').trim();
+            return `
+              <div class="map-search-item" data-lat="${item.lat}" data-lon="${item.lon}">
+                <i class="fas fa-map-marker-alt"></i>
+                <div>
+                  <div class="msi-main">${mainName}</div>
+                  <div class="msi-sub">${subName}</div>
+                </div>
+              </div>
+            `;
+          }).join('');
+          mapSearchResults.classList.add('active');
+        } else {
+          mapSearchResults.innerHTML = '<div class="p-3 text-center text-muted small">No locations found</div>';
+          mapSearchResults.classList.add('active');
+        }
+      } catch(e) {
+        console.error('Search error', e);
+      }
+    }, 500);
+  });
+
+  mapSearchResults.addEventListener('click', function(e) {
+    const item = e.target.closest('.map-search-item');
+    if(item) {
+      const lat = parseFloat(item.dataset.lat);
+      const lon = parseFloat(item.dataset.lon);
+      const ll = L.latLng(lat, lon);
+      map.setView(ll, 17, { animate: true });
+      setPin(ll);
+      mapSearchResults.classList.remove('active');
+      mapSearchInput.value = item.querySelector('.msi-main').textContent;
+    }
+  });
+
+  document.addEventListener('click', function(e) {
+    if(!e.target.closest('.map-search-wrap')) {
+      mapSearchResults.classList.remove('active');
+    }
+  });
 
   /* ── Auto-locate on page load ─────────────────────────── */
   if (navigator.geolocation) {
