@@ -316,6 +316,21 @@ ul{list-style:none}
 .ck-locate-btn{position:absolute;top:10px;right:10px;z-index:500;background:#fff;border:1px solid rgba(0,0,0,.1);border-radius:10px;padding:8px 12px;font-size:.75rem;font-weight:700;color:var(--g);display:flex;align-items:center;gap:6px;cursor:pointer;box-shadow:0 3px 12px rgba(0,0,0,.12)}
 .ck-hint{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:500;background:rgba(255,255,255,.95);color:#222;backdrop-filter:blur(6px);border-radius:100px;padding:6px 14px;font-size:.7rem;font-weight:700;white-space:nowrap;pointer-events:none;transition:opacity .4s}
 .ck-hint.hidden{opacity:0}
+
+/* ── Custom Search Bar ───────────────── */
+.ck-map-search-wrap { position: absolute; top: 12px; left: 12px; right: 110px; z-index: 500; background: #fff; border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,.15); display: flex; align-items: center; padding: 0 12px; border: 1px solid rgba(0,0,0,.08); transition: all 0.3s; }
+.ck-map-search-wrap i.fa-search { color: var(--g); font-size: 1rem; }
+.ck-map-search-wrap input { border: none; outline: none; padding: 12px 10px; width: 100%; font-size: .85rem; font-weight: 600; color: #222; background: transparent; }
+.ck-map-search-wrap input::placeholder { color: #888; font-weight: 500; }
+.ck-map-search-wrap:focus-within { box-shadow: 0 6px 20px rgba(45,106,79,.2); border-color: var(--g); }
+.ck-map-search-results { position: absolute; top: 100%; left: 0; right: 0; background: #fff; border-radius: 10px; box-shadow: 0 6px 20px rgba(0,0,0,.15); margin-top: 6px; overflow: hidden; display: none; flex-direction: column; max-height: 220px; overflow-y: auto; }
+.ck-map-search-results.active { display: flex; }
+.ck-map-search-item { padding: 10px 12px; cursor: pointer; border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; gap: 10px; font-size: .8rem; color: #333; text-align: left; }
+.ck-map-search-item:last-child { border-bottom: none; }
+.ck-map-search-item:hover { background: var(--gp); }
+.ck-map-search-item i { color: var(--g); font-size: 1rem; width: 16px; text-align: center; }
+.ck-msi-main { font-weight: 700; color: #222; }
+.ck-msi-sub { font-size: .7rem; color: #666; margin-top: 2px; }
 .ck-fee-card{position:absolute;bottom:10px;left:10px;right:10px;z-index:500;background:rgba(255,255,255,.95);backdrop-filter:blur(10px);border:1px solid rgba(0,0,0,.08);border-radius:14px;padding:12px 14px;color:#222;display:flex;align-items:center;gap:12px;box-shadow:0 6px 20px rgba(0,0,0,.15);transition:background .3s}
 .ck-fee-card.idle{background:rgba(245,245,250,.95)}
 .ck-fee-card.error{background:#fff0f0;border-color:#ffcaca;color:#8B2020}
@@ -2647,9 +2662,9 @@ async function initCkMap(){
     const el=document.getElementById('ckMap');
     if(!el)return;
     ckMap=L.map('ckMap',{zoomControl:false}).setView([9.02,38.76],12);
-    L.control.zoom({position:'topleft'}).addTo(ckMap);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{
-      attribution:'© OSM © CARTO',subdomains:'abcd',maxZoom:20
+    L.control.zoom({position:'bottomright'}).addTo(ckMap);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{
+      attribution:'&copy; OpenStreetMap',maxZoom:19
     }).addTo(ckMap);
     const sdEl=document.createElement('div');
     sdEl.className='ck-store-dot';
@@ -2700,6 +2715,53 @@ function ckSetPin(latlng){
   if(hint)hint.classList.add('hidden');
   ckUpdateLocation(latlng.lat,latlng.lng);
 }
+
+let ckSearchTimeout;
+function ckDoMapSearch(q){
+  const resEl = document.getElementById('ckMapSearchResults');
+  if(!resEl) return;
+  q = q.trim();
+  if(q.length < 3) {
+    resEl.classList.remove('active');
+    return;
+  }
+  clearTimeout(ckSearchTimeout);
+  ckSearchTimeout = setTimeout(async ()=>{
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&countrycodes=et&limit=5`);
+      const data = await res.json();
+      if(data && data.length > 0){
+        resEl.innerHTML = data.map(item=>{
+          const pts = item.display_name.split(',');
+          return `<div class="ck-map-search-item" onclick="ckPickMapSearch(${item.lat}, ${item.lon}, '${pts[0].replace(/'/g,"\\'")}')">
+            <i class="fas fa-map-marker-alt"></i>
+            <div><div class="ck-msi-main">${pts[0]}</div><div class="ck-msi-sub">${pts.slice(1).join(',').trim()}</div></div>
+          </div>`;
+        }).join('');
+        resEl.classList.add('active');
+      } else {
+        resEl.innerHTML = '<div style="padding:10px;text-align:center;color:#888;font-size:.8rem">No locations found</div>';
+        resEl.classList.add('active');
+      }
+    } catch(e){}
+  }, 400);
+}
+function ckPickMapSearch(lat, lon, name){
+  const resEl = document.getElementById('ckMapSearchResults');
+  const input = document.getElementById('ckMapSearchInput');
+  if(resEl) resEl.classList.remove('active');
+  if(input) input.value = name;
+  if(!ckMap) return;
+  const ll = L.latLng(lat, lon);
+  ckMap.setView(ll, 17, {animate:true});
+  ckSetPin(ll);
+}
+document.addEventListener('click', e => {
+  if(!e.target.closest('.ck-map-search-wrap')){
+    const resEl = document.getElementById('ckMapSearchResults');
+    if(resEl) resEl.classList.remove('active');
+  }
+});
 
 function getDistFromStore(lat,lon){
   const R=6371;const dLat=(lat-CK_STORE_LAT)*Math.PI/180;const dLon=(lon-CK_STORE_LNG)*Math.PI/180;
@@ -2936,8 +2998,15 @@ function renderCK(){
       </div>
       <div class="ck-map-wrap" style="height:100vh;margin:0;border-radius:0;">
         <div id="ckMap"></div>
-        <div class="ck-hint" id="ckHint" style="top:60px">📍 ${tr('ck_tap_map')}</div>
-        <button type="button" class="ck-locate-btn" id="ckLocBtn" onclick="ckLocateMe()" style="top:60px">
+        
+        <div class="ck-map-search-wrap" style="top:50px">
+          <i class="fas fa-search"></i>
+          <input type="text" id="ckMapSearchInput" oninput="ckDoMapSearch(this.value)" onfocus="ckDoMapSearch(this.value)" placeholder="${curLang==='am'?'ቦታ ይፈልጉ...':'Search area, building...'}" autocomplete="off">
+          <div class="ck-map-search-results" id="ckMapSearchResults"></div>
+        </div>
+
+        <div class="ck-hint" id="ckHint" style="bottom:120px; top:auto; left:50%; transform:translateX(-50%)">📍 ${tr('ck_tap_map')}</div>
+        <button type="button" class="ck-locate-btn" id="ckLocBtn" onclick="ckLocateMe()" style="top:50px">
           <i class="fas fa-crosshairs"></i> ${tr('ck_locate')}
         </button>
         <div class="ck-fee-card idle" id="ckFeeCard" style="bottom:20px;">
