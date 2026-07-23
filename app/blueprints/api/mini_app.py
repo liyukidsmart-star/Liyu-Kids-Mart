@@ -492,7 +492,7 @@ def _notify_store_managers(order, order_items, addr, payment_method_str, discoun
     delivery_fee = float(order.delivery_fee)
     total = float(order.total)
 
-    store_url = f'{app_url}/telegram/store-app'
+    store_url = f'{app_url}/telegram/store-app?v=2'
 
     # Google Maps link for the delivery location
     maps_link = ''

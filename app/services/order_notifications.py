@@ -1,4 +1,4 @@
-﻿import logging
+import logging
 import os
 
 import httpx
@@ -68,7 +68,7 @@ def notify_store_managers(order, order_items, addr, payment_method_str, discount
     delivery_fee = float(order.delivery_fee)
     total = float(order.total)
 
-    store_url = f'{app_url}/telegram/store-app'
+    store_url = f'{app_url}/telegram/store-app?v=2'
     maps_link = ''
     if addr.lat and addr.lng and not is_regional:
         maps_link = f'\n🗺 <a href="https://maps.google.com/?q={addr.lat},{addr.lng}">View on Map</a>'
