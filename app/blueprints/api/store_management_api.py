@@ -1794,12 +1794,247 @@ def analytics_insights():
         ret_rate = round(ret_cust / all_buying_cust * 100, 1)
         if ret_rate < 20:
             recommendations.append(f"Returning customer rate is {ret_rate}%. Launch a loyalty promotion to bring customers back.")
+    # ── Daily visits for past 14 days chart ───────────────────────
+    daily_visits = []
+    try:
+        from zoneinfo import ZoneInfo
+        today_start_local = datetime.now(ZoneInfo('Africa/Addis_Ababa')).replace(hour=0, minute=0, second=0, microsecond=0)
+    except:
+        today_start_local = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    for i in range(13, -1, -1):
+        day_local = today_start_local - timedelta(days=i)
+        next_day_local = day_local + timedelta(days=1)
+        day_utc = day_local.astimezone(timezone.utc)
+        next_day_utc = next_day_local.astimezone(timezone.utc)
+        
+        visitors = db.session.query(func.count(distinct(
+            db.case((ActivityLog.user_id.isnot(None), db.cast(ActivityLog.user_id, db.String)), else_=ActivityLog.ip_address)
+        ))).filter(
+            ActivityLog.action == 'mini_app_visit',
+            ActivityLog.created_at >= day_utc,
+            ActivityLog.created_at < next_day_utc
+        ).scalar() or 0
+        
+        visits = db.session.query(func.count(ActivityLog.id)).filter(
+            ActivityLog.action == 'mini_app_visit',
+            ActivityLog.created_at >= day_utc,
+            ActivityLog.created_at < next_day_utc
+        ).scalar() or 0
+        
+        returning = db.session.query(func.count(distinct(ActivityLog.user_id))).join(User).filter(
+            User.role == UserRole.customer,
+            User.created_at < day_utc,
+            ActivityLog.action == 'mini_app_visit',
+            ActivityLog.created_at >= day_utc,
+            ActivityLog.created_at < next_day_utc
+        ).scalar() or 0
+        
+        daily_visits.append({
+            'date': day_local.strftime('%b %d'), 
+            'visitors': visitors,
+            'visits': visits,
+            'returning': returning
+        })
+
+    # ── Active Carts (Abandonment) ──────────────────────
+    from app.models.order import Cart
+    
+    raw_carts = db.session.query(
+        Cart.user_id,
+        Cart.session_id,
+        func.sum(Cart.quantity).label('total_items'),
+        func.max(Cart.added_at).label('last_active'),
+        func.sum(Cart.quantity * db.cast(Product.price, db.Numeric)).label('total_value')
+    ).join(Product, Cart.product_id == Product.id).group_by(
+        Cart.user_id, Cart.session_id
+    ).order_by(func.max(Cart.added_at).desc()).limit(100).all()
+
+    active_carts_data = []
+    active_user_ids = set()
+    
+    for uid, sid, qty, last_active, total_value in raw_carts:
+        if uid:
+            active_user_ids.add(uid)
+        user = db.session.get(User, uid) if uid else None
+        name = user.full_name if user else "Anonymous Visitor"
+        telegram_username = user.telegram_username if user and user.telegram_username else None
+        phone = user.phone if user and user.phone else None
+        
+        if uid:
+            cart_items = Cart.query.filter_by(user_id=uid).all()
+        else:
+            cart_items = Cart.query.filter_by(session_id=sid).all()
+            
+        products_detailed = []
+        for item in cart_items:
+            if item.product:
+                products_detailed.append({
+                    'name': item.product.name,
+                    'price': float(item.product.price),
+                    'qty': item.quantity,
+                    'image': item.product.primary_image()
+                })
+        
+        products_list = ", ".join(set([p['name'] for p in products_detailed]))
+        
+        if telegram_username:
+            identifier = f"@{telegram_username}"
+        elif user:
+            identifier = f"User #{user.id}"
+        else:
+            identifier = f"Session …{sid[-6:] if sid else '???'}"
+            
+        if isinstance(last_active, str):
+            try:
+                from datetime import datetime as _dt
+                last_active = _dt.fromisoformat(last_active.replace('Z', '+00:00'))
+            except Exception:
+                last_active = None
+        last_str = last_active.strftime('%b %d, %H:%M') if last_active else '—'
+        
+        active_carts_data.append({
+            'status': 'Live',
+            'name': name,
+            'identifier': identifier,
+            'telegram_username': telegram_username,
+            'telegram_id': user.telegram_id if user else None,
+            'phone': phone,
+            'total_items': int(qty or 0),
+            'total': float(total_value or 0),
+            'last_active': last_str,
+            'products_list': products_list,
+            'products_detailed': products_detailed
+        })
+
+    historical_logs = db.session.query(
+        ActivityLog.user_id,
+        ActivityLog.ip_address.label('session_id'),
+        func.max(ActivityLog.created_at).label('last_active')
+    ).filter(
+        ActivityLog.action == 'add_to_cart'
+    ).group_by(
+        ActivityLog.user_id, ActivityLog.ip_address
+    ).order_by(
+        func.max(ActivityLog.created_at).desc()
+    ).limit(50).all()
+
+    uids = [h.user_id for h in historical_logs if h.user_id and h.user_id not in active_user_ids]
+    sess_ids = [h.session_id for h in historical_logs if h.session_id]
+    
+    if uids or sess_ids:
+        from sqlalchemy import or_
+        logs_q = ActivityLog.query.filter(ActivityLog.action == 'add_to_cart')
+        if uids and sess_ids:
+            logs_q = logs_q.filter(or_(ActivityLog.user_id.in_(uids), ActivityLog.ip_address.in_(sess_ids)))
+        elif uids:
+            logs_q = logs_q.filter(ActivityLog.user_id.in_(uids))
+        elif sess_ids:
+            logs_q = logs_q.filter(ActivityLog.ip_address.in_(sess_ids))
+            
+        all_logs = logs_q.order_by(ActivityLog.created_at.desc()).all()
+        
+        users_map = {u.id: u for u in User.query.filter(User.id.in_(uids)).all()}
+        product_ids = list(set(log.entity_id for log in all_logs if log.entity_id))
+        products_map = {p.id: p for p in Product.query.filter(Product.id.in_(product_ids)).all()}
+        
+        logs_by_entity = {}
+        for log in all_logs:
+            key = f"user_{log.user_id}" if log.user_id else f"session_{log.ip_address}"
+            if key not in logs_by_entity:
+                logs_by_entity[key] = []
+            if len(logs_by_entity[key]) < 20: 
+                logs_by_entity[key].append(log)
+                
+        for h in historical_logs:
+            uid = h.user_id
+            sess_id = h.session_id
+            last_active = h.last_active
+            
+            if uid in active_user_ids:
+                continue
+                
+            key = f"user_{uid}" if uid else f"session_{sess_id}"
+            user_logs = logs_by_entity.get(key, [])
+            if not user_logs:
+                continue
+                
+            hist_products = {}
+            for log in user_logs:
+                if log.entity_id and log.entity_id not in hist_products:
+                    prod = products_map.get(log.entity_id)
+                    if prod:
+                        qty_raw = log.get_meta().get('qty', 1) if log.meta else 1
+                        try:
+                            qty = int(qty_raw)
+                        except:
+                            qty = 1
+                        hist_products[prod.id] = {
+                            'name': prod.name,
+                            'price': float(prod.price),
+                            'qty': qty,
+                            'image': prod.primary_image()
+                        }
+            
+            if not hist_products:
+                continue
+                
+            products_detailed = list(hist_products.values())
+            products_list = ", ".join([p['name'] for p in products_detailed])
+            total_val = sum([p['price'] * p['qty'] for p in products_detailed])
+            total_items = sum([p['qty'] for p in products_detailed])
+            
+            user = users_map.get(uid)
+            if user:
+                name = user.full_name
+                telegram_username = user.telegram_username
+                phone = user.phone
+                if telegram_username:
+                    identifier = f"@{telegram_username}"
+                else:
+                    identifier = f"User #{user.id}"
+            else:
+                name = "Anonymous User"
+                telegram_username = None
+                phone = None
+                identifier = f"Session: {sess_id[:8]}..." if sess_id else "Guest"
+                
+            if isinstance(last_active, str):
+                try:
+                    from datetime import datetime as _dt
+                    last_active = _dt.fromisoformat(last_active.replace('Z', '+00:00'))
+                except Exception:
+                    last_active = None
+            last_str = last_active.strftime('%b %d, %H:%M') if last_active else '—'
+            
+            active_carts_data.append({
+                'status': 'Abandoned',
+                'name': name,
+                'identifier': identifier,
+                'telegram_username': telegram_username,
+                'telegram_id': user.telegram_id if user else None,
+                'phone': phone,
+                'total_items': int(total_items),
+                'total': float(total_val),
+                'last_active': last_str,
+                'products_list': products_list,
+                'products_detailed': products_detailed
+            })
+        
+    def _parse_time(d):
+        try:
+            return datetime.strptime(d['last_active'], '%b %d, %H:%M')
+        except:
+            return datetime.min
+    active_carts_data.sort(key=_parse_time, reverse=True)
+    active_carts_data = active_carts_data[:150]
 
     return success_response({
         'insights': insights,
         'warnings': warnings,
         'recommendations': recommendations,
         'generated_at': datetime.now(timezone.utc).isoformat(),
+        'daily_visits': daily_visits,
+        'active_carts': active_carts_data,
     })
 
 

@@ -641,6 +641,38 @@
 
         <!-- SUBTAB: INSIGHTS -->
         <div id="citab-insights" class="ci-tab-content" style="display: none;">
+            <!-- Daily Visits Line Chart -->
+            <div class="chart-card">
+                <div class="chart-card-header">
+                    <h6><i class="fas fa-chart-line" style="color:#3b82f6"></i> Daily Mini App Visits (14 days)</h6>
+                </div>
+                <div class="chart-body" style="height:220px">
+                    <canvas id="miniAppVisitsChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Active & Abandoned Carts -->
+            <div class="chart-card">
+                <div class="chart-card-header">
+                    <h6><i class="fas fa-shopping-cart" style="color:#059669"></i> Active &amp; Abandoned Carts</h6>
+                </div>
+                <div class="chart-body" style="padding: 0;">
+                    <div style="max-height: 300px; overflow-y: auto;">
+                        <table class="table admin-table mb-0" style="border-collapse: separate; border-spacing: 0; font-size: 0.8rem; width: 100%;">
+                            <thead style="position: sticky; top: 0; background: white; z-index: 10; text-align: left;">
+                                <tr>
+                                    <th style="padding: 8px;">User</th>
+                                    <th style="padding: 8px;">Cart Info</th>
+                                </tr>
+                            </thead>
+                            <tbody id="activeCartsBody">
+                                <tr><td colspan="2" class="text-center py-3 text-muted">Loading carts...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
             <div class="chart-card">
                 <div class="chart-card-header">
                     <h6><i class="fas fa-lightbulb" style="color:#f59e0b"></i> Key Insights</h6>
@@ -2267,6 +2299,80 @@ Items: ${data.data.items_count}`);
             const p1 = document.getElementById('insightsPanel');
             const p2 = document.getElementById('warningsPanel');
             const p3 = document.getElementById('recommendationsPanel');
+
+            if (d.daily_visits && d.daily_visits.length > 0) {
+                const ctx = document.getElementById('miniAppVisitsChart');
+                if(ctx && !window.miniAppVisitsChartInstance) {
+                    window.miniAppVisitsChartInstance = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: d.daily_visits.map(v => v.date),
+                            datasets: [
+                                {
+                                    label: 'Unique Visitors',
+                                    data: d.daily_visits.map(v => v.visitors),
+                                    borderColor: '#3b82f6',
+                                    backgroundColor: 'rgba(59,130,246,0.1)',
+                                    tension: 0.4,
+                                    fill: true
+                                },
+                                {
+                                    label: 'Total Visits',
+                                    data: d.daily_visits.map(v => v.visits),
+                                    borderColor: '#94a3b8',
+                                    borderDash: [5,5],
+                                    fill: false,
+                                    hidden: true
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: false }
+                            },
+                            scales: {
+                                y: { beginAtZero: true, grid: { color: '#f1f5f9' } },
+                                x: { grid: { display: false } }
+                            }
+                        }
+                    });
+                }
+            }
+
+            if (d.active_carts) {
+                const tbody = document.getElementById('activeCartsBody');
+                if(tbody) {
+                    if(d.active_carts.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="2" class="text-center py-3 text-muted">No active carts found.</td></tr>';
+                    } else {
+                        tbody.innerHTML = d.active_carts.map(c => {
+                            const badgeColor = c.status === 'Live' ? '#059669' : '#6b7280';
+                            return `<tr>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;">
+                                    <div class="fw-600">${c.name}</div>
+                                    <div style="font-size:.7rem;color:var(--muted)">${c.identifier}</div>
+                                    ${c.phone ? `<div style="font-size:.7rem;color:var(--muted);margin-top:2px;"><i class="fas fa-phone"></i> ${c.phone}</div>` : ''}
+                                </td>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee;">
+                                    <div>
+                                        <span class="badge" style="background:${badgeColor};color:white;font-size:.65rem;padding:2px 4px;">${c.status}</span>
+                                        <span style="font-size:.7rem;font-weight:600;margin-left:4px;">${c.total_items} items (${c.total.toLocaleString()} ETB)</span>
+                                    </div>
+                                    <div style="font-size:.65rem;color:var(--muted);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px;">
+                                        ${c.products_list}
+                                    </div>
+                                    <div style="font-size:.65rem;color:var(--muted);margin-top:2px;">
+                                        ${c.last_active}
+                                    </div>
+                                </td>
+                            </tr>`;
+                        }).join('');
+                    }
+                }
+            }
+
             if (p1) p1.innerHTML = renderInsightsList(d.insights, 'info');
             if (p2) p2.innerHTML = renderInsightsList(d.warnings, 'warn');
             if (p3) p3.innerHTML = renderInsightsList(d.recommendations, 'rec');
