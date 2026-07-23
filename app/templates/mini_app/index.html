@@ -2767,6 +2767,19 @@ function ckPickMapSearch(lat, lon, name){
   ckMap.setView(ll, 17, {animate:true});
   ckSetPin(ll);
 }
+function ckMapSearchFocus(el) {
+  ckDoMapSearch(el.value);
+  const fc = document.getElementById('ckFeeCard');
+  if(fc) fc.style.display = 'none';
+  const sr = document.getElementById('ckMapSearchResults');
+  if(sr) sr.style.maxHeight = '40vh'; 
+}
+function ckMapSearchBlur(el) {
+  setTimeout(() => {
+    const fc = document.getElementById('ckFeeCard');
+    if(fc) fc.style.display = 'flex';
+  }, 200);
+}
 document.addEventListener('click', e => {
   if(!e.target.closest('.ck-map-search-wrap')){
     const resEl = document.getElementById('ckMapSearchResults');
@@ -3003,21 +3016,18 @@ function renderCK(){
     document.getElementById('chkBody').style.padding='0';
     document.getElementById('chkBody').style.height='100%';
     document.getElementById('chkBody').innerHTML=`
-      <div style="position:absolute;top:10px;left:10px;z-index:600;background:#fff;border-radius:10px;box-shadow:0 3px 12px rgba(0,0,0,.15);display:flex;align-items:center;padding:4px 10px;gap:6px">
-        <button onclick="backToDestination()" style="background:transparent;border:none;font-size:1.1rem;color:var(--g);padding:4px"><i class="fas fa-arrow-left"></i></button>
-        <span style="font-weight:800;font-size:.9rem">${tr('ck_pin')}</span>
-      </div>
       <div class="ck-map-wrap" style="height:100vh;margin:0;border-radius:0;">
         <div id="ckMap"></div>
         
-        <div class="ck-map-search-wrap" style="top:50px; left:12px; right:150px;">
-          <i class="fas fa-search"></i>
-          <input type="text" id="ckMapSearchInput" oninput="ckDoMapSearch(this.value)" onfocus="ckDoMapSearch(this.value)" placeholder="${curLang==='am'?'ቦታ ይፈልጉ...':'Search area, building...'}" autocomplete="off">
-          <div class="ck-map-search-results" id="ckMapSearchResults"></div>
+        <div class="ck-map-search-wrap" style="top:12px; left:12px; right:12px; z-index:600;">
+          <button onclick="backToDestination()" style="background:transparent;border:none;font-size:1.2rem;color:var(--g);padding:4px 10px 4px 4px;margin-right:4px;"><i class="fas fa-arrow-left"></i></button>
+          <input type="text" id="ckMapSearchInput" oninput="ckDoMapSearch(this.value)" onfocus="ckMapSearchFocus(this)" onblur="ckMapSearchBlur(this)" placeholder="${curLang==='am'?'ቦታ ይፈልጉ...':'Search area, building...'}" autocomplete="off">
+          <i class="fas fa-search" style="margin-left:auto;font-size:1.2rem;color:var(--g);"></i>
+          <div class="ck-map-search-results" id="ckMapSearchResults" style="z-index:999;"></div>
         </div>
 
         <div class="ck-hint" id="ckHint" style="bottom:120px; top:auto; left:50%; transform:translateX(-50%)">📍 ${tr('ck_tap_map')}</div>
-        <button type="button" class="ck-locate-btn" id="ckLocBtn" onclick="ckLocateMe()" style="top:50px; right:12px;">
+        <button type="button" class="ck-locate-btn" id="ckLocBtn" onclick="ckLocateMe()" style="top:74px; right:12px;">
           <i class="fas fa-crosshairs"></i> ${tr('ck_locate')}
         </button>
         <div class="ck-fee-card idle" id="ckFeeCard" style="bottom:20px;">
