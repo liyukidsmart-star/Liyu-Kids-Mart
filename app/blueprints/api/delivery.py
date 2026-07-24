@@ -100,7 +100,7 @@ def calculate_price():
         price = 200
     else:
         extra_km = distance - 5
-        price = 200 + (extra_km * 27)
+        price = 200 + (extra_km * 40)
 
     return success_response({
         'distance_km': round(distance, 2),
