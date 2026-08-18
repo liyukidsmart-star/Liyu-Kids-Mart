@@ -171,11 +171,37 @@ def _channel_id(override: Optional[str] = None) -> str:
     )
 
 
+import re
+
 def _truncate(text: str, limit: int) -> str:
     text = (text or '').strip()
     if len(text) <= limit:
         return text
-    return text[: max(0, limit - 1)].rstrip() + '?'
+        
+    truncated = text[: max(0, limit - 1)].rstrip()
+    
+    # Fix broken entities at the end
+    truncated = re.sub(r'&[^;\s]*$', '', truncated)
+    
+    # Fix broken tags at the end
+    truncated = re.sub(r'<[^>]*$', '', truncated)
+    
+    truncated += '?'
+    
+    opened_tags = []
+    for match in re.finditer(r'</?([a-z]+)[^>]*>', truncated, re.IGNORECASE):
+        tag_str = match.group(0)
+        tag_name = match.group(1).lower()
+        if tag_str.startswith('</'):
+            if opened_tags and opened_tags[-1] == tag_name:
+                opened_tags.pop()
+        else:
+            opened_tags.append(tag_name)
+            
+    for tag in reversed(opened_tags):
+        truncated += f'</{tag}>'
+        
+    return truncated
 
 
 def _absolute_url(url: str) -> str:
