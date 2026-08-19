@@ -9,8 +9,7 @@ def _config_value(name: str, default: str = '') -> str:
     return os.getenv(name, default).strip()
 
 def image_cdn_base_url() -> str:
-    # Temporarily bypassed Cloudflare Worker since it's returning 503
-    return _config_value('IMAGE_CDN_BASE_URL', '').rstrip('/')
+    return _config_value('IMAGE_CDN_BASE_URL', 'https://liyu-kids-mart.liyukidsmart.workers.dev').rstrip('/')
 
 def looks_like_telegram_file_id(value: str) -> bool:
     value = (value or '').strip()
