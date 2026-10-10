@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#2d6a4f">
+  <title>Liyu Kids Mart — Mini App Shut Down</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; min-height: 100dvh; background: #f8f6f1; color: #24352d; font-family: system-ui, "Nyala", "Noto Sans Ethiopic", sans-serif; padding: max(24px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom)); }
+    main { max-width: 560px; margin: 0 auto; }
+    .brand { text-align: center; color: #2d6a4f; font-weight: 750; letter-spacing: .04em; margin: 8px 0 24px; }
+    .notice { background: white; border: 1px solid #e6e9e3; border-radius: 24px; padding: clamp(22px, 6vw, 36px); box-shadow: 0 10px 32px #24352d0a; }
+    .icon { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 18px; background: #fff1e9; color: #a34622; margin-bottom: 20px; }
+    .label { color: #a34622; text-transform: uppercase; letter-spacing: .08em; font-size: 12px; font-weight: 750; }
+    h1 { font-size: clamp(26px, 7vw, 34px); line-height: 1.2; margin: 10px 0 18px; }
+    h2 { font-size: 24px; margin: 8px 0 16px; line-height: 1.5; }
+    p { font-size: 16px; line-height: 1.75; margin: 0 0 16px; color: #4c5d54; overflow-wrap: anywhere; }
+    .instruction { background: #f1f7f2; padding: 16px; border-radius: 12px; color: #274c39; }
+    .amharic { border-top: 1px solid #e6e9e3; margin-top: 26px; padding-top: 24px; }
+    .contact { margin-top: 24px; padding: 24px; border-radius: 20px; background: #e9f2ea; }
+    .contact h2 { font-size: 19px; margin-top: 0; }
+    .call { display: block; text-align: center; background: #2d6a4f; color: white; padding: 16px 12px; border-radius: 12px; text-decoration: none; font-size: 17px; font-weight: 700; line-height: 1.6; }
+    .call:focus-visible { outline: 3px solid #a34622; outline-offset: 4px; }
+    .call:hover { background: #22543d; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="brand">LIYU KIDS MART</div>
+    <article class="notice" aria-labelledby="shutdown-title">
+      <div class="icon" aria-hidden="true">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 3v9M6.3 5.8a9 9 0 1 0 11.4 0"/></svg>
+      </div>
+      <span class="label">Service announcement</span>
+      <h1 id="shutdown-title">Mini app permanently shut down</h1>
+      <p>The Liyu Kids Mart mini app has been permanently shut down due to internal conflicts.</p>
+      <p class="instruction">Please call the shop owner directly for orders and enquiries using the owner's existing contact number until we resolve the issue with the owner.</p>
+      <p>Thank you for your understanding.</p>
+      <section class="amharic" lang="am" aria-labelledby="shutdown-title-am">
+        <span class="label">የአገልግሎት ማስታወቂያ</span>
+        <h2 id="shutdown-title-am">ሚኒ አፑ በቋሚነት ተዘግቷል</h2>
+        <p>የልዩ ኪድስ ማርት ሚኒ አፕ በውስጣዊ አለመግባባቶች ምክንያት በቋሚነት ተዘግቷል።</p>
+        <p class="instruction">ከሱቁ ባለቤት ጋር ያለውን ጉዳይ እስክንፈታ ድረስ፣ ለትዕዛዝ እና ለጥያቄዎች እባክዎ በባለቤቱ ነባር የስልክ ቁጥር በቀጥታ ይደውሉ።</p>
+        <p>ስለተረዱን እናመሰግናለን።</p>
+      </section>
+    </article>
+    <section class="contact" aria-labelledby="contact-title">
+      <h2 id="contact-title">Want a mini app for your shop?</h2>
+      <p>For mini app development enquiries, contact us at <strong>0990171738</strong>.</p>
+      <p lang="am">ለሱቅዎ ሚኒ አፕ ይፈልጋሉ? ሚኒ አፕ ለማስሰራት በ<strong>0990171738</strong> ያግኙን።</p>
+      <a class="call" href="tel:+251990171738">Call 0990171738 · <span lang="am">ይደውሉ</span></a>
+    </section>
+  </main>
+</body>
+</html>
