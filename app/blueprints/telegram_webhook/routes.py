@@ -234,11 +234,6 @@ def status():
 # -- MINI APP --
 @telegram_bp.route('/mini-app')
 def mini_app():
-    if current_app.config.get('MINI_APP_SHUTDOWN_NOTICE', True):
-        response = current_app.make_response(render_template('mini_app/shutdown.html'))
-        response.headers['Cache-Control'] = 'no-store'
-        return response
-
     from app.blueprints.api.mini_app import get_mini_app_bootstrap_data
     try:
         initial_bootstrap = get_mini_app_bootstrap_data()

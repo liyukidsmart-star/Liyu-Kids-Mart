@@ -37,8 +37,6 @@ class Config:
 
     APP_URL = os.getenv('APP_URL', 'http://localhost:5000')
     MINI_APP_URL = os.getenv('MINI_APP_URL', 'http://localhost:5000/mini-app')
-    # Keep the storefront intact; disable this notice to restore customer access.
-    MINI_APP_SHUTDOWN_NOTICE = os.getenv('MINI_APP_SHUTDOWN_NOTICE', 'true').lower() in ('true', '1', 'yes')
     IMAGE_CDN_BASE_URL = os.getenv('IMAGE_CDN_BASE_URL', '').strip().rstrip('/')
     TELEGRAM_MINI_APP_SHORT_NAME = os.getenv('TELEGRAM_MINI_APP_SHORT_NAME', '')
 
